@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Command *)",
+      "Bash(npm create *)",
+      "PowerShell(npm create vite@latest \"C:\\\\Users\\\\ah200\\\\interview-crm\" -- --template react-ts 2>&1 | Select-Object -Last 20)",
+      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\nodejs\"; node --version; npm --version)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
