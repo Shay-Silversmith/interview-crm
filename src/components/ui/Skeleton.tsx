@@ -7,7 +7,17 @@ interface SkeletonProps {
 export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
-      className={cn('animate-pulse rounded-lg bg-slate-100', className)}
+      className={cn(
+        // Base colour
+        'rounded-lg bg-slate-100',
+        // Left-to-right shimmer: a semi-transparent white highlight sweeps
+        // across the slate-100 base. background-size 200% allows the gradient
+        // to be wider than the element so it visibly travels.
+        'bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent)]',
+        'bg-[length:200%_100%]',
+        'animate-shimmer',
+        className
+      )}
       aria-hidden="true"
     />
   )

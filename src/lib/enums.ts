@@ -7,6 +7,7 @@ export type ApplicationStage =
   | 'Manager Interview'
   | 'Final Interview'
   | 'Offer'
+  | 'Negotiating'
   | 'Rejected'
   | 'Accepted'
   | 'Withdrawn'

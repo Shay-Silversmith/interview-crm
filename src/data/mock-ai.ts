@@ -16,7 +16,7 @@ export const mockAISummaries: AISummary[] = [
       recentNews: 'AWS re:Invent 2025 announcements: new Redshift Serverless capabilities, Amazon Q for data engineering workflows, expanded Bedrock foundation model offerings.',
       interviewTips: 'Every interview question can and should be answered through a Leadership Principle lens. Prepare 2 STAR stories per LP. The bar-raiser will challenge you on depth — be ready to "Dive Deep" into specifics. Avoid vague answers.',
       redFlags: 'Work-life balance concerns are common in Glassdoor reviews. Amazon Israel is smaller and more autonomous than US offices, which can be positive for students.',
-      fitAssessment: 'Strong fit for Amir. Unit 9900 GIS/data work directly maps to AWS data platform work. LP stories around "Dive Deep" and "Invent and Simplify" are authentic and strong.',
+      fitAssessment: 'Strong fit for Shay. Unit 9900 GIS/data work directly maps to AWS data platform work. LP stories around "Dive Deep" and "Invent and Simplify" are authentic and strong.',
     },
     isMocked: true,
     createdAt: '2026-04-20T14:00:00Z',
@@ -96,7 +96,7 @@ I enjoyed the process and it confirmed my genuine excitement about the product p
 Looking forward to your feedback and to the next steps.
 
 Best,
-Amir`,
+Shay`,
       tone: 'Professional but warm. Shows product thinking without being over-eager.',
     },
     isMocked: true,

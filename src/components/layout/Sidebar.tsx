@@ -6,45 +6,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { ROUTES } from '@/lib/constants'
-
-interface NavItem {
-  label: string
-  to: string
-  icon: React.ElementType
-  badge?: string
-}
-
-const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
-  {
-    items: [
-      { label: 'Dashboard', to: ROUTES.dashboard, icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: 'Pipeline',
-    items: [
-      { label: 'Applications', to: ROUTES.applications, icon: Briefcase },
-      { label: 'Board', to: ROUTES.applicationBoard, icon: KanbanSquare },
-      { label: 'Companies', to: ROUTES.companies, icon: Building2 },
-    ],
-  },
-  {
-    label: 'Work',
-    items: [
-      { label: 'Tasks', to: ROUTES.tasks, icon: CheckSquare },
-      { label: 'Calendar', to: ROUTES.calendar, icon: Calendar },
-      { label: 'Contacts', to: ROUTES.contacts, icon: Users },
-      { label: 'Documents', to: ROUTES.documents, icon: FileText },
-    ],
-  },
-  {
-    label: 'Prep & AI',
-    items: [
-      { label: 'Interview Prep', to: ROUTES.prep, icon: BookOpen },
-      { label: 'AI Tools', to: ROUTES.ai, icon: Sparkles },
-    ],
-  },
-]
+import { useI18n } from '@/hooks/useI18n'
 
 interface SidebarProps {
   onClose?: () => void
@@ -53,21 +15,60 @@ interface SidebarProps {
 
 export function Sidebar({ onClose, mobile }: SidebarProps) {
   const location = useLocation()
+  const { t } = useI18n()
+
+  // Nav groups are computed inside the component so labels update on locale change.
+  const NAV_GROUPS = [
+    {
+      items: [
+        { label: t('nav.dashboard'), to: ROUTES.dashboard, icon: LayoutDashboard },
+      ],
+    },
+    {
+      label: t('nav.groupPipeline'),
+      items: [
+        { label: t('nav.applications'), to: ROUTES.applications,   icon: Briefcase },
+        { label: t('nav.board'),        to: ROUTES.applicationBoard, icon: KanbanSquare },
+        { label: t('nav.companies'),    to: ROUTES.companies,       icon: Building2 },
+      ],
+    },
+    {
+      label: t('nav.groupWork'),
+      items: [
+        { label: t('nav.tasks'),     to: ROUTES.tasks,     icon: CheckSquare },
+        { label: t('nav.calendar'),  to: ROUTES.calendar,  icon: Calendar },
+        { label: t('nav.contacts'),  to: ROUTES.contacts,  icon: Users },
+        { label: t('nav.documents'), to: ROUTES.documents, icon: FileText },
+      ],
+    },
+    {
+      label: t('nav.groupPrepAi'),
+      items: [
+        { label: t('nav.prep'), to: ROUTES.prep, icon: BookOpen },
+        { label: t('nav.ai'),   to: ROUTES.ai,   icon: Sparkles },
+      ],
+    },
+  ]
 
   return (
     <aside
       className={cn(
-        'flex flex-col h-full bg-white border-r border-slate-200',
-        mobile ? 'w-full' : 'w-60'
+        // border-e = border-inline-end: right in LTR, left in RTL
+        // so the dividing line always faces the main content area.
+        'flex flex-col h-full bg-white border-e border-slate-200',
+        mobile ? 'w-full' : 'w-60',
       )}
     >
       {/* Logo */}
       <div className="flex items-center justify-between h-14 px-4 border-b border-slate-100 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center">
-            <ChevronRight className="w-4 h-4 text-white" strokeWidth={2.5} />
+            {/* rtl:rotate-180 flips the chevron to point left in RTL */}
+            <ChevronRight className="w-4 h-4 text-white rtl:rotate-180" strokeWidth={2.5} />
           </div>
-          <span className="text-sm font-bold text-slate-900 tracking-tight">InterviewFlow</span>
+          <span className="text-sm font-bold text-slate-900 tracking-tight">
+            InterviewFlow
+          </span>
         </div>
         {mobile && onClose && (
           <button
@@ -104,7 +105,7 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
                         'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                         isActive
                           ? 'bg-primary-50 text-primary-700'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800',
                       )}
                     >
                       <item.icon
@@ -120,7 +121,7 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Bottom */}
+      {/* Bottom: Settings + user chip */}
       <div className="p-3 border-t border-slate-100 shrink-0">
         <NavLink
           to={ROUTES.settings}
@@ -130,19 +131,19 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
               'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
               isActive
                 ? 'bg-primary-50 text-primary-700'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800',
             )
           }
         >
           <Settings className="w-4 h-4 text-slate-400" />
-          Settings
+          {t('nav.settings')}
         </NavLink>
         <div className="flex items-center gap-2.5 px-3 py-2 mt-1">
           <div className="w-7 h-7 rounded-full bg-primary-100 flex items-center justify-center text-xs font-bold text-primary-700 shrink-0">
-            AH
+            SS
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-slate-800 truncate">Amir Haddad</p>
+            <p className="text-xs font-medium text-slate-800 truncate">Shay Silversmith</p>
             <p className="text-2xs text-slate-400 truncate">3rd year · BGU</p>
           </div>
         </div>

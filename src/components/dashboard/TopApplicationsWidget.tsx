@@ -5,6 +5,7 @@ import { StageBadge } from '@/components/ui/Badge'
 import { ScoreRing } from '@/components/ui/ScoreRing'
 import { CompanyLogo } from '@/components/ui/Avatar'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useI18n } from '@/hooks/useI18n'
 import type { JobApplication } from '@/types'
 
 interface Props {
@@ -12,16 +13,23 @@ interface Props {
 }
 
 export function TopApplicationsWidget({ applications }: Props) {
+  const { t } = useI18n()
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Priority Applications</CardTitle>
+        <CardTitle>{t('pages.dashboard.priorityApplications')}</CardTitle>
         <Link to="/applications" className="text-xs text-primary-600 hover:underline font-medium">
-          View all
+          {t('common.viewAll')}
         </Link>
       </CardHeader>
       {applications.length === 0 ? (
-        <EmptyState icon={Briefcase} title="No active applications" description="Add your first application to get started." className="py-8" />
+        <EmptyState
+          icon={Briefcase}
+          title={t('pages.dashboard.noActiveApplications')}
+          description={t('pages.dashboard.noActiveApplicationsSub')}
+          className="py-8"
+        />
       ) : (
         <ul className="space-y-3">
           {applications.map(app => (
@@ -30,7 +38,7 @@ export function TopApplicationsWidget({ applications }: Props) {
                 to={`/applications/${app.id}`}
                 className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
               >
-                <CompanyLogo name={app.companyName} size="sm" />
+                <CompanyLogo name={app.companyName} size="sm" logoUrl={app.companyLogoUrl} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 truncate">{app.roleName}</p>
                   <p className="text-xs text-slate-500">{app.companyName}</p>

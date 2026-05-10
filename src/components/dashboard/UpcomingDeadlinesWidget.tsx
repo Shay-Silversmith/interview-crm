@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { EventTypeBadge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, formatTime, daysUntil } from '@/utils/date'
+import { useI18n } from '@/hooks/useI18n'
 import { cn } from '@/lib/cn'
 import type { CalendarEvent } from '@/types'
 
@@ -11,14 +12,21 @@ interface Props {
 }
 
 export function UpcomingDeadlinesWidget({ events }: Props) {
+  const { t } = useI18n()
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Upcoming Deadlines</CardTitle>
-        <span className="text-xs text-slate-400">Next 7 days</span>
+        <CardTitle>{t('pages.dashboard.upcomingDeadlines')}</CardTitle>
+        <span className="text-xs text-slate-400">{t('pages.dashboard.next7Days')}</span>
       </CardHeader>
       {events.length === 0 ? (
-        <EmptyState icon={Clock} title="No upcoming deadlines" description="Nothing due in the next 7 days." className="py-8" />
+        <EmptyState
+          icon={Clock}
+          title={t('pages.dashboard.noUpcomingDeadlines')}
+          description={t('pages.dashboard.noUpcomingDeadlinesSub')}
+          className="py-8"
+        />
       ) : (
         <ul className="space-y-3">
           {events.slice(0, 5).map(event => {
@@ -35,13 +43,13 @@ export function UpcomingDeadlinesWidget({ events }: Props) {
                       : 'bg-slate-100 text-slate-600'
                   )}
                 >
-                  {days === 0 ? 'Now' : `${days}d`}
+                  {days === 0 ? t('pages.dashboard.now') : `${days}d`}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 leading-snug truncate">
                     {event.title}
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-400 mt-0.5 force-ltr">
                     {formatDate(event.startAt)} · {formatTime(event.startAt)}
                     {event.companyName && ` · ${event.companyName}`}
                   </p>

@@ -22,9 +22,10 @@ export function stageSortOrder(stage: ApplicationStage): number {
     'Manager Interview': 5,
     'Final Interview': 6,
     Offer: 7,
-    Accepted: 8,
-    Rejected: 9,
-    Withdrawn: 10,
+    Negotiating: 8,
+    Accepted: 9,
+    Rejected: 10,
+    Withdrawn: 11,
   }
   return order[stage] ?? 99
 }

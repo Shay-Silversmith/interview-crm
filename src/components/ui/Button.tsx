@@ -12,8 +12,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<Variant, string> = {
+  // Subtle linear gradient gives the primary button visual depth.
+  // hover:brightness-110 lifts it without a layout-shifting scale.
+  // Disabled state inherits opacity-50 but keeps the gradient (still looks intentional).
   primary:
-    'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 focus-visible:ring-primary-500 shadow-sm',
+    'bg-primary-gradient text-white hover:brightness-110 active:brightness-90 focus-visible:ring-primary-500 shadow-sm',
   secondary:
     'bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300 focus-visible:ring-slate-400',
   ghost:
@@ -45,7 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          'inline-flex items-center justify-center font-medium transition-colors',
+          'inline-flex items-center justify-center font-medium transition-all duration-150',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1',
           'disabled:opacity-50 disabled:cursor-not-allowed',
           variantStyles[variant],

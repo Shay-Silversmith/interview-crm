@@ -27,8 +27,36 @@
   }
 }
 
+/* Shimmer animation for skeleton loading states.
+   Also defined in tailwind.config keyframes — this CSS block ensures the
+   @keyframes rule is present even if Tailwind tree-shakes the utility. */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
 @layer utilities {
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Force left-to-right rendering inside an RTL document.
+     Apply to technical text (backend pill, search input, file names, etc.)
+     that must never mirror in Hebrew mode. */
+  .force-ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* Subtle dot-grid background pattern for hero surfaces.
+     Direction-agnostic: the radial gradient is symmetric and renders
+     identically in LTR and RTL layouts. */
+  .dot-grid-bg {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgb(0 0 0 / 0.04) 1px,
+      transparent 0
+    );
+    background-size: 20px 20px;
   }
 }

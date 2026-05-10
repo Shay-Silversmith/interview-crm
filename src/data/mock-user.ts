@@ -2,8 +2,9 @@ import type { UserProfile } from '@/types'
 
 export const mockUser: UserProfile = {
   id: 'user-1',
-  name: 'Amir Haddad',
-  email: 'ah20002@gmail.com',
+  name: 'Shay Silversmith',
+  preferredName: 'Shay',
+  email: 'shay@interviewflow.local',
   phone: '+972-50-123-4567',
   location: 'Tel Aviv, Israel',
   university: 'Ben-Gurion University of the Negev',
@@ -11,8 +12,8 @@ export const mockUser: UserProfile = {
   year: 3,
   unit: 'Unit 9900 (Intelligence Corps)',
   bio: 'Third-year Information Systems Engineering student with experience in GIS, data analysis, and AI systems. IDF veteran from Unit 9900 with strong analytical and cross-functional collaboration skills. Passionate about building data-driven products.',
-  linkedinUrl: 'https://linkedin.com/in/amir-haddad',
-  githubUrl: 'https://github.com/ah20002',
+  linkedinUrl: 'https://linkedin.com/in/shay-silversmith',
+  githubUrl: 'https://github.com/shaysilver',
   targetRoles: ['Product Manager Student', 'Project Manager Student', 'Data Engineer Intern', 'AI Product Manager'],
   targetIndustries: ['Tech', 'Cybersecurity', 'AI / ML', 'GIS / Mapping', 'SaaS'],
   skills: [

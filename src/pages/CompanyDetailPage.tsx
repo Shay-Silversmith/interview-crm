@@ -1,24 +1,66 @@
-import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, ExternalLink, Star, Sparkles, Building2 } from 'lucide-react'
+import { useState } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, ExternalLink, Star, Sparkles, Building2, Edit2, Trash2 } from 'lucide-react'
 import { CompanyLogo, Avatar } from '@/components/ui/Avatar'
 import { StageBadge, ContactTypeBadge } from '@/components/ui/Badge'
 import { ScoreRing } from '@/components/ui/ScoreRing'
 import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Drawer } from '@/components/ui/Drawer'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { CompanyForm } from '@/components/forms/CompanyForm'
 import { useMockStore } from '@/hooks/useMockStore'
+import { useCompanyMutations } from '@/hooks/useCompanyMutations'
+import { useI18n } from '@/hooks/useI18n'
 import { companiesService } from '@/services/companiesService'
 import { applicationsService } from '@/services/applicationsService'
 import { contactsService } from '@/services/contactsService'
 import { aiService } from '@/services/aiService'
+import { QK } from '@/lib/query-keys'
+import type { CompanyFormValues } from '@/lib/schemas/companySchema'
 
 export function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: company, loading } = useMockStore(() => companiesService.getById(id!), [id])
+  const navigate = useNavigate()
+  const { t } = useI18n()
+  const { data: company, loading } = useMockStore(() => companiesService.getById(id!), [id], { key: QK.companies.detail(id!) })
   const { data: apps } = useMockStore(() => applicationsService.getByCompany(id!), [id])
   const { data: contacts } = useMockStore(() => contactsService.getByCompany(id!), [id])
   const { data: aiSummaries } = useMockStore(() => aiService.list())
   const companySummary = aiSummaries?.find(s => s.companyId === id && s.toolType === 'Company Summary')
+  const { update, remove } = useCompanyMutations()
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const handleEdit = async (values: CompanyFormValues) => {
+    await update.mutateAsync({
+      id: id!,
+      data: {
+        name:            values.name,
+        industry:        values.industry   || undefined,
+        size:            values.size,
+        location:        values.location   || undefined,
+        website:         values.website    || undefined,
+        linkedinUrl:     values.linkedinUrl || undefined,
+        logoUrl:         values.logoUrl    || undefined,
+        description:     values.description || undefined,
+        notes:           values.notes      || undefined,
+        glassdoorRating: values.glassdoorRating,
+        techStack: values.techStack
+          ? values.techStack.split(',').map(s => s.trim()).filter(Boolean)
+          : [],
+      },
+    })
+    setEditOpen(false)
+  }
+
+  const handleDelete = async () => {
+    await remove.mutateAsync(id!)
+    navigate('/companies')
+  }
 
   if (loading) {
     return (
@@ -30,20 +72,32 @@ export function CompanyDetailPage() {
   }
 
   if (!company) {
-    return <EmptyState icon={Building2} title="Company not found" description="" />
+    return <EmptyState icon={Building2} title={t('pages.companies.companyNotFound')} description="" />
   }
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Link to="/companies" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4">
-        <ArrowLeft className="w-4 h-4" />
-        Companies
-      </Link>
+      <div className="flex items-center justify-between mb-4">
+        <Link to="/companies" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+          <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+          {t('pages.companies.title')}
+        </Link>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Edit2 className="w-3.5 h-3.5" />
+            {t('common.edit')}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setDeleteOpen(true)} className="text-danger-600 hover:bg-danger-50">
+            <Trash2 className="w-3.5 h-3.5" />
+            {t('common.delete')}
+          </Button>
+        </div>
+      </div>
 
       {/* Hero */}
       <Card className="mb-4">
         <div className="flex items-start gap-4">
-          <CompanyLogo name={company.name} size="lg" />
+          <CompanyLogo name={company.name} size="lg" logoUrl={company.logoUrl} />
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-slate-900">{company.name}</h1>
@@ -91,7 +145,7 @@ export function CompanyDetailPage() {
             <Card className="border-violet-200 bg-violet-50/30">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-violet-500" />
-                <h3 className="text-sm font-semibold text-violet-800">AI Company Summary</h3>
+                <h3 className="text-sm font-semibold text-violet-800">{t('pages.companies.aiSummary')}</h3>
                 <span className="ml-auto text-2xs text-violet-500 bg-violet-100 px-1.5 py-0.5 rounded font-medium">Mocked</span>
               </div>
               <dl className="space-y-3">
@@ -110,7 +164,7 @@ export function CompanyDetailPage() {
           {/* Applications */}
           {apps && apps.length > 0 && (
             <Card>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Your Applications</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">{t('pages.companies.relatedApplications')}</h3>
               <ul className="space-y-2">
                 {apps.map(app => (
                   <li key={app.id}>
@@ -141,7 +195,7 @@ export function CompanyDetailPage() {
           {/* Contacts */}
           {contacts && contacts.length > 0 && (
             <Card>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Contacts</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">{t('pages.companies.relatedContacts')}</h3>
               <ul className="space-y-3">
                 {contacts.map(c => (
                   <li key={c.id} className="flex items-center gap-2">
@@ -158,6 +212,28 @@ export function CompanyDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Edit drawer */}
+      <Drawer open={editOpen} onClose={() => setEditOpen(false)} title={t('common.edit')}>
+        <CompanyForm
+          initial={company}
+          onSubmit={handleEdit}
+          onCancel={() => setEditOpen(false)}
+          loading={update.isPending}
+          submitLabel={t('common.save')}
+        />
+      </Drawer>
+
+      {/* Delete confirm */}
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title={t('common.delete') + '?'}
+        description={`Remove "${company.name}" and all its data? This cannot be undone.`}
+        confirmLabel={t('common.delete')}
+        loading={remove.isPending}
+      />
     </div>
   )
 }

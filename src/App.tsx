@@ -1,39 +1,149 @@
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppShell } from './components/layout/AppShell'
-import { DashboardPage } from './pages/DashboardPage'
-import { ApplicationsPage } from './pages/ApplicationsPage'
+import { AuthGuard } from './components/layout/AuthGuard'
+import { ToastProvider } from './hooks/useToast'
+import { Toaster } from './components/ui/Toaster'
+import { ErrorBoundary } from './components/ui/ErrorBoundary'
+import { I18nProvider } from './i18n/I18nProvider'
+
+// ── Eagerly loaded (small, always needed immediately) ───────────────────────
+import { DashboardPage }       from './pages/DashboardPage'
+import { ApplicationsPage }    from './pages/ApplicationsPage'
 import { ApplicationBoardPage } from './pages/ApplicationBoardPage'
 import { ApplicationDetailPage } from './pages/ApplicationDetailPage'
-import { CompaniesPage } from './pages/CompaniesPage'
-import { CompanyDetailPage } from './pages/CompanyDetailPage'
-import { TasksPage } from './pages/TasksPage'
-import { CalendarPage } from './pages/CalendarPage'
-import { ContactsPage } from './pages/ContactsPage'
-import { DocumentsPage } from './pages/DocumentsPage'
-import { PrepPage } from './pages/PrepPage'
-import { AIPage } from './pages/AIPage'
-import { SettingsPage } from './pages/SettingsPage'
+import { NewApplicationPage }  from './pages/NewApplicationPage'
+import { CompaniesPage }       from './pages/CompaniesPage'
+import { CompanyDetailPage }   from './pages/CompanyDetailPage'
+import { NewCompanyPage }      from './pages/NewCompanyPage'
+import { TasksPage }           from './pages/TasksPage'
+import { ContactsPage }        from './pages/ContactsPage'
+import { DocumentsPage }       from './pages/DocumentsPage'
+import { PrepPage }            from './pages/PrepPage'
+import { SettingsPage }        from './pages/SettingsPage'
+import { LoginPage }           from './pages/LoginPage'
+
+// ── Lazily loaded (heavy: AI SDK, calendar date-picker, cmdk panels) ────────
+const CalendarPage = lazy(() => import('./pages/CalendarPage').then(m => ({ default: m.CalendarPage })))
+const AIPage       = lazy(() => import('./pages/AIPage').then(m => ({ default: m.AIPage })))
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+})
+
+/** Thin fallback shown while a lazy chunk loads */
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-8 h-8 rounded-full border-2 border-primary-200 border-t-primary-600 animate-spin" />
+    </div>
+  )
+}
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/applications" element={<ApplicationsPage />} />
-          <Route path="/applications/board" element={<ApplicationBoardPage />} />
-          <Route path="/applications/:id" element={<ApplicationDetailPage />} />
-          <Route path="/companies" element={<CompaniesPage />} />
-          <Route path="/companies/:id" element={<CompanyDetailPage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/contacts" element={<ContactsPage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/prep" element={<PrepPage />} />
-          <Route path="/ai" element={<AIPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <I18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public */}
+              <Route path="/login" element={<LoginPage />} />
+
+              {/* Protected */}
+              <Route element={<AuthGuard />}>
+                <Route element={<AppShell />}>
+                  <Route path="/" element={
+                    <ErrorBoundary label="Dashboard">
+                      <DashboardPage />
+                    </ErrorBoundary>
+                  } />
+
+                  <Route path="/applications" element={
+                    <ErrorBoundary label="Applications">
+                      <ApplicationsPage />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/applications/new" element={
+                    <ErrorBoundary>
+                      <NewApplicationPage />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/applications/board" element={
+                    <ErrorBoundary label="Board">
+                      <ApplicationBoardPage />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/applications/:id" element={
+                    <ErrorBoundary label="Application detail">
+                      <ApplicationDetailPage />
+                    </ErrorBoundary>
+                  } />
+
+                  <Route path="/companies" element={
+                    <ErrorBoundary label="Companies">
+                      <CompaniesPage />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/companies/new" element={<NewCompanyPage />} />
+                  <Route path="/companies/:id" element={
+                    <ErrorBoundary label="Company detail">
+                      <CompanyDetailPage />
+                    </ErrorBoundary>
+                  } />
+
+                  <Route path="/tasks" element={
+                    <ErrorBoundary label="Tasks">
+                      <TasksPage />
+                    </ErrorBoundary>
+                  } />
+
+                  <Route path="/calendar" element={
+                    <ErrorBoundary label="Calendar">
+                      <Suspense fallback={<PageLoader />}>
+                        <CalendarPage />
+                      </Suspense>
+                    </ErrorBoundary>
+                  } />
+
+                  <Route path="/contacts" element={
+                    <ErrorBoundary label="Contacts">
+                      <ContactsPage />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/documents" element={
+                    <ErrorBoundary label="Documents">
+                      <DocumentsPage />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/prep" element={
+                    <ErrorBoundary label="Prep library">
+                      <PrepPage />
+                    </ErrorBoundary>
+                  } />
+
+                  <Route path="/ai" element={
+                    <ErrorBoundary label="AI tools">
+                      <Suspense fallback={<PageLoader />}>
+                        <AIPage />
+                      </Suspense>
+                    </ErrorBoundary>
+                  } />
+
+                  <Route path="/settings" element={<SettingsPage />} />
+                </Route>
+              </Route>
+            </Routes>
+            <Toaster />
+          </BrowserRouter>
+        </ToastProvider>
+      </QueryClientProvider>
+    </I18nProvider>
   )
 }

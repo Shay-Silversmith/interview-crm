@@ -4,6 +4,7 @@ export const mockCompanies: Company[] = [
   {
     id: 'company-amazon',
     name: 'Amazon',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=amazon.com&sz=128',
     industry: 'E-commerce / Cloud / AI',
     size: '10000+',
     location: 'Tel Aviv, Israel',
@@ -19,6 +20,7 @@ export const mockCompanies: Company[] = [
   {
     id: 'company-myheritage',
     name: 'MyHeritage',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=myheritage.com&sz=128',
     industry: 'Consumer Tech / Genealogy / AI',
     size: '501-2000',
     location: 'Or Yehuda, Israel',
@@ -34,6 +36,7 @@ export const mockCompanies: Company[] = [
   {
     id: 'company-mobileye',
     name: 'Mobileye',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=mobileye.com&sz=128',
     industry: 'Autonomous Driving / Computer Vision',
     size: '2001-10000',
     location: 'Jerusalem, Israel',
@@ -49,6 +52,7 @@ export const mockCompanies: Company[] = [
   {
     id: 'company-wix',
     name: 'Wix',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=wix.com&sz=128',
     industry: 'SaaS / Web Platform',
     size: '2001-10000',
     location: 'Tel Aviv, Israel',
@@ -64,6 +68,7 @@ export const mockCompanies: Company[] = [
   {
     id: 'company-upwind',
     name: 'Upwind',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=upwind.io&sz=128',
     industry: 'Cybersecurity / Cloud Security',
     size: '51-200',
     location: 'Tel Aviv, Israel',

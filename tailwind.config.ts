@@ -85,8 +85,15 @@ export default {
       },
       boxShadow: {
         card: '0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04)',
-        'card-hover': '0 4px 12px 0 rgb(0 0 0 / 0.08), 0 2px 4px -1px rgb(0 0 0 / 0.04)',
+        'card-hover': '0 8px 24px -8px rgb(0 0 0 / 0.12), 0 4px 8px -4px rgb(0 0 0 / 0.08)',
         modal: '0 20px 60px 0 rgb(0 0 0 / 0.15), 0 8px 20px -4px rgb(0 0 0 / 0.10)',
+      },
+      backgroundImage: {
+        // Subtle violet→blue tint for AI surfaces — barely visible on first
+        // glance but distinguishes AI cards from regular CRM cards.
+        'ai-gradient': 'linear-gradient(135deg, rgb(124 58 237 / 0.05), rgb(59 130 246 / 0.04))',
+        // Depth gradient for primary buttons — uses the existing primary-600/700 hues.
+        'primary-gradient': 'linear-gradient(180deg, #4F46E5 0%, #4338ca 100%)',
       },
       spacing: {
         '4.5': '1.125rem',
@@ -97,17 +104,22 @@ export default {
         '96': '24rem',
       },
       animation: {
-        'fade-in': 'fadeIn 0.2s ease-out',
+        'fade-in':  'fadeIn 0.2s ease-out',
         'slide-in': 'slideIn 0.25s ease-out',
+        'shimmer':  'shimmer 2s linear infinite',
       },
       keyframes: {
         fadeIn: {
           from: { opacity: '0' },
-          to: { opacity: '1' },
+          to:   { opacity: '1' },
         },
         slideIn: {
           from: { opacity: '0', transform: 'translateY(8px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
+        shimmer: {
+          '0%':   { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition:  '200% 0' },
         },
       },
     },

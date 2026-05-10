@@ -20,6 +20,8 @@ export interface UserProfile {
   id: string
   user_id?: string
   name: string
+  /** First name or chosen short name shown in greetings and headers. */
+  preferredName?: string
   email: string
   phone?: string
   location: string
@@ -77,6 +79,9 @@ export interface JobApplication {
   user_id?: string
   companyId: string
   companyName: string
+  /** Denormalized from the Company record for display-only use. Undefined in
+   *  Supabase mode (CompanyLogo falls back to initials gracefully). */
+  companyLogoUrl?: string
   roleName: string
   roleUrl?: string
   jobDescription?: string
@@ -102,6 +107,8 @@ export interface JobApplication {
   whyInteresting?: string
   whatToEmphasize?: string
   aiSummaryId?: string
+  /** Saved output from the JD Parser tool — stored as JSONB in the DB. */
+  aiRoleSummary?: Record<string, unknown>
   createdAt: string
   updatedAt: string
 }
@@ -173,6 +180,7 @@ export interface CVVersion {
   projectsHighlighted: string[]
   fileName: string
   fileSize?: number
+  storagePath?: string
   applicationIds: string[]
   notes?: string
   isActive: boolean
@@ -187,6 +195,7 @@ export interface Document {
   type: DocumentType
   fileName: string
   fileSize?: number
+  storagePath?: string
   applicationIds: string[]
   notes?: string
   createdAt: string

@@ -1,4 +1,20 @@
 node_modules/
 dist/
+
+# All env files (keep .env.example — that's the safe template)
 .env
 .env.local
+.env.*.local
+.env.production
+
+# Vercel
+.vercel/
+
+# Claude Code internal config (session-specific permissions, not project code)
+.claude/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/settings.json

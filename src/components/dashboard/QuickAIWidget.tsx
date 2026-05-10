@@ -1,45 +1,49 @@
 import { Link } from 'react-router-dom'
 import { Building2, FileSearch, Sparkles, MessageSquarePlus } from 'lucide-react'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
-
-const AI_ACTIONS = [
-  {
-    icon: Building2,
-    label: 'Company Summary',
-    description: 'Get AI insights on a target company',
-    color: 'bg-primary-50 text-primary-600',
-    to: '/ai?tool=company-summary',
-  },
-  {
-    icon: FileSearch,
-    label: 'JD Parser',
-    description: 'Extract key requirements from a JD',
-    color: 'bg-violet-50 text-violet-600',
-    to: '/ai?tool=jd-parser',
-  },
-  {
-    icon: Sparkles,
-    label: 'Prepare Me',
-    description: 'Get a personalized interview prep plan',
-    color: 'bg-warning-50 text-warning-600',
-    to: '/ai?tool=prepare-me',
-  },
-  {
-    icon: MessageSquarePlus,
-    label: 'Follow-up Message',
-    description: 'Draft a professional follow-up email',
-    color: 'bg-success-50 text-success-600',
-    to: '/ai?tool=followup',
-  },
-]
+import { useI18n } from '@/hooks/useI18n'
 
 export function QuickAIWidget() {
+  const { t } = useI18n()
+
+  // Defined inside component so labels re-render on locale change.
+  const AI_ACTIONS = [
+    {
+      icon: Building2,
+      label: t('pages.ai.tools.companySummary.label'),
+      description: t('pages.dashboard.companySummaryDesc'),
+      color: 'bg-primary-50 text-primary-600',
+      to: '/ai?tool=company-summary',
+    },
+    {
+      icon: FileSearch,
+      label: t('pages.ai.tools.jdParser.label'),
+      description: t('pages.dashboard.jdParserDesc'),
+      color: 'bg-violet-50 text-violet-600',
+      to: '/ai?tool=jd-parser',
+    },
+    {
+      icon: Sparkles,
+      label: t('pages.ai.tools.prepPack.label'),
+      description: t('pages.dashboard.prepareMeDesc'),
+      color: 'bg-warning-50 text-warning-600',
+      to: '/ai?tool=prepare-me',
+    },
+    {
+      icon: MessageSquarePlus,
+      label: t('pages.ai.tools.followUp.label'),
+      description: t('pages.dashboard.followUpDesc'),
+      color: 'bg-success-50 text-success-600',
+      to: '/ai?tool=followup',
+    },
+  ]
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quick AI Actions</CardTitle>
+        <CardTitle>{t('pages.dashboard.quickAiActions')}</CardTitle>
         <Link to="/ai" className="text-xs text-primary-600 hover:underline font-medium">
-          All tools
+          {t('pages.dashboard.allTools')}
         </Link>
       </CardHeader>
       <div className="grid grid-cols-2 gap-2">

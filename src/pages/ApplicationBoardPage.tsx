@@ -2,13 +2,14 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { LayoutDashboard } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Button } from '@/components/ui/Button'
 import { StageBadge, PriorityBadge } from '@/components/ui/Badge'
 import { CompanyLogo } from '@/components/ui/Avatar'
 import { ScoreRing } from '@/components/ui/ScoreRing'
 import { CardSkeleton } from '@/components/ui/Skeleton'
 import { useMockStore } from '@/hooks/useMockStore'
+import { useI18n } from '@/hooks/useI18n'
 import { applicationsService } from '@/services/applicationsService'
+import { QK } from '@/lib/query-keys'
 import { formatDate } from '@/utils/date'
 import { cn } from '@/lib/cn'
 import type { JobApplication } from '@/types'
@@ -32,7 +33,8 @@ const STAGE_META: Record<string, { headerBg: string; dot: string; dropBorder: st
 }
 
 export function ApplicationBoardPage() {
-  const { data: apps, loading } = useMockStore(() => applicationsService.list())
+  const { t } = useI18n()
+  const { data: apps, loading } = useMockStore(() => applicationsService.list(), [], { key: QK.applications.all() })
 
   const byStage = useMemo(() => {
     const map: Record<ApplicationStage, JobApplication[]> = {} as Record<ApplicationStage, JobApplication[]>
@@ -48,12 +50,12 @@ export function ApplicationBoardPage() {
   return (
     <div className="max-w-full">
       <PageHeader
-        title="Pipeline Board"
-        description="Kanban view of your active applications"
+        title={t('pages.board.title')}
+        description={t('pages.board.subtitle')}
         actions={
           <Link to="/applications" className="inline-flex items-center gap-2 h-8 px-3 text-xs rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium">
             <LayoutDashboard className="w-4 h-4" />
-            List View
+            {t('pages.board.listView')}
           </Link>
         }
       />
@@ -96,7 +98,7 @@ export function ApplicationBoardPage() {
                       'flex items-center justify-center h-20 rounded-xl border-2 border-dashed text-xs text-slate-400',
                       meta.dropBorder, meta.dropBg
                     )}>
-                      Empty
+                      {t('pages.board.empty')}
                     </div>
                   )}
                 </div>
@@ -107,7 +109,7 @@ export function ApplicationBoardPage() {
       )}
 
       <p className="text-xs text-slate-400 mt-2">
-        Drag-and-drop persistence is visual-only in Phase 1 — stage changes will be saved in Phase 5.
+        {t('pages.board.boardNote')}
       </p>
     </div>
   )
@@ -122,7 +124,7 @@ function KanbanCard({ app }: { app: JobApplication }) {
       onDragStart={e => e.dataTransfer.setData('text/plain', app.id)}
     >
       <div className="flex items-start gap-2 mb-2.5">
-        <CompanyLogo name={app.companyName} size="sm" />
+        <CompanyLogo name={app.companyName} size="sm" logoUrl={app.companyLogoUrl} />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-slate-800 leading-tight group-hover:text-primary-700 transition-colors truncate">
             {app.roleName}
@@ -136,13 +138,13 @@ function KanbanCard({ app }: { app: JobApplication }) {
       <div className="flex items-center gap-2">
         <PriorityBadge priority={app.priority} />
         {app.submittedCvName && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-2xs text-slate-500 truncate max-w-[80px]">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-2xs text-slate-500 truncate max-w-[80px] force-ltr">
             {app.submittedCvName}
           </span>
         )}
       </div>
       {app.nextEventAt && (
-        <p className="mt-2 text-2xs text-slate-400 border-t border-slate-50 pt-2 truncate">
+        <p className="mt-2 text-2xs text-slate-400 border-t border-slate-50 pt-2 truncate force-ltr">
           {app.nextEventDescription
             ? app.nextEventDescription.split(' — ')[0]
             : formatDate(app.nextEventAt, 'MMM d')}

@@ -3,6 +3,8 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
+import { useProfile } from '@/hooks/useProfile'
+import { useI18n } from '@/hooks/useI18n'
 import { mockUser } from '@/data/mock-user'
 
 interface SettingsSectionProps {
@@ -46,77 +48,89 @@ function Field({ label, value }: { label: string; value: string | string[] }) {
 }
 
 export function SettingsPage() {
+  const { profile } = useProfile()
+  const { t } = useI18n()
+
+  // Live profile data takes priority; fall back to mock persona for fields
+  // not yet stored in the profiles table (degree, targetRoles, etc.).
+  const displayName      = profile?.name          ?? mockUser.name
+  const displayBio       = profile?.bio            ?? mockUser.bio
+  const displayUniversity = profile?.university   ?? mockUser.university
+  const displayYear      = profile?.year           ?? mockUser.year
+  const displayUnit      = profile?.unit           ?? mockUser.unit
+  const displaySkills    = profile?.skills?.length ? profile.skills : mockUser.skills
+  const displayPitch     = profile?.defaultPitch   ?? mockUser.defaultPitch
+
   return (
     <div className="max-w-3xl mx-auto">
-      <PageHeader title="Settings & Profile" description="Manage your background, preferences, and integrations" />
+      <PageHeader title={t('pages.settings.title')} description={t('pages.settings.subtitle')} />
 
       {/* Profile hero */}
       <Card className="mb-5">
         <div className="flex items-center gap-4">
-          <Avatar name={mockUser.name} size="xl" />
+          <Avatar name={displayName} size="xl" />
           <div>
-            <h2 className="text-lg font-bold text-slate-900">{mockUser.name}</h2>
-            <p className="text-sm text-slate-500">{mockUser.degree} · {mockUser.university}</p>
+            <h2 className="text-lg font-bold text-slate-900">{displayName}</h2>
+            <p className="text-sm text-slate-500">{mockUser.degree} · {displayUniversity}</p>
             <p className="text-sm text-slate-500">{mockUser.location}</p>
           </div>
-          <Button variant="outline" size="sm" className="ml-auto" disabled>
-            <Edit2 className="w-3.5 h-3.5" /> Edit Profile
+          <Button variant="outline" size="sm" className="ms-auto" disabled>
+            <Edit2 className="w-3.5 h-3.5" /> {t('pages.settings.editProfile')}
           </Button>
         </div>
       </Card>
 
       <div className="space-y-4">
-        <SettingsSection icon={User} title="My Background" description="Your academic and professional context">
-          <Field label="University" value={`${mockUser.university} — Year ${mockUser.year}`} />
+        <SettingsSection icon={User} title={t('pages.settings.sections.background.title')} description={t('pages.settings.sections.background.desc')}>
+          <Field label="University" value={`${displayUniversity} — Year ${displayYear}`} />
           <Field label="Degree" value={mockUser.degree} />
-          <Field label="Military Service" value={mockUser.unit ?? '—'} />
+          <Field label="Military Service" value={displayUnit ?? '—'} />
           <Field label="Languages" value={mockUser.languages} />
-          <Field label="Bio" value={mockUser.bio} />
+          <Field label="Bio" value={displayBio} />
         </SettingsSection>
 
-        <SettingsSection icon={Target} title="Preferred Roles" description="What you're targeting this job search cycle">
+        <SettingsSection icon={Target} title={t('pages.settings.sections.preferredRoles.title')} description={t('pages.settings.sections.preferredRoles.desc')}>
           <Field label="Target Roles" value={mockUser.targetRoles} />
           <Field label="Target Industries" value={mockUser.targetIndustries} />
         </SettingsSection>
 
-        <SettingsSection icon={Wrench} title="Skills" description="Technical and soft skills used for fit scoring and AI">
+        <SettingsSection icon={Wrench} title={t('pages.settings.sections.skills.title')} description={t('pages.settings.sections.skills.desc')}>
           <div className="flex flex-wrap gap-1.5">
-            {mockUser.skills.map(s => (
-              <span key={s} className="text-xs bg-primary-50 text-primary-700 px-2.5 py-1 rounded-full font-medium border border-primary-100">
+            {displaySkills.map(s => (
+              <span key={s} className="text-xs bg-primary-50 text-primary-700 px-2.5 py-1 rounded-full font-medium border border-primary-100 force-ltr">
                 {s}
               </span>
             ))}
           </div>
         </SettingsSection>
 
-        <SettingsSection icon={User} title="Default Personal Pitch" description="Your default intro answer, used by AI generators">
-          <p className="text-sm text-slate-700 leading-relaxed">{mockUser.defaultPitch}</p>
+        <SettingsSection icon={User} title={t('pages.settings.sections.defaultPitch.title')} description={t('pages.settings.sections.defaultPitch.desc')}>
+          <p className="text-sm text-slate-700 leading-relaxed">{displayPitch}</p>
         </SettingsSection>
 
-        <SettingsSection icon={Sparkles} title="AI Preferences" description="How InterviewFlow's AI should tailor its outputs">
+        <SettingsSection icon={Sparkles} title={t('pages.settings.sections.aiPreferences.title')} description={t('pages.settings.sections.aiPreferences.desc')}>
           <Field label="Preferred tone" value="Professional, direct, authentic" />
           <Field label="Language" value="English" />
           <Field label="Answer length" value="Concise (2-4 paragraphs)" />
           <Field label="LP emphasis (Amazon)" value="Dive Deep, Deliver Results, Customer Obsession" />
         </SettingsSection>
 
-        <SettingsSection icon={Calendar} title="Integrations" description="Connect external services">
+        <SettingsSection icon={Calendar} title={t('pages.settings.sections.integrations.title')} description={t('pages.settings.sections.integrations.desc')}>
           <div className="grid sm:grid-cols-2 gap-3">
             {[
-              { name: 'Google Calendar', status: 'Coming in Phase 6' },
-              { name: 'Gmail', status: 'Coming in Phase 6' },
-              { name: 'LinkedIn', status: 'Coming in Phase 6' },
-              { name: 'Supabase Auth', status: 'Coming in Phase 4' },
+              { name: 'Google Calendar' },
+              { name: 'Gmail' },
+              { name: 'LinkedIn' },
             ].map(integration => (
               <div key={integration.name} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50">
                 <span className="text-sm font-medium text-slate-700">{integration.name}</span>
-                <span className="text-xs text-slate-400">{integration.status}</span>
+                <span className="text-xs text-slate-400">{t('pages.settings.notYetAvailable')}</span>
               </div>
             ))}
           </div>
         </SettingsSection>
 
-        <SettingsSection icon={TrendingUp} title="Career Goals" description="Long-term targets that inform your AI coaching">
+        <SettingsSection icon={TrendingUp} title={t('pages.settings.sections.careerGoals.title')} description={t('pages.settings.sections.careerGoals.desc')}>
           <Field label="6-month goal" value="Land a student role in product, data, or project management at a top Israeli tech company" />
           <Field label="Graduation goal" value="Full-time PM or DE role at a growth-stage tech company" />
           <Field label="Areas to develop" value="Product strategy, data modeling, stakeholder management, English business writing" />
@@ -124,7 +138,7 @@ export function SettingsPage() {
       </div>
 
       <p className="text-xs text-center text-slate-400 mt-8">
-        Full profile editing coming in Phase 5. All fields are read-only in Phase 1.
+        {t('pages.settings.editProfileSoon')}
       </p>
     </div>
   )

@@ -5,6 +5,7 @@ export const mockApplications: JobApplication[] = [
     id: 'app-amazon',
     companyId: 'company-amazon',
     companyName: 'Amazon',
+    companyLogoUrl: 'https://www.google.com/s2/favicons?domain=amazon.com&sz=128',
     roleName: 'Data Engineer Intern',
     roleUrl: 'https://amazon.jobs/en/jobs/data-engineer-intern',
     jobDescription: `We are looking for a Data Engineer Intern to join our AWS Data Platform team in Tel Aviv. You will work with petabyte-scale datasets, build ETL pipelines, and help shape our data infrastructure.
@@ -80,6 +81,7 @@ export const mockApplications: JobApplication[] = [
     id: 'app-myheritage',
     companyId: 'company-myheritage',
     companyName: 'MyHeritage',
+    companyLogoUrl: 'https://www.google.com/s2/favicons?domain=myheritage.com&sz=128',
     roleName: 'Project Manager Student',
     roleUrl: 'https://myheritage.com/careers',
     jobDescription: `MyHeritage is looking for a motivated Project Manager Student to join our Product & Engineering team. You will work alongside senior PMs and engineers to ship features used by millions of users worldwide.
@@ -134,6 +136,7 @@ export const mockApplications: JobApplication[] = [
     id: 'app-mobileye',
     companyId: 'company-mobileye',
     companyName: 'Mobileye',
+    companyLogoUrl: 'https://www.google.com/s2/favicons?domain=mobileye.com&sz=128',
     roleName: 'Project Manager Student',
     roleUrl: 'https://mobileye.com/careers',
     jobDescription: `Mobileye is seeking a Project Manager Student to join our autonomous driving software programs team. Work at the intersection of cutting-edge technology and complex systems engineering.
@@ -174,6 +177,7 @@ export const mockApplications: JobApplication[] = [
     id: 'app-wix',
     companyId: 'company-wix',
     companyName: 'Wix',
+    companyLogoUrl: 'https://www.google.com/s2/favicons?domain=wix.com&sz=128',
     roleName: 'Product Manager Student Program',
     roleUrl: 'https://wix.com/jobs',
     jobDescription: `Wix is looking for exceptional students to join our PM Student Program — a structured 6-month rotational program working directly with product squads. PMs at Wix own the "what" and "why" of features shipped to 250M+ users.
@@ -230,6 +234,7 @@ export const mockApplications: JobApplication[] = [
     id: 'app-upwind',
     companyId: 'company-upwind',
     companyName: 'Upwind',
+    companyLogoUrl: 'https://www.google.com/s2/favicons?domain=upwind.io&sz=128',
     roleName: 'Cybersecurity Bootcamp',
     roleUrl: 'https://upwind.io/careers',
     jobDescription: `Upwind Security is running a selective 3-month Cybersecurity Bootcamp for outstanding students with technical backgrounds. Participants work alongside our security research and product teams on real cloud security challenges.

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus, LayoutGrid, List, Search, ChevronUp, ChevronDown } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Plus, LayoutGrid, List, Search, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -11,44 +11,19 @@ import { CompanyLogo } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { TableRowSkeleton, CardSkeleton } from '@/components/ui/Skeleton'
-import { Modal } from '@/components/ui/Modal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useMockStore } from '@/hooks/useMockStore'
+import { useApplicationMutations } from '@/hooks/useApplicationMutations'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useI18n } from '@/hooks/useI18n'
 import { applicationsService } from '@/services/applicationsService'
 import { formatDate } from '@/utils/date'
 import { matchesSearch } from '@/utils/search'
 import { cn } from '@/lib/cn'
+import { QK } from '@/lib/query-keys'
 import type { JobApplication } from '@/types'
 import type { ApplicationStage, Priority } from '@/lib/enums'
 import { Briefcase } from 'lucide-react'
-
-const STAGE_OPTIONS = [
-  { label: 'All Stages', value: '' },
-  { label: 'Interested', value: 'Interested' },
-  { label: 'Applied', value: 'Applied' },
-  { label: 'HR Screen', value: 'HR Screen' },
-  { label: 'Home Assignment', value: 'Home Assignment' },
-  { label: 'Technical Interview', value: 'Technical Interview' },
-  { label: 'Manager Interview', value: 'Manager Interview' },
-  { label: 'Final Interview', value: 'Final Interview' },
-  { label: 'Offer', value: 'Offer' },
-  { label: 'Rejected', value: 'Rejected' },
-]
-
-const PRIORITY_OPTIONS = [
-  { label: 'All Priorities', value: '' },
-  { label: 'Critical', value: 'Critical' },
-  { label: 'High', value: 'High' },
-  { label: 'Medium', value: 'Medium' },
-  { label: 'Low', value: 'Low' },
-]
-
-const SORT_OPTIONS = [
-  { label: 'Urgency Score', value: 'urgency' },
-  { label: 'Fit Score', value: 'fit' },
-  { label: 'Applied Date', value: 'applied' },
-  { label: 'Company Name', value: 'company' },
-]
 
 type SortKey = 'urgency' | 'fit' | 'applied' | 'company'
 
@@ -72,15 +47,47 @@ function SortHeader({ label, sortKey, currentSort, sortDir, onSort }: {
 }
 
 export function ApplicationsPage() {
-  const { data: apps, loading } = useMockStore(() => applicationsService.list())
+  const navigate = useNavigate()
+  const { t } = useI18n()
+  const { data: apps, loading } = useMockStore(() => applicationsService.list(), [], { key: QK.applications.all() })
+  const { remove } = useApplicationMutations()
   const [view, setView] = useState<'table' | 'card'>('table')
   const [search, setSearch] = useState('')
   const [stageFilter, setStageFilter] = useState<ApplicationStage | ''>('')
   const [priorityFilter, setPriorityFilter] = useState<Priority | ''>('')
   const [sortKey, setSortKey] = useState<SortKey>('urgency')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [addOpen, setAddOpen] = useState(false)
+  const [deleteApp, setDeleteApp] = useState<JobApplication | null>(null)
   const debouncedSearch = useDebouncedValue(search)
+
+  // Options defined inside component so labels re-render on locale change
+  const STAGE_OPTIONS = [
+    { label: t('pages.applications.allStages'), value: '' },
+    { label: 'Interested',          value: 'Interested' },
+    { label: 'Applied',             value: 'Applied' },
+    { label: 'HR Screen',           value: 'HR Screen' },
+    { label: 'Home Assignment',     value: 'Home Assignment' },
+    { label: 'Technical Interview', value: 'Technical Interview' },
+    { label: 'Manager Interview',   value: 'Manager Interview' },
+    { label: 'Final Interview',     value: 'Final Interview' },
+    { label: 'Offer',               value: 'Offer' },
+    { label: 'Rejected',            value: 'Rejected' },
+  ]
+
+  const PRIORITY_OPTIONS = [
+    { label: t('pages.applications.allPriorities'), value: '' },
+    { label: 'Critical', value: 'Critical' },
+    { label: 'High',     value: 'High' },
+    { label: 'Medium',   value: 'Medium' },
+    { label: 'Low',      value: 'Low' },
+  ]
+
+  const SORT_OPTIONS = [
+    { label: t('pages.applications.sortUrgency'), value: 'urgency' },
+    { label: t('pages.applications.sortFit'),     value: 'fit' },
+    { label: t('pages.applications.sortApplied'), value: 'applied' },
+    { label: t('pages.applications.sortCompany'), value: 'company' },
+  ]
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -106,11 +113,15 @@ export function ApplicationsPage() {
       })
   }, [apps, stageFilter, priorityFilter, debouncedSearch, sortKey, sortDir])
 
+  const countLabel = filtered.length === 1
+    ? t('pages.applications.countSingular', { count: filtered.length })
+    : t('pages.applications.countPlural', { count: filtered.length })
+
   return (
     <div className="max-w-7xl mx-auto">
       <PageHeader
-        title="Applications"
-        description={`${filtered.length} application${filtered.length !== 1 ? 's' : ''} in your pipeline`}
+        title={t('pages.applications.title')}
+        description={countLabel}
         actions={
           <>
             <div className="flex rounded-lg border border-slate-200 overflow-hidden">
@@ -123,15 +134,15 @@ export function ApplicationsPage() {
               </button>
               <button
                 onClick={() => setView('card')}
-                className={cn('px-3 py-2 border-l border-slate-200', view === 'card' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600')}
+                className={cn('px-3 py-2 border-s border-slate-200', view === 'card' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600')}
                 aria-label="Card view"
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
-            <Button onClick={() => setAddOpen(true)}>
+            <Button onClick={() => navigate('/applications/new')}>
               <Plus className="w-4 h-4" />
-              New Application
+              {t('pages.applications.newApplication')}
             </Button>
           </>
         }
@@ -141,10 +152,11 @@ export function ApplicationsPage() {
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="flex-1 min-w-48">
           <Input
-            placeholder="Search applications…"
+            placeholder={t('pages.applications.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             leftIcon={<Search className="w-3.5 h-3.5" />}
+            className="force-ltr"
           />
         </div>
         <Select
@@ -180,15 +192,15 @@ export function ApplicationsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Briefcase}
-          title="No applications found"
-          description="Try adjusting your filters, or add your first application."
-          action={{ label: 'New Application', onClick: () => setAddOpen(true) }}
+          title={t('pages.applications.noApplications')}
+          description={t('pages.applications.noApplicationsSub')}
+          action={{ label: t('pages.applications.newApplication'), onClick: () => navigate('/applications/new') }}
         />
       ) : view === 'table' ? (
         <>
           {/* Table on md+, cards on mobile */}
           <div className="hidden md:block">
-            <ApplicationTable apps={filtered} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+            <ApplicationTable apps={filtered} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} onDelete={setDeleteApp} t={t} />
           </div>
           <div className="md:hidden">
             <ApplicationGrid apps={filtered} />
@@ -198,23 +210,25 @@ export function ApplicationsPage() {
         <ApplicationGrid apps={filtered} />
       )}
 
-      <Modal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        title="New Application"
-        description="Coming in Phase 5 — full CRUD will be wired to Supabase."
-      >
-        <p className="text-sm text-slate-500">
-          Application creation will be available once the backend is connected. For now, mock data reflects your real pipeline.
-        </p>
-        <Button variant="secondary" className="mt-4 w-full" onClick={() => setAddOpen(false)}>Close</Button>
-      </Modal>
+      <ConfirmDialog
+        open={!!deleteApp}
+        onClose={() => setDeleteApp(null)}
+        onConfirm={async () => {
+          if (!deleteApp) return
+          await remove.mutateAsync(deleteApp.id)
+          setDeleteApp(null)
+        }}
+        title={t('pages.applications.deleteTitle')}
+        description={`Remove "${deleteApp?.roleName} @ ${deleteApp?.companyName}" from your pipeline? This cannot be undone.`}
+        confirmLabel={t('common.delete')}
+        loading={remove.isPending}
+      />
     </div>
   )
 }
 
-function ApplicationTable({ apps, sortKey, sortDir, onSort }: {
-  apps: JobApplication[]; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void
+function ApplicationTable({ apps, sortKey, sortDir, onSort, onDelete, t }: {
+  apps: JobApplication[]; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void; onDelete: (a: JobApplication) => void; t: (key: string) => string
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
@@ -222,13 +236,14 @@ function ApplicationTable({ apps, sortKey, sortDir, onSort }: {
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/60">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Company / Role</th>
-              <th className="text-left px-4 py-3"><SortHeader label="Stage" sortKey="urgency" currentSort={sortKey} sortDir={sortDir} onSort={() => {}} /></th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Priority</th>
-              <th className="text-left px-4 py-3"><SortHeader label="Fit" sortKey="fit" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
-              <th className="text-left px-4 py-3"><SortHeader label="Urgency" sortKey="urgency" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
-              <th className="text-left px-4 py-3"><SortHeader label="Applied" sortKey="applied" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">CV</th>
+              <th className="text-start px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('pages.applications.colCompanyRole')}</th>
+              <th className="text-start px-4 py-3"><SortHeader label={t('pages.applications.colStage')} sortKey="urgency" currentSort={sortKey} sortDir={sortDir} onSort={() => {}} /></th>
+              <th className="text-start px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('pages.applications.colPriority')}</th>
+              <th className="text-start px-4 py-3"><SortHeader label={t('pages.applications.colFit')} sortKey="fit" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
+              <th className="text-start px-4 py-3"><SortHeader label={t('pages.applications.colUrgency')} sortKey="urgency" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
+              <th className="text-start px-4 py-3"><SortHeader label={t('pages.applications.colApplied')} sortKey="applied" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
+              <th className="text-start px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('pages.applications.colCv')}</th>
+              <th className="px-4 py-3 w-8" />
             </tr>
           </thead>
           <tbody>
@@ -236,7 +251,7 @@ function ApplicationTable({ apps, sortKey, sortDir, onSort }: {
               <tr key={app.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors group">
                 <td className="px-4 py-3">
                   <Link to={`/applications/${app.id}`} className="flex items-center gap-3">
-                    <CompanyLogo name={app.companyName} size="sm" />
+                    <CompanyLogo name={app.companyName} size="sm" logoUrl={app.companyLogoUrl} />
                     <div>
                       <p className="text-sm font-medium text-slate-800 group-hover:text-primary-700 transition-colors">
                         {app.roleName}
@@ -254,18 +269,27 @@ function ApplicationTable({ apps, sortKey, sortDir, onSort }: {
                   {app.urgencyScore !== undefined && <ScoreRing score={app.urgencyScore} size="sm" />}
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-slate-500 force-ltr">
                     {app.appliedAt ? formatDate(app.appliedAt, 'MMM d') : '—'}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   {app.submittedCvName ? (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-2xs font-medium text-slate-600 max-w-[120px] truncate">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-2xs font-medium text-slate-600 max-w-[120px] truncate force-ltr">
                       {app.submittedCvName}
                     </span>
                   ) : (
                     <span className="text-xs text-slate-300">—</span>
                   )}
+                </td>
+                <td className="px-4 py-3">
+                  <button
+                    onClick={e => { e.preventDefault(); onDelete(app) }}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger-50 text-slate-400 hover:text-danger-600 transition-all"
+                    aria-label="Delete application"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -283,7 +307,7 @@ function ApplicationGrid({ apps }: { apps: JobApplication[] }) {
         <Link key={app.id} to={`/applications/${app.id}`}>
           <Card hover className="h-full">
             <div className="flex items-start gap-3 mb-3">
-              <CompanyLogo name={app.companyName} size="md" />
+              <CompanyLogo name={app.companyName} size="md" logoUrl={app.companyLogoUrl} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-800 leading-tight">{app.roleName}</p>
                 <p className="text-xs text-slate-500 mt-0.5">{app.companyName}</p>

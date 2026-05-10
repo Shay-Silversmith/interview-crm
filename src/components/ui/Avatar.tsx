@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cn } from '@/lib/cn'
 import { initials } from '@/utils/format'
 
@@ -45,6 +46,8 @@ interface CompanyLogoProps {
   name: string
   size?: 'sm' | 'md' | 'lg'
   className?: string
+  /** When provided, renders a real logo image. Falls back to initials on error. */
+  logoUrl?: string
 }
 
 const logoSizeStyles = {
@@ -61,9 +64,32 @@ const COMPANY_COLORS: Record<string, string> = {
   Upwind: 'bg-danger-100 text-danger-700',
 }
 
-export function CompanyLogo({ name, size = 'md', className }: CompanyLogoProps) {
+export function CompanyLogo({ name, size = 'md', className, logoUrl }: CompanyLogoProps) {
+  const [imgError, setImgError] = useState(false)
   const color = COMPANY_COLORS[name] ?? 'bg-slate-100 text-slate-600'
   const abbr = name.slice(0, 2).toUpperCase()
+
+  // Image path: logoUrl present and not yet errored → render <img>
+  if (logoUrl && !imgError) {
+    return (
+      <div
+        className={cn(
+          'flex items-center justify-center overflow-hidden shrink-0',
+          logoSizeStyles[size],
+          className
+        )}
+      >
+        <img
+          src={logoUrl}
+          alt={`${name} logo`}
+          className="w-full h-full object-contain"
+          onError={() => setImgError(true)}
+        />
+      </div>
+    )
+  }
+
+  // Fallback: colored initials square (original behaviour)
   return (
     <div
       className={cn(

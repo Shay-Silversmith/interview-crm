@@ -1,0 +1,6 @@
+.env*
+supabase/
+docs/
+README.md
+*.md
+.github/

@@ -1,4 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+// ---------------------------------------------------------------------------
+// InterviewFlow — useMockStore.ts
+// Thin wrapper around React Query's useQuery.
+// Provides the same { data, loading, error, refetch } API consumed by pages.
+//
+// Pass opts.key to opt in to named query keys for cache invalidation.
+// Omit opts.key to use the auto-derived key (backward-compatible).
+// ---------------------------------------------------------------------------
+
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 interface AsyncState<T> {
   data: T | null
@@ -6,30 +15,41 @@ interface AsyncState<T> {
   error: string | null
 }
 
+interface UseMockStoreOpts {
+  /** Explicit React Query key. Required if you need cache invalidation via mutations. */
+  key?: readonly unknown[]
+}
+
 export function useMockStore<T>(
   fetcher: () => Promise<T>,
-  deps: unknown[] = []
+  deps: unknown[] = [],
+  opts?: UseMockStoreOpts
 ): AsyncState<T> & { refetch: () => void } {
-  const [state, setState] = useState<AsyncState<T>>({
-    data: null,
-    loading: true,
-    error: null,
+  // Named key takes priority; fallback to auto-derived
+  const queryKey = opts?.key ?? [fetcher.toString().slice(0, 150), ...deps]
+
+  const query = useQuery<T, Error>({
+    queryKey,
+    queryFn: fetcher,
+    staleTime: 30_000,
+    retry: 1,
   })
 
-  const fetch = useCallback(async () => {
-    setState(s => ({ ...s, loading: true, error: null }))
-    try {
-      const data = await fetcher()
-      setState({ data, loading: false, error: null })
-    } catch (err) {
-      setState({ data: null, loading: false, error: (err as Error).message })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
+  return {
+    data: query.data ?? null,
+    loading: query.isLoading,
+    error: query.error?.message ?? null,
+    refetch: () => { void query.refetch() },
+  }
+}
 
-  useEffect(() => {
-    fetch()
-  }, [fetch])
-
-  return { ...state, refetch: fetch }
+/**
+ * Convenience helper for imperative cache invalidation (used in mutations).
+ * Usage: const invalidate = useInvalidate(); invalidate(['applications'])
+ */
+export function useInvalidate() {
+  const qc = useQueryClient()
+  return (keyPrefix: unknown[]) => {
+    void qc.invalidateQueries({ queryKey: keyPrefix })
+  }
 }
