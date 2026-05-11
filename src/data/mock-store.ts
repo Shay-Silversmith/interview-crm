@@ -62,22 +62,19 @@ function storageKey(name: string): string {
   return prefix + name
 }
 
-// Wipe both namespaces if seed version changed so fresh seed loads everywhere.
-function clearStaleCache(): void {
+// Wipe ONLY demo namespace if seed version changed. Never touch real data.
+function clearStaleDemoCache(): void {
   if (typeof localStorage === 'undefined') return
   try {
-    const versionKey = 'interviewflow.__seedVersion'
+    const versionKey = DEMO_PREFIX + '__seedVersion'
     if (localStorage.getItem(versionKey) !== SEED_VERSION) {
       const names = ['applications','companies','tasks','contacts','events','cvVersions','documents','prep','ai','activity']
-      for (const n of names) {
-        localStorage.removeItem(REAL_PREFIX + n)
-        localStorage.removeItem(DEMO_PREFIX + n)
-      }
+      for (const n of names) localStorage.removeItem(DEMO_PREFIX + n)
       localStorage.setItem(versionKey, SEED_VERSION)
     }
   } catch { /* ignore */ }
 }
-clearStaleCache()
+clearStaleDemoCache()
 
 function loadOrSeed<T>(name: string, seed: T[]): T[] {
   if (typeof localStorage === 'undefined') return [...seed]
