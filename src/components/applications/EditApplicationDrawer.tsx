@@ -10,6 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import type { JobApplication, CVVersion } from '@/types'
 import {
   makeApplicationEditSchema,
+  emptyToUndef,
   type ApplicationEditFormValues,
 } from '@/lib/schemas/applicationSchema'
 import { Drawer } from '@/components/ui/Drawer'
@@ -43,6 +44,17 @@ export function EditApplicationDrawer({
     { value: 'Hybrid',   label: t('forms.options.workHybrid') },
     { value: 'On-site',  label: t('forms.options.workOnSite') },
   ]
+  const JOB_SCOPE_OPTS = [
+    { value: '',             label: t('forms.options.notSpecified') },
+    { value: '2 days/week',  label: '2 days / week' },
+    { value: '3 days/week',  label: '3 days / week' },
+    { value: '4 days/week',  label: '4 days / week' },
+    { value: 'Full-time',    label: 'Full-time' },
+  ]
+  const SALARY_TYPE_OPTS = [
+    { value: 'Hourly',  label: 'Hourly (₪/hr)' },
+    { value: 'Monthly', label: 'Monthly (gross)' },
+  ]
   const CURRENCY_OPTS = [
     { value: 'ILS', label: '₪ ILS' },
     { value: 'USD', label: '$ USD' },
@@ -66,9 +78,13 @@ export function EditApplicationDrawer({
       roleUrl:       app.roleUrl        ?? '',
       location:      app.location       ?? '',
       workModel:     app.workModel,
+      jobScope:      app.jobScope,
       salaryMin:     app.salaryMin,
       salaryMax:     app.salaryMax,
+      salaryType:    app.salaryType     ?? 'Hourly',
       currency:      app.currency       ?? 'ILS',
+      fitScore:      app.fitScore,
+      urgencyScore:  app.urgencyScore,
       submittedCvId: app.submittedCvId  ?? '',
       notes:         app.notes          ?? '',
     },
@@ -90,16 +106,20 @@ export function EditApplicationDrawer({
     await update.mutateAsync({
       id: app.id,
       data: {
-        roleName:       values.roleName,
-        roleUrl:        values.roleUrl        || undefined,
-        location:       values.location       || undefined,
-        workModel:      values.workModel,
-        salaryMin:      values.salaryMin,
-        salaryMax:      values.salaryMax,
-        currency:       values.currency,
-        submittedCvId:  values.submittedCvId  || undefined,
-        submittedCvName: cv?.name             || undefined,
-        notes:          values.notes          || undefined,
+        roleName:        values.roleName,
+        roleUrl:         values.roleUrl        || undefined,
+        location:        values.location       || undefined,
+        workModel:       values.workModel,
+        jobScope:        values.jobScope       || undefined,
+        salaryMin:       values.salaryMin,
+        salaryMax:       values.salaryMax,
+        salaryType:      values.salaryType,
+        currency:        values.currency,
+        fitScore:        values.fitScore,
+        urgencyScore:    values.urgencyScore,
+        submittedCvId:   values.submittedCvId  || undefined,
+        submittedCvName: cv?.name              || undefined,
+        notes:           values.notes          || undefined,
       },
     })
     reset(values) // mark form as clean after success
@@ -133,12 +153,18 @@ export function EditApplicationDrawer({
         </FormSection>
 
         <FormSection title={t('forms.sections.details')}>
-          <FormRow>
+          <FormRow cols={3}>
             <SelectField
               label={t('forms.fields.workModel')}
               options={WORK_MODEL_OPTS}
               error={errors.workModel?.message}
-              {...register('workModel')}
+              {...register('workModel', { setValueAs: emptyToUndef })}
+            />
+            <SelectField
+              label="Scope"
+              options={JOB_SCOPE_OPTS}
+              error={errors.jobScope?.message}
+              {...register('jobScope', { setValueAs: emptyToUndef })}
             />
             <TextField
               label={t('forms.fields.location')}
@@ -147,18 +173,24 @@ export function EditApplicationDrawer({
               {...register('location')}
             />
           </FormRow>
-          <FormRow cols={3}>
+          <FormRow cols={4}>
+            <SelectField
+              label="Salary type"
+              options={SALARY_TYPE_OPTS}
+              error={errors.salaryType?.message}
+              {...register('salaryType', { setValueAs: emptyToUndef })}
+            />
             <TextField
-              label={t('forms.fields.minSalary')}
+              label="Min"
               type="number"
-              placeholder="18000"
+              placeholder="60"
               error={errors.salaryMin?.message}
               {...register('salaryMin', { setValueAs: v => v === '' ? undefined : Number(v) })}
             />
             <TextField
-              label={t('forms.fields.maxSalary')}
+              label="Max"
               type="number"
-              placeholder="25000"
+              placeholder="80"
               error={errors.salaryMax?.message}
               {...register('salaryMax', { setValueAs: v => v === '' ? undefined : Number(v) })}
             />
@@ -167,6 +199,28 @@ export function EditApplicationDrawer({
               options={CURRENCY_OPTS}
               error={errors.currency?.message}
               {...register('currency')}
+            />
+          </FormRow>
+          <FormRow>
+            <TextField
+              label="Fit (0–100)"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="85"
+              hint="How well this role matches you"
+              error={errors.fitScore?.message}
+              {...register('fitScore', { setValueAs: v => v === '' ? undefined : Number(v) })}
+            />
+            <TextField
+              label="Urgency (0–100)"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="70"
+              hint="How urgent is this opportunity"
+              error={errors.urgencyScore?.message}
+              {...register('urgencyScore', { setValueAs: v => v === '' ? undefined : Number(v) })}
             />
           </FormRow>
         </FormSection>

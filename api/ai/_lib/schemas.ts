@@ -128,3 +128,79 @@ export const followUpResponseSchema = z.object({
 
 export type FollowUpRequest  = z.infer<typeof followUpRequestSchema>
 export type FollowUpResponse = z.infer<typeof followUpResponseSchema>
+
+// ---------------------------------------------------------------------------
+// Company auto-fill
+// ---------------------------------------------------------------------------
+
+const companySize = z.enum([
+  '1-10', '11-50', '51-200', '201-500', '501-2000', '2001-10000', '10000+',
+])
+
+export const companyFillRequestSchema = z.object({
+  companyName: z.string().min(1).max(200),
+  hint:        z.string().max(500).optional(),  // optional disambiguator e.g. "the Israeli AI startup"
+  locale:      localeField,
+})
+
+export const companyFillResponseSchema = z.object({
+  industry:        z.string(),
+  size:            companySize.nullable().optional(),
+  location:        z.string(),
+  description:     z.string(),
+  website:         z.string().nullable().optional(),
+  linkedinUrl:     z.string().nullable().optional(),
+  glassdoorRating: z.number().min(0).max(5).nullable().optional(),
+  techStack:       z.array(z.string()),
+  /** Optional disambiguation note when multiple matching companies exist. */
+  disambiguation:  z.string().nullable().optional(),
+})
+
+export type CompanyFillRequest  = z.infer<typeof companyFillRequestSchema>
+export type CompanyFillResponse = z.infer<typeof companyFillResponseSchema>
+
+// ---------------------------------------------------------------------------
+// CV parse — extract structured highlights from an uploaded resume
+// ---------------------------------------------------------------------------
+
+export const cvParseRequestSchema = z.object({
+  fileName:   z.string().min(1).max(300),
+  mimeType:   z.string().min(1).max(120),
+  /** Base64-encoded file content. ~7MB cap to stay under Vercel's body limit. */
+  base64Data: z.string().min(1).max(10_000_000),
+  locale:     localeField,
+})
+
+export const cvParseResponseSchema = z.object({
+  emphasis:            z.string(),
+  skillsHighlighted:   z.array(z.string()),
+  projectsHighlighted: z.array(z.string()),
+  suggestedName:       z.string(),
+})
+
+export type CVParseRequest  = z.infer<typeof cvParseRequestSchema>
+export type CVParseResponse = z.infer<typeof cvParseResponseSchema>
+
+// ---------------------------------------------------------------------------
+// JD Summarize — turn a pasted URL or text into a clean bullet summary
+// ---------------------------------------------------------------------------
+
+export const jdSummarizeRequestSchema = z
+  .object({
+    jdUrl:  z.string().url().optional(),
+    jdText: z.string().max(30_000).optional(),
+    locale: localeField,
+  })
+  .refine(d => !!d.jdUrl || !!d.jdText, { message: 'Either jdUrl or jdText is required' })
+
+export const jdSummarizeResponseSchema = z.object({
+  /** Short headline summarising the role in 1 sentence. */
+  headline: z.string(),
+  /** 6-10 bullet points covering responsibilities, requirements, perks, etc. */
+  bullets:  z.array(z.string()).min(1),
+  /** Plain-text body ready to drop straight into the JD textarea. */
+  bodyText: z.string(),
+})
+
+export type JDSummarizeRequest  = z.infer<typeof jdSummarizeRequestSchema>
+export type JDSummarizeResponse = z.infer<typeof jdSummarizeResponseSchema>

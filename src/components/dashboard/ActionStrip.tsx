@@ -113,8 +113,19 @@ function buildItems(
     })
 
   // Stale top-priority application (no activity ≥ 7 days)
+  const safeDaysSinceUpdate = (a: JobApplication): number => {
+    if (!a.updatedAt) return 0
+    try {
+      const d = parseISO(a.updatedAt)
+      if (Number.isNaN(d.getTime())) return 0
+      return differenceInDays(now, d)
+    } catch {
+      return 0
+    }
+  }
+
   const staleApp: JobApplication | undefined = data.topApplications
-    .filter(a => differenceInDays(now, parseISO(a.updatedAt)) >= 7)
+    .filter(a => safeDaysSinceUpdate(a) >= 7)
     .sort((a, b) => (b.urgencyScore ?? 0) - (a.urgencyScore ?? 0))[0]
 
   if (staleApp) {
@@ -122,7 +133,7 @@ function buildItems(
       id:     `stale-${staleApp.id}`,
       type:   'stale',
       label:  `${staleApp.roleName} @ ${staleApp.companyName}`,
-      sub:    inDays(differenceInDays(now, parseISO(staleApp.updatedAt))),
+      sub:    inDays(safeDaysSinceUpdate(staleApp)),
       to:     `/applications/${staleApp.id}`,
       ctaKey: 'ctaView',
     })

@@ -21,7 +21,16 @@
       "Bash(git -C \"C:\\\\Users\\\\ah200\\\\interview-crm\" remote -v)",
       "Bash(git -C \"C:\\\\Users\\\\ah200\\\\interview-crm\" log --oneline -5)",
       "Bash(git -C \"C:\\\\Users\\\\ah200\\\\interview-crm\" status --short)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(\"C:\\\\Program Files\\\\nodejs\\\\node.exe\" \"node_modules\\\\typescript\\\\bin\\\\tsc\" --noEmit)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(git check-ignore *)",
+      "Bash(findstr /i \"env\")",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

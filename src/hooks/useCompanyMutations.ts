@@ -11,6 +11,11 @@ export function useCompanyMutations() {
   const invalidate = (id?: string) => {
     void qc.invalidateQueries({ queryKey: QK.companies.all() })
     if (id) void qc.invalidateQueries({ queryKey: QK.companies.detail(id) })
+    // Company name / logo / size are denormalized into applications and
+    // surface in tasks → invalidate everything that consumes them.
+    void qc.invalidateQueries({ queryKey: QK.applications.all() })
+    void qc.invalidateQueries({ queryKey: QK.tasks.all() })
+    void qc.invalidateQueries({ queryKey: QK.dashboard.all() })
   }
 
   const create = useMutation({

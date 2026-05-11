@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FileText, CheckCircle2, Layers, Plus, Edit2, Trash2 } from 'lucide-react'
+import { FileText, CheckCircle2, Layers, Plus, Edit2, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -165,10 +165,10 @@ export function DocumentsPage() {
                       <div className="flex flex-wrap gap-1 mt-2">
                         <span className="text-2xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{doc.type}</span>
                       </div>
-                      {doc.applicationIds.length > 0 && (
+                      {(doc.applicationIds ?? []).length > 0 && (
                         <div className="mt-2">
                           <p className="text-2xs text-slate-400 mb-1">Used in:</p>
-                          {doc.applicationIds.map(id => (
+                          {(doc.applicationIds ?? []).map(id => (
                             <Link key={id} to={`/applications/${id}`} className="block text-2xs text-primary-600 hover:underline truncate">
                               {appMap[id] ?? id}
                             </Link>
@@ -250,11 +250,21 @@ export function DocumentsPage() {
 function CVCard({
   cv, appMap, onEdit, onDelete, t,
 }: { cv: CVVersion; appMap: Record<string, string>; onEdit: () => void; onDelete: () => void; t: (key: string) => string }) {
+  const [expanded, setExpanded] = useState(false)
+  // Defensive defaults — older persisted data may be missing these arrays
+  const skills:   string[] = cv.skillsHighlighted   ?? []
+  const projects: string[] = cv.projectsHighlighted ?? []
+  const apps:     string[] = cv.applicationIds      ?? []
   return (
-    <Card className={cn('border group', cv.isActive ? 'border-primary-200' : 'border-slate-200 opacity-80')}>
-      <div className="flex items-start gap-4">
+    <Card className={cn('border group p-0 overflow-hidden', cv.isActive ? 'border-primary-200' : 'border-slate-200 opacity-90')}>
+      {/* Compact header — always visible. Click anywhere to toggle expand. */}
+      <button
+        type="button"
+        onClick={() => setExpanded(e => !e)}
+        className="w-full text-start flex items-center gap-3 p-4 hover:bg-slate-50/60 transition-colors"
+      >
         <div className={cn(
-          'w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-lg font-bold',
+          'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-base font-bold',
           cv.isActive ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-400',
         )}>
           v{cv.version}
@@ -267,41 +277,61 @@ function CVCard({
                 <CheckCircle2 className="w-2.5 h-2.5" /> {t('pages.documents.activeBadge')}
               </span>
             )}
-            {/* Prominent view button when file exists */}
-            {cv.storagePath && (
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5 force-ltr truncate">{cv.fileName}</p>
+          <p className="text-2xs text-slate-400">
+            {cv.fileSize ? formatFileSize(cv.fileSize) + ' · ' : ''}
+            {formatRelative(cv.updatedAt)}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {expanded ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+        </div>
+      </button>
+
+      {/* Expanded content — skills, projects, links, actions */}
+      {expanded && (
+        <div className="px-4 pb-4 pt-1 border-t border-slate-100 space-y-3">
+          {cv.storagePath && (
+            <div>
               <CVViewerButton storagePath={cv.storagePath} label="View file" variant="button" />
-            )}
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">{cv.fileName}</p>
-          {cv.fileSize && <p className="text-xs text-slate-400">{formatFileSize(cv.fileSize)}</p>}
-          <p className="text-xs text-slate-600 mt-2 leading-snug">{cv.emphasis}</p>
-
-          <div className="mt-3">
-            <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">{t('pages.documents.skillsLabel')}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {cv.skillsHighlighted.map(s => (
-                <span key={s} className="text-2xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full font-medium">{s}</span>
-              ))}
             </div>
-          </div>
+          )}
 
-          <div className="mt-3">
-            <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">{t('pages.documents.projectsLabel')}</p>
-            <ul className="space-y-1">
-              {cv.projectsHighlighted.map(p => (
-                <li key={p} className="flex items-center gap-2 text-xs text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
-                  {p}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {cv.emphasis && (
+            <p className="text-xs text-slate-600 leading-snug">{cv.emphasis}</p>
+          )}
 
-          {cv.applicationIds.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-slate-100">
+          {skills.length > 0 && (
+            <div>
+              <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">{t('pages.documents.skillsLabel')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {skills.map(s => (
+                  <span key={s} className="text-2xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full font-medium">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {projects.length > 0 && (
+            <div>
+              <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">{t('pages.documents.projectsLabel')}</p>
+              <ul className="space-y-1">
+                {projects.map(p => (
+                  <li key={p} className="flex items-center gap-2 text-xs text-slate-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {apps.length > 0 && (
+            <div className="pt-3 border-t border-slate-100">
               <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Submitted to</p>
               <div className="flex flex-wrap gap-2">
-                {cv.applicationIds.map(id => (
+                {apps.map(id => (
                   <Link
                     key={id}
                     to={`/applications/${id}`}
@@ -313,21 +343,22 @@ function CVCard({
               </div>
             </div>
           )}
-        </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <p className="text-2xs text-slate-300">{formatRelative(cv.updatedAt)}</p>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={onEdit} className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600" aria-label="Edit CV">
+
+          {cv.notes && (
+            <p className="pt-3 border-t border-slate-100 text-xs text-slate-400 italic">{cv.notes}</p>
+          )}
+
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+            <Button variant="outline" size="sm" onClick={onEdit}>
               <Edit2 className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={onDelete} className="p-1 rounded hover:bg-danger-50 text-slate-400 hover:text-danger-600" aria-label="Delete CV">
+              {t('common.edit')}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onDelete} className="text-danger-600 hover:bg-danger-50">
               <Trash2 className="w-3.5 h-3.5" />
-            </button>
+              {t('common.delete')}
+            </Button>
           </div>
         </div>
-      </div>
-      {cv.notes && (
-        <p className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400 italic">{cv.notes}</p>
       )}
     </Card>
   )

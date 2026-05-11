@@ -26,6 +26,14 @@ export type TaskCategory =
 
 export type WorkModel = 'On-site' | 'Hybrid' | 'Remote'
 
+export type SalaryType = 'Hourly' | 'Monthly'
+
+export type JobScope =
+  | '2 days/week'
+  | '3 days/week'
+  | '4 days/week'
+  | 'Full-time'
+
 export type CompanySize =
   | '1-10'
   | '11-50'

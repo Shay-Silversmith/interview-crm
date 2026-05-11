@@ -14,6 +14,8 @@ import type {
   ConfidenceLevel,
   AIToolType,
   ActivityType,
+  SalaryType,
+  JobScope,
 } from '@/lib/enums'
 
 export interface UserProfile {
@@ -91,7 +93,11 @@ export interface JobApplication {
   location?: string
   salaryMin?: number
   salaryMax?: number
+  /** 'Hourly' for student / part-time roles, 'Monthly' for global salary. */
+  salaryType?: SalaryType
   currency?: string
+  /** Time commitment: 2 / 3 / 4 days per week, or full-time. */
+  jobScope?: JobScope
   fitScore?: number
   urgencyScore?: number
   submittedCvId?: string

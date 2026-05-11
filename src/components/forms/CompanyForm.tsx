@@ -4,11 +4,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Sparkles, Loader2 } from 'lucide-react'
 import type { Company } from '@/types'
 import { makeCompanySchema, type CompanyFormValues } from '@/lib/schemas/companySchema'
 import { TextField, SelectField, TextareaField } from './Field'
 import { FormRow, FormSection, SubmitBar } from './FormLayout'
 import { useI18n } from '@/hooks/useI18n'
+import { useToastActions } from '@/hooks/useToast'
+import { aiService } from '@/services/aiService'
 import { initials } from '@/utils/format'
 import { cn } from '@/lib/cn'
 
@@ -55,7 +58,11 @@ export function CompanyForm({ initial, onSubmit, onCancel, loading, submitLabel 
   // Logo preview state
   const logoUrlValue  = useWatch({ control, name: 'logoUrl' })
   const websiteValue  = useWatch({ control, name: 'website' })
+  const nameValue     = useWatch({ control, name: 'name' })
   const [previewError, setPreviewError] = useState(false)
+  const [autoFilling, setAutoFilling] = useState(false)
+  const [disambiguation, setDisambiguation] = useState<string | null>(null)
+  const toast = useToastActions()
 
   // Reset error whenever the URL changes so a new URL gets a fresh attempt
   useEffect(() => { setPreviewError(false) }, [logoUrlValue])
@@ -70,15 +77,89 @@ export function CompanyForm({ initial, onSubmit, onCancel, loading, submitLabel 
     }
   }
 
+  const handleAIAutofill = async () => {
+    const name = (nameValue ?? '').trim()
+    if (!name || autoFilling) return
+
+    setAutoFilling(true)
+    setDisambiguation(null)
+    try {
+      const { data, fromFallback, fallbackReason } = await aiService.fillCompany({ companyName: name })
+
+      // Apply each non-empty field. Don't overwrite name (user typed it).
+      if (data.industry)            setValue('industry',        data.industry,          { shouldDirty: true })
+      if (data.size)                setValue('size',            data.size,              { shouldDirty: true })
+      if (data.location)            setValue('location',        data.location,          { shouldDirty: true })
+      if (data.description)         setValue('description',     data.description,       { shouldDirty: true })
+      if (data.website)             setValue('website',         data.website,           { shouldDirty: true })
+      if (data.linkedinUrl)         setValue('linkedinUrl',     data.linkedinUrl,       { shouldDirty: true })
+      if (data.glassdoorRating !== null && data.glassdoorRating !== undefined)
+        setValue('glassdoorRating', data.glassdoorRating,       { shouldDirty: true })
+      if (data.techStack?.length)   setValue('techStack',       data.techStack.join(', '), { shouldDirty: true })
+
+      // Derive a logo URL from the website domain when one was returned.
+      if (data.website) {
+        try {
+          const host = new URL(data.website).hostname
+          setValue('logoUrl', `https://www.google.com/s2/favicons?domain=${host}&sz=128`, { shouldDirty: true })
+        } catch { /* skip */ }
+      }
+
+      if (data.disambiguation) setDisambiguation(data.disambiguation)
+
+      if (fromFallback) {
+        toast.info(
+          fallbackReason === 'disabled'
+            ? 'Demo data — set VITE_AI_ENABLED=true and run vercel dev for live web research.'
+            : 'AI request failed; showing fallback data.'
+        )
+      } else {
+        toast.success('Company details filled from web research')
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Auto-fill failed')
+    } finally {
+      setAutoFilling(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
       <FormSection title={t('forms.sections.basics')}>
-        <TextField
-          label={t('forms.fields.companyName')} required
-          placeholder="Amazon"
-          error={errors.name?.message}
-          {...register('name')}
-        />
+        <div className="space-y-1.5">
+          <TextField
+            label={t('forms.fields.companyName')} required
+            placeholder="Amazon"
+            error={errors.name?.message}
+            {...register('name')}
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleAIAutofill}
+              disabled={!nameValue?.trim() || autoFilling}
+              className={cn(
+                'inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium',
+                'bg-primary-gradient text-white shadow-sm hover:brightness-110',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+                'transition-all',
+              )}
+            >
+              {autoFilling
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Sparkles className="w-3.5 h-3.5" />}
+              {autoFilling ? 'Researching…' : 'Auto-fill with AI'}
+            </button>
+            <span className="text-2xs text-slate-400">
+              Type the company name above, then click to research.
+            </span>
+          </div>
+          {disambiguation && (
+            <div className="mt-2 px-3 py-2 rounded-lg bg-warning-50 border border-warning-200 text-xs text-warning-800">
+              <span className="font-semibold">Heads up:</span> {disambiguation}
+            </div>
+          )}
+        </div>
         <FormRow>
           <TextField    label={t('forms.fields.industry')} placeholder="Technology · E-commerce" error={errors.industry?.message} {...register('industry')} />
           <SelectField  label={t('forms.fields.size')}     options={SIZE_OPTS} placeholder="Select size…" error={errors.size?.message} {...register('size')} />

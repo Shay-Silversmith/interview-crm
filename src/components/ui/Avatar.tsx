@@ -66,8 +66,9 @@ const COMPANY_COLORS: Record<string, string> = {
 
 export function CompanyLogo({ name, size = 'md', className, logoUrl }: CompanyLogoProps) {
   const [imgError, setImgError] = useState(false)
-  const color = COMPANY_COLORS[name] ?? 'bg-slate-100 text-slate-600'
-  const abbr = name.slice(0, 2).toUpperCase()
+  const safeName = name ?? ''
+  const color = COMPANY_COLORS[safeName] ?? 'bg-slate-100 text-slate-600'
+  const abbr = safeName.slice(0, 2).toUpperCase() || '?'
 
   // Image path: logoUrl present and not yet errored → render <img>
   if (logoUrl && !imgError) {
@@ -81,7 +82,7 @@ export function CompanyLogo({ name, size = 'md', className, logoUrl }: CompanyLo
       >
         <img
           src={logoUrl}
-          alt={`${name} logo`}
+          alt={`${safeName} logo`}
           className="w-full h-full object-contain"
           onError={() => setImgError(true)}
         />

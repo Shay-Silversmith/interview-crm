@@ -16,6 +16,9 @@ import { useTaskMutations } from '@/hooks/useTaskMutations'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useI18n } from '@/hooks/useI18n'
 import { tasksService } from '@/services/tasksService'
+import { applicationsService } from '@/services/applicationsService'
+import { CompanyLogo } from '@/components/ui/Avatar'
+import type { JobApplication } from '@/types'
 import { formatDate, isOverdue } from '@/utils/date'
 import { priorityScore } from '@/utils/priority'
 import { matchesSearch } from '@/utils/search'
@@ -36,12 +39,24 @@ const CATEGORY_COLORS: Record<string, string> = {
 export function TasksPage() {
   const { t } = useI18n()
   const { data: tasks, loading } = useMockStore(() => tasksService.list(), [], { key: QK.tasks.all() })
+  const { data: apps } = useMockStore(() => applicationsService.list(), [], { key: QK.applications.all() })
   const { create, update, complete, remove } = useTaskMutations()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<TaskCategory | ''>('')
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'active' | ''>('active')
   const [priority, setPriority] = useState<Priority | ''>('')
+  const [companyFilter, setCompanyFilter] = useState<string>('')
+  const [groupByCompany, setGroupByCompany] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+
+  // Build a quick lookup for company logo + name from applications
+  const appById: Record<string, JobApplication> = {}
+  apps?.forEach(a => { appById[a.id] = a })
+
+  // Distinct company names that appear in tasks (for the filter dropdown)
+  const taskCompanies = Array.from(
+    new Set((tasks ?? []).map(t => t.companyName).filter((c): c is string => !!c))
+  ).sort()
   const [editTask, setEditTask] = useState<Task | null>(null)
   const [deleteTask, setDeleteTask] = useState<Task | null>(null)
   const debouncedSearch = useDebouncedValue(search)
@@ -79,11 +94,24 @@ export function TasksPage() {
         if (statusFilter === 'active' && (t.status === 'Done' || t.status === 'Cancelled')) return false
         if (statusFilter && statusFilter !== 'active' && t.status !== statusFilter) return false
         if (priority && t.priority !== priority) return false
+        if (companyFilter && t.companyName !== companyFilter) return false
         if (!matchesSearch(t as unknown as Record<string, unknown>, debouncedSearch, ['title', 'companyName', 'category'])) return false
         return true
       })
       .sort((a, b) => priorityScore(b) - priorityScore(a))
-  }, [tasks, category, statusFilter, priority, debouncedSearch])
+  }, [tasks, category, statusFilter, priority, companyFilter, debouncedSearch])
+
+  // Group by company when toggled — preserves the priority order within each group
+  const tasksByCompany = useMemo(() => {
+    if (!groupByCompany) return null
+    const groups: Record<string, Task[]> = {}
+    for (const tk of filtered) {
+      const key = tk.companyName ?? '— No company —'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(tk)
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
+  }, [filtered, groupByCompany])
 
   const overdue = filtered.filter(t => t.status !== 'Done' && t.dueAt && isOverdue(t.dueAt))
   const active  = filtered.filter(t => t.status !== 'Done' && !(t.dueAt && isOverdue(t.dueAt)))
@@ -167,6 +195,27 @@ export function TasksPage() {
         <Select options={CATEGORY_OPTIONS} value={category} onChange={e => setCategory(e.target.value as TaskCategory | '')} className="w-36" />
         <Select options={STATUS_OPTIONS} value={statusFilter} onChange={e => setStatusFilter(e.target.value as TaskStatus | 'active' | '')} className="w-32" />
         <Select options={PRIORITY_OPTIONS} value={priority} onChange={e => setPriority(e.target.value as Priority | '')} className="w-32" />
+        <Select
+          options={[
+            { label: 'All companies', value: '' },
+            ...taskCompanies.map(c => ({ label: c, value: c })),
+          ]}
+          value={companyFilter}
+          onChange={e => setCompanyFilter(e.target.value)}
+          className="w-40"
+        />
+        <button
+          type="button"
+          onClick={() => setGroupByCompany(g => !g)}
+          className={cn(
+            'h-9 px-3 text-xs rounded-lg border transition-colors',
+            groupByCompany
+              ? 'bg-primary-600 text-white border-primary-600'
+              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50',
+          )}
+        >
+          {groupByCompany ? '✓ Grouped by company' : 'Group by company'}
+        </button>
       </div>
 
       {loading ? (
@@ -180,18 +229,39 @@ export function TasksPage() {
           description={t('pages.tasks.noTasksSub')}
           action={{ label: t('pages.tasks.newTask'), onClick: () => setAddOpen(true) }}
         />
+      ) : tasksByCompany ? (
+        <div className="space-y-4">
+          {tasksByCompany.map(([companyName, group]) => {
+            const logoUrl = group.find(t => t.applicationId && appById[t.applicationId])?.applicationId
+              ? appById[group.find(t => t.applicationId && appById[t.applicationId])!.applicationId!]?.companyLogoUrl
+              : undefined
+            return (
+              <TaskGroup
+                key={companyName}
+                title={companyName}
+                companyLogoUrl={logoUrl}
+                companyName={companyName}
+                tasks={group}
+                appById={appById}
+                onComplete={handleComplete}
+                onEdit={setEditTask}
+                onDelete={setDeleteTask}
+              />
+            )
+          })}
+        </div>
       ) : (
         <div className="space-y-4">
           {overdue.length > 0 && (
-            <TaskGroup title={t('pages.tasks.groupOverdue')} tasks={overdue} isOverdue
+            <TaskGroup title={t('pages.tasks.groupOverdue')} tasks={overdue} appById={appById} isOverdue
               onComplete={handleComplete} onEdit={setEditTask} onDelete={setDeleteTask} />
           )}
           {active.length > 0 && (
-            <TaskGroup title={t('pages.tasks.groupUpcoming')} tasks={active}
+            <TaskGroup title={t('pages.tasks.groupUpcoming')} tasks={active} appById={appById}
               onComplete={handleComplete} onEdit={setEditTask} onDelete={setDeleteTask} />
           )}
           {done.length > 0 && (
-            <TaskGroup title={t('pages.tasks.groupDone')} tasks={done}
+            <TaskGroup title={t('pages.tasks.groupDone')} tasks={done} appById={appById}
               onComplete={handleComplete} onEdit={setEditTask} onDelete={setDeleteTask} />
           )}
         </div>
@@ -233,11 +303,14 @@ export function TasksPage() {
 }
 
 function TaskGroup({
-  title, tasks, isOverdue: overdue, onComplete, onEdit, onDelete,
+  title, tasks, appById, isOverdue: overdue, companyLogoUrl, companyName, onComplete, onEdit, onDelete,
 }: {
   title: string
   tasks: Task[]
+  appById: Record<string, JobApplication>
   isOverdue?: boolean
+  companyLogoUrl?: string
+  companyName?: string
   onComplete: (id: string) => void
   onEdit: (t: Task) => void
   onDelete: (t: Task) => void
@@ -245,6 +318,9 @@ function TaskGroup({
   return (
     <div>
       <div className="flex items-center gap-2 mb-2">
+        {companyName && companyName !== '— No company —' && (
+          <CompanyLogo name={companyName} logoUrl={companyLogoUrl} size="sm" />
+        )}
         <h2 className={cn('text-xs font-semibold uppercase tracking-wide', overdue ? 'text-danger-600' : 'text-slate-500')}>
           {title}
         </h2>
@@ -253,7 +329,9 @@ function TaskGroup({
         </span>
       </div>
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
-        {tasks.map((task, i) => (
+        {tasks.map((task, i) => {
+          const app = task.applicationId ? appById[task.applicationId] : undefined
+          return (
           <div key={task.id} className={cn('flex items-start gap-3 px-4 py-3.5 group', i > 0 && 'border-t border-slate-50')}>
             <button
               onClick={() => task.status !== 'Done' && onComplete(task.id)}
@@ -267,13 +345,21 @@ function TaskGroup({
             >
               {task.status === 'Done' && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
             </button>
+            {task.companyName && (
+              <CompanyLogo
+                name={task.companyName}
+                logoUrl={app?.companyLogoUrl}
+                size="sm"
+                className="mt-0.5 shrink-0"
+              />
+            )}
             <div className="flex-1 min-w-0">
               <p className={cn('text-sm font-medium leading-snug', task.status === 'Done' ? 'line-through text-slate-400' : 'text-slate-800')}>
                 {task.title}
               </p>
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
                 {task.companyName && (
-                  <span className="text-xs text-slate-400">{task.companyName}</span>
+                  <span className="text-xs text-slate-500 font-medium">{task.companyName}</span>
                 )}
                 {task.dueAt && (
                   <span className={cn('text-xs force-ltr', overdue && task.status !== 'Done' ? 'text-danger-500 font-medium' : 'text-slate-400')}>
@@ -306,7 +392,8 @@ function TaskGroup({
               </div>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

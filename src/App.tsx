@@ -23,6 +23,7 @@ import { DocumentsPage }       from './pages/DocumentsPage'
 import { PrepPage }            from './pages/PrepPage'
 import { SettingsPage }        from './pages/SettingsPage'
 import { LoginPage }           from './pages/LoginPage'
+import { ThemesPreviewPage }   from './pages/ThemesPreviewPage'
 
 // ── Lazily loaded (heavy: AI SDK, calendar date-picker, cmdk panels) ────────
 const CalendarPage = lazy(() => import('./pages/CalendarPage').then(m => ({ default: m.CalendarPage })))
@@ -137,6 +138,7 @@ export default function App() {
                   } />
 
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/themes-preview" element={<ThemesPreviewPage />} />
                 </Route>
               </Route>
             </Routes>

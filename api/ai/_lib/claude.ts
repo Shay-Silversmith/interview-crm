@@ -10,16 +10,23 @@ import { z } from 'zod'
 
 const MODEL = 'claude-sonnet-4-6'
 
-// Lazy-initialize so the module can be imported without the key set
-// (useful in test environments — the key is always present at call-time).
-let _client: Anthropic | null = null
-function client(): Anthropic {
-  if (!_client) {
+// Cache server-env client; per-request user keys build a fresh client each call.
+let _envClient: Anthropic | null = null
+function client(userKey?: string): Anthropic {
+  if (userKey) return new Anthropic({ apiKey: userKey })
+  if (!_envClient) {
     const key = process.env.ANTHROPIC_API_KEY
-    if (!key) throw new Error('ANTHROPIC_API_KEY environment variable is not set')
-    _client = new Anthropic({ apiKey: key })
+    if (!key) throw new Error('No API key provided. Set ANTHROPIC_API_KEY or pass a user key from the client.')
+    _envClient = new Anthropic({ apiKey: key })
   }
-  return _client
+  return _envClient
+}
+
+/** Extract user-provided Anthropic key from request headers (BYOK). */
+export function getUserApiKey(headers: Record<string, string | string[] | undefined>): string | undefined {
+  const raw = headers['x-anthropic-key']
+  const v = Array.isArray(raw) ? raw[0] : raw
+  return v && v.trim().length > 0 ? v.trim() : undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -47,7 +54,7 @@ export function localeSystemSuffix(locale?: string | null): string {
 }
 
 // ---------------------------------------------------------------------------
-// Public interface
+// Public interface — simple text user message
 // ---------------------------------------------------------------------------
 
 export interface CallClaudeOptions<T> {
@@ -55,6 +62,7 @@ export interface CallClaudeOptions<T> {
   user: string
   schema: z.ZodType<T>
   maxTokens: number
+  apiKey?: string
 }
 
 /**
@@ -66,16 +74,42 @@ export async function callClaude<T>({
   user,
   schema,
   maxTokens,
+  apiKey,
 }: CallClaudeOptions<T>): Promise<T> {
-  type Msg = Anthropic.MessageParam
+  return callClaudeAdvanced({
+    system,
+    messages: [{ role: 'user', content: user }],
+    schema,
+    maxTokens,
+    apiKey,
+  })
+}
 
-  const firstMessages: Msg[] = [{ role: 'user', content: user }]
+// ---------------------------------------------------------------------------
+// Advanced variant — supports custom messages (e.g. with PDF documents) and
+// optional server tools like web_search.
+// ---------------------------------------------------------------------------
 
-  const firstReply = await client().messages.create({
+export interface CallClaudeAdvancedOptions<T> {
+  system:    string
+  messages:  Anthropic.MessageParam[]
+  schema:    z.ZodType<T>
+  maxTokens: number
+  /** Optional tool definitions. For Anthropic server tools (e.g. web_search) the
+   *  loop is handled by Anthropic and this single call returns a final text. */
+  tools?:    Anthropic.Messages.ToolUnion[]
+  apiKey?:   string
+}
+
+export async function callClaudeAdvanced<T>({
+  system, messages, schema, maxTokens, tools, apiKey,
+}: CallClaudeAdvancedOptions<T>): Promise<T> {
+  const firstReply = await client(apiKey).messages.create({
     model: MODEL,
     max_tokens: maxTokens,
     system,
-    messages: firstMessages,
+    messages,
+    ...(tools ? { tools } : {}),
   })
 
   const firstText = extractText(firstReply)
@@ -92,13 +126,13 @@ export async function callClaude<T>({
   const fixPrompt =
     `Your JSON output failed validation. Fix these issues and return ONLY the corrected JSON object:\n${issuesSummary}`
 
-  const retryMessages: Msg[] = [
-    ...firstMessages,
+  const retryMessages: Anthropic.MessageParam[] = [
+    ...messages,
     { role: 'assistant', content: firstText },
     { role: 'user', content: fixPrompt },
   ]
 
-  const retryReply = await client().messages.create({
+  const retryReply = await client(apiKey).messages.create({
     model: MODEL,
     max_tokens: maxTokens,
     system,

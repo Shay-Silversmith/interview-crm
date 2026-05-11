@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callClaude } from './_lib/claude'
+import { callClaude, getUserApiKey } from './_lib/claude'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 import {
   jdParserRequestSchema,
@@ -87,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       user:      userParts.join('\n\n'),
       schema:    jdParserResponseSchema,
       maxTokens: 1500,
+      apiKey:    getUserApiKey(req.headers as Record<string, string | string[] | undefined>),
     })
 
     return res.status(200).json({ ok: true, data })

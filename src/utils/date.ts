@@ -16,35 +16,46 @@ import {
   isSameDay,
 } from 'date-fns'
 
-export function formatDate(date: string | Date, fmt = 'MMM d, yyyy'): string {
+/** Returns null if input is missing or unparseable. */
+function safeParse(date: string | Date | undefined | null): Date | null {
+  if (!date) return null
   const d = typeof date === 'string' ? parseISO(date) : date
-  return format(d, fmt)
+  if (Number.isNaN(d.getTime())) return null
+  return d
 }
 
-export function formatDateTime(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date
-  return format(d, 'MMM d, yyyy · h:mm a')
+export function formatDate(date: string | Date | undefined | null, fmt = 'MMM d, yyyy'): string {
+  const d = safeParse(date)
+  return d ? format(d, fmt) : '—'
 }
 
-export function formatTime(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date
-  return format(d, 'h:mm a')
+export function formatDateTime(date: string | Date | undefined | null): string {
+  const d = safeParse(date)
+  return d ? format(d, 'MMM d, yyyy · h:mm a') : '—'
 }
 
-export function formatRelative(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date
+export function formatTime(date: string | Date | undefined | null): string {
+  const d = safeParse(date)
+  return d ? format(d, 'h:mm a') : '—'
+}
+
+export function formatRelative(date: string | Date | undefined | null): string {
+  const d = safeParse(date)
+  if (!d) return '—'
   if (isToday(d)) return 'Today'
   if (isTomorrow(d)) return 'Tomorrow'
   return formatDistanceToNow(d, { addSuffix: true })
 }
 
-export function isOverdue(date: string | Date): boolean {
-  const d = typeof date === 'string' ? parseISO(date) : date
+export function isOverdue(date: string | Date | undefined | null): boolean {
+  const d = safeParse(date)
+  if (!d) return false
   return isPast(d) && !isToday(d)
 }
 
-export function daysUntil(date: string | Date): number {
-  const d = typeof date === 'string' ? parseISO(date) : date
+export function daysUntil(date: string | Date | undefined | null): number {
+  const d = safeParse(date)
+  if (!d) return Number.POSITIVE_INFINITY
   return differenceInDays(d, new Date())
 }
 

@@ -11,11 +11,12 @@ import { useI18n } from '@/hooks/useI18n'
 // -- FormRow -----------------------------------------------------------------
 interface FormRowProps {
   children: ReactNode
-  cols?: 1 | 2 | 3
+  cols?: 1 | 2 | 3 | 4
 }
 export function FormRow({ children, cols = 2 }: FormRowProps) {
   const grid =
-    cols === 3 ? 'grid-cols-1 sm:grid-cols-3'
+    cols === 4 ? 'grid-cols-2 sm:grid-cols-4'
+    : cols === 3 ? 'grid-cols-1 sm:grid-cols-3'
     : cols === 2 ? 'grid-cols-1 sm:grid-cols-2'
     : 'grid-cols-1'
   return <div className={`grid ${grid} gap-4`}>{children}</div>

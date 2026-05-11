@@ -3,8 +3,9 @@ import { Users, Search, Mail, Linkedin, AlertCircle, Plus, Edit2, Trash2 } from 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { ContactTypeBadge } from '@/components/ui/Badge'
-import { Avatar } from '@/components/ui/Avatar'
+import { Avatar, CompanyLogo } from '@/components/ui/Avatar'
 import { Drawer } from '@/components/ui/Drawer'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { TableRowSkeleton } from '@/components/ui/Skeleton'
@@ -16,32 +17,58 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useI18n } from '@/hooks/useI18n'
 import { contactsService } from '@/services/contactsService'
 import { applicationsService } from '@/services/applicationsService'
+import { companiesService } from '@/services/companiesService'
 import { formatRelative, isOverdue } from '@/utils/date'
 import { cn } from '@/lib/cn'
 import { QK } from '@/lib/query-keys'
-import type { Contact } from '@/types'
+import type { Contact, Company } from '@/types'
 import type { ContactFormValues } from '@/lib/schemas/contactSchema'
 
 export function ContactsPage() {
   const { t } = useI18n()
   const { data: contacts, loading } = useMockStore(() => contactsService.list(), [], { key: QK.contacts.all() })
   const { data: apps } = useMockStore(() => applicationsService.list(), [], { key: QK.applications.all() })
+  const { data: companies } = useMockStore(() => companiesService.list(), [], { key: QK.companies.all() })
   const { create, update, remove } = useContactMutations()
   const [search, setSearch] = useState('')
+  const [companyFilter, setCompanyFilter] = useState<string>('')
+  const [sortBy, setSortBy] = useState<'recent' | 'company' | 'name'>('recent')
   const [viewContact, setViewContact] = useState<Contact | null>(null)
   const [editContact, setEditContact] = useState<Contact | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteContact, setDeleteContact] = useState<Contact | null>(null)
   const debouncedSearch = useDebouncedValue(search)
 
+  // Look up company logo by name (contacts store companyId optionally + company name)
+  const companyByName = useMemo(() => {
+    const m = new Map<string, Company>()
+    companies?.forEach(c => m.set(c.name.toLowerCase(), c))
+    return m
+  }, [companies])
+
+  const distinctCompanyNames = useMemo(() => {
+    const set = new Set<string>()
+    contacts?.forEach(c => { if (c.company) set.add(c.company) })
+    return Array.from(set).sort()
+  }, [contacts])
+
   const filtered = useMemo(() => {
     if (!contacts) return []
-    return contacts.filter(c => {
+    const result = contacts.filter(c => {
+      if (companyFilter && c.company !== companyFilter) return false
       if (!debouncedSearch) return true
       const q = debouncedSearch.toLowerCase()
       return c.name.toLowerCase().includes(q) || c.company?.toLowerCase().includes(q) || c.title?.toLowerCase().includes(q)
     })
-  }, [contacts, debouncedSearch])
+    if (sortBy === 'company') {
+      return [...result].sort((a, b) => (a.company ?? '').localeCompare(b.company ?? '') || a.name.localeCompare(b.name))
+    }
+    if (sortBy === 'name') {
+      return [...result].sort((a, b) => a.name.localeCompare(b.name))
+    }
+    // 'recent' — fall back to mock-store insertion order which is newest-first
+    return result
+  }, [contacts, debouncedSearch, companyFilter, sortBy])
 
   const appMap = useMemo(() => {
     const m: Record<string, string> = {}
@@ -101,13 +128,34 @@ export function ContactsPage() {
         }
       />
 
-      <div className="mb-5">
-        <Input
-          placeholder={t('pages.contacts.searchPlaceholder')}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          leftIcon={<Search className="w-3.5 h-3.5" />}
-          className="max-w-xs force-ltr"
+      <div className="mb-5 flex flex-wrap gap-3 items-center">
+        <div className="flex-1 min-w-[200px] max-w-xs">
+          <Input
+            placeholder={t('pages.contacts.searchPlaceholder')}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            leftIcon={<Search className="w-3.5 h-3.5" />}
+            className="force-ltr"
+          />
+        </div>
+        <Select
+          options={[
+            { label: 'All companies', value: '' },
+            ...distinctCompanyNames.map(c => ({ label: c, value: c })),
+          ]}
+          value={companyFilter}
+          onChange={e => setCompanyFilter(e.target.value)}
+          className="w-44"
+        />
+        <Select
+          options={[
+            { label: 'Sort: Recent',         value: 'recent' },
+            { label: 'Sort: Company A→Z',    value: 'company' },
+            { label: 'Sort: Name A→Z',       value: 'name' },
+          ]}
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as typeof sortBy)}
+          className="w-44"
         />
       </div>
 
@@ -156,7 +204,18 @@ export function ContactsPage() {
                     </td>
                     <td className="px-4 py-3"><ContactTypeBadge type={contact.type} /></td>
                     <td className="px-4 py-3">
-                      <span className="text-sm text-slate-600">{contact.company ?? '—'}</span>
+                      {contact.company ? (
+                        <div className="flex items-center gap-2">
+                          <CompanyLogo
+                            name={contact.company}
+                            logoUrl={companyByName.get(contact.company.toLowerCase())?.logoUrl}
+                            size="sm"
+                          />
+                          <span className="text-sm text-slate-700">{contact.company}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-slate-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-xs text-slate-500 force-ltr">
@@ -232,11 +291,11 @@ export function ContactsPage() {
                 </a>
               )}
             </div>
-            {viewContact.applicationIds.length > 0 && (
+            {(viewContact.applicationIds ?? []).length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('pages.contacts.linkedApplications')}</p>
                 <ul className="space-y-1">
-                  {viewContact.applicationIds.map(id => (
+                  {(viewContact.applicationIds ?? []).map(id => (
                     <li key={id} className="text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
                       {appMap[id] ?? id}
                     </li>

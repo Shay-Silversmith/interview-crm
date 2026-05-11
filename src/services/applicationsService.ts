@@ -9,22 +9,47 @@ const delay = () => new Promise<void>(r => setTimeout(r, MOCK_DELAY_MS + Math.ra
 
 // ---------------------------------------------------------------------------
 // Mock implementation (in-memory CRUD)
+// On every read, we re-enrich each application with the company's current
+// name + logoUrl so that updating a Company immediately reflects everywhere
+// (Applications list, Tasks, Board, Detail page hero).
 // ---------------------------------------------------------------------------
+function enrich(app: JobApplication): JobApplication {
+  const company = mockStore.companies.getById(app.companyId)
+  if (!company) return app
+  return {
+    ...app,
+    companyName:    company.name,
+    companyLogoUrl: company.logoUrl,
+  }
+}
+
 const mockImpl = {
   async list(): Promise<JobApplication[]> {
-    await delay(); return mockStore.applications.list()
+    await delay(); return mockStore.applications.list().map(enrich)
   },
   async getById(id: string): Promise<JobApplication | null> {
-    await delay(); return mockStore.applications.getById(id)
+    await delay()
+    const app = mockStore.applications.getById(id)
+    return app ? enrich(app) : null
   },
   async getByCompany(companyId: string): Promise<JobApplication[]> {
-    await delay(); return mockStore.applications.list().filter(a => a.companyId === companyId)
+    await delay()
+    return mockStore.applications.list().filter(a => a.companyId === companyId).map(enrich)
   },
   async create(data: Partial<JobApplication>): Promise<JobApplication> {
-    await delay(); return mockStore.applications.create(data)
+    await delay()
+    // Stamp companyName + logoUrl from the current Company record at creation
+    // time so the app has them even before the next refresh.
+    const company = data.companyId ? mockStore.companies.getById(data.companyId) : null
+    return enrich(mockStore.applications.create({
+      ...data,
+      companyName:    company?.name    ?? data.companyName,
+      companyLogoUrl: company?.logoUrl ?? data.companyLogoUrl,
+    }))
   },
   async update(id: string, data: Partial<JobApplication>): Promise<JobApplication> {
-    await delay(); return mockStore.applications.update(id, data)
+    await delay()
+    return enrich(mockStore.applications.update(id, data))
   },
   async delete(id: string): Promise<void> {
     await delay(); mockStore.applications.delete(id)

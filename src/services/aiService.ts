@@ -24,6 +24,12 @@ import {
   type PrepPackResponse,
   type FollowUpRequest,
   type FollowUpResponse,
+  type CompanyFillRequest,
+  type CompanyFillResponse,
+  type CVParseRequest,
+  type CVParseResponse,
+  type JDSummarizeRequest,
+  type JDSummarizeResponse,
   type AILocale,
 } from '@/services/aiClientService'
 import { mockStore } from '@/data/mock-store'
@@ -233,6 +239,209 @@ async function generateFollowUps(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Mock generators for the new tools — used when AI is disabled or the live
+// endpoint fails. Designed to be "useful enough" so the user can preview the
+// UX without a real AI backend running.
+// ---------------------------------------------------------------------------
+
+const KNOWN_COMPANIES: Record<string, Partial<CompanyFillResponse>> = {
+  amazon: {
+    industry: 'E-commerce · Cloud',
+    size: '10000+',
+    location: 'Seattle, WA · Tel Aviv',
+    description: 'One of the largest tech companies in the world, operating retail, AWS, devices, advertising, entertainment, and logistics. Known for high engineering bar and a write-things-down culture.',
+    website: 'https://www.amazon.com',
+    linkedinUrl: 'https://linkedin.com/company/amazon',
+    glassdoorRating: 3.8,
+    techStack: ['Java', 'AWS', 'Python', 'Go', 'TypeScript', 'React'],
+  },
+  myheritage: {
+    industry: 'Genealogy · Consumer SaaS',
+    size: '501-2000',
+    location: 'Or Yehuda, Israel',
+    description: 'Online genealogy platform offering family-tree building, historical record search, and DNA testing. Israeli company with a global user base.',
+    website: 'https://www.myheritage.com',
+    linkedinUrl: 'https://linkedin.com/company/myheritage',
+    glassdoorRating: 4.1,
+    techStack: ['PHP', 'Python', 'MySQL', 'Redis', 'AWS', 'React'],
+  },
+  mobileye: {
+    industry: 'Autonomous Driving · Computer Vision',
+    size: '2001-10000',
+    location: 'Jerusalem, Israel',
+    description: 'Develops vision-based ADAS and autonomous-driving technologies. Spun off from Intel and listed on NASDAQ.',
+    website: 'https://www.mobileye.com',
+    linkedinUrl: 'https://linkedin.com/company/mobileye',
+    glassdoorRating: 4.0,
+    techStack: ['C++', 'Python', 'CUDA', 'TensorFlow', 'PyTorch'],
+  },
+  wix: {
+    industry: 'Website Builder · SaaS',
+    size: '2001-10000',
+    location: 'Tel Aviv, Israel',
+    description: 'Cloud-based website-building platform offering drag-and-drop tools, e-commerce, and a developer ecosystem. Israeli, NASDAQ-listed.',
+    website: 'https://www.wix.com',
+    linkedinUrl: 'https://linkedin.com/company/wix-com',
+    glassdoorRating: 4.0,
+    techStack: ['Node.js', 'Scala', 'React', 'TypeScript', 'GCP', 'Kafka'],
+  },
+  upwind: {
+    industry: 'Cybersecurity · Cloud Security',
+    size: '51-200',
+    location: 'Tel Aviv, Israel',
+    description: 'Runtime-powered cloud security platform that protects cloud workloads at runtime, with shift-left and shift-right capabilities.',
+    website: 'https://www.upwind.io',
+    linkedinUrl: 'https://linkedin.com/company/upwind-security',
+    glassdoorRating: 4.5,
+    techStack: ['Go', 'Kubernetes', 'eBPF', 'AWS', 'GCP', 'TypeScript'],
+  },
+  salesforce: {
+    industry: 'CRM · Enterprise SaaS',
+    size: '10000+',
+    location: 'San Francisco, CA',
+    description: 'World\'s largest CRM platform — sales, service, marketing, commerce, and analytics clouds. Owns Slack and Tableau.',
+    website: 'https://www.salesforce.com',
+    linkedinUrl: 'https://linkedin.com/company/salesforce',
+    glassdoorRating: 4.2,
+    techStack: ['Apex', 'Java', 'Lightning Web Components', 'AWS', 'JavaScript'],
+  },
+}
+
+function mockCompanyFill(companyName: string): CompanyFillResponse {
+  const key = companyName.toLowerCase().replace(/\s+/g, '')
+  const known = KNOWN_COMPANIES[key]
+  if (known) {
+    return {
+      industry:        known.industry        ?? 'Technology',
+      size:            known.size            ?? null,
+      location:        known.location        ?? '',
+      description:     known.description     ?? '',
+      website:         known.website         ?? null,
+      linkedinUrl:     known.linkedinUrl     ?? null,
+      glassdoorRating: known.glassdoorRating ?? null,
+      techStack:       known.techStack       ?? [],
+      disambiguation:  null,
+    }
+  }
+  return {
+    industry:        'Technology',
+    size:            null,
+    location:        '',
+    description:     `(Demo data) ${companyName} — enable live AI for real research.`,
+    website:         null,
+    linkedinUrl:     null,
+    glassdoorRating: null,
+    techStack:       [],
+    disambiguation:  null,
+  }
+}
+
+function mockCVParse(fileName: string): CVParseResponse {
+  const baseName = fileName.replace(/\.[^.]+$/, '').slice(0, 28)
+  return {
+    emphasis:            '(Demo) Generalist tech CV — enable live AI for real extraction.',
+    skillsHighlighted:   ['Python', 'SQL', 'TypeScript', 'React'],
+    projectsHighlighted: ['Sample project 1', 'Sample project 2'],
+    suggestedName:       baseName || 'CV draft',
+  }
+}
+
+async function fillCompany(
+  req: CompanyFillRequest
+): Promise<AIGeneratorResult<CompanyFillResponse>> {
+  if (!isAIEnabled()) {
+    await delay(700)
+    return { data: mockCompanyFill(req.companyName), fromFallback: true, fallbackReason: 'disabled' }
+  }
+  try {
+    const res = await aiClientService.fillCompany(req)
+    if (res.ok) return { data: res.data, fromFallback: false }
+    return {
+      data: mockCompanyFill(req.companyName),
+      fromFallback: true,
+      fallbackReason: classifyError(res.error),
+    }
+  } catch {
+    return {
+      data: mockCompanyFill(req.companyName),
+      fromFallback: true,
+      fallbackReason: 'network-error',
+    }
+  }
+}
+
+async function parseCV(
+  req: CVParseRequest
+): Promise<AIGeneratorResult<CVParseResponse>> {
+  if (!isAIEnabled()) {
+    await delay(700)
+    return { data: mockCVParse(req.fileName), fromFallback: true, fallbackReason: 'disabled' }
+  }
+  try {
+    const res = await aiClientService.parseCV(req)
+    if (res.ok) return { data: res.data, fromFallback: false }
+    return {
+      data: mockCVParse(req.fileName),
+      fromFallback: true,
+      fallbackReason: classifyError(res.error),
+    }
+  } catch {
+    return {
+      data: mockCVParse(req.fileName),
+      fromFallback: true,
+      fallbackReason: 'network-error',
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// JD Summarize — clean bullet summary from a URL or pasted text
+// ---------------------------------------------------------------------------
+
+function mockJDSummarize(req: JDSummarizeRequest): JDSummarizeResponse {
+  const source = req.jdUrl ? `URL: ${req.jdUrl}` : 'pasted JD text'
+  const sample = req.jdText ? req.jdText.slice(0, 60).replace(/\s+/g, ' ').trim() : 'role at company'
+  const bullets = [
+    `(Demo) Drive end-to-end ownership of ${sample}…`,
+    '(Demo) Collaborate cross-functionally with engineering and design',
+    '(Demo) 2-4 years of relevant experience',
+    '(Demo) Strong analytical and communication skills',
+    '(Demo) Hybrid work model in central Tel Aviv',
+    '(Demo) Tech stack: TypeScript, React, Node.js',
+    '(Demo) Competitive salary + equity package',
+  ]
+  return {
+    headline: `(Demo summary from ${source})`,
+    bullets,
+    bodyText: `(Demo summary from ${source})\n\n${bullets.map(b => `• ${b}`).join('\n')}`,
+  }
+}
+
+async function summarizeJD(
+  req: JDSummarizeRequest
+): Promise<AIGeneratorResult<JDSummarizeResponse>> {
+  if (!isAIEnabled()) {
+    await delay(700)
+    return { data: mockJDSummarize(req), fromFallback: true, fallbackReason: 'disabled' }
+  }
+  try {
+    const res = await aiClientService.summarizeJD(req)
+    if (res.ok) return { data: res.data, fromFallback: false }
+    return {
+      data: mockJDSummarize(req),
+      fromFallback: true,
+      fallbackReason: classifyError(res.error),
+    }
+  } catch {
+    return {
+      data: mockJDSummarize(req),
+      fromFallback: true,
+      fallbackReason: 'network-error',
+    }
+  }
+}
+
 /**
  * Persists a Prep Pack result as an AISummary row linked to an application.
  * Called by PrepPackPanel after the user reviews and edits the draft.
@@ -269,5 +478,8 @@ export const aiService = {
   parseJD,
   generatePrepPack,
   generateFollowUps,
+  fillCompany,
+  parseCV,
+  summarizeJD,
   savePrepPack,
 }

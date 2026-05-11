@@ -1,11 +1,15 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Plus, AlertTriangle, Sparkles } from 'lucide-react'
 import type { JobApplication, Company } from '@/types'
-import { makeApplicationSchema, type ApplicationFormValues } from '@/lib/schemas/applicationSchema'
+import { makeApplicationSchema, emptyToUndef, type ApplicationFormValues } from '@/lib/schemas/applicationSchema'
 import { TextField, SelectField, TextareaField } from './Field'
 import { FormRow, FormSection, SubmitBar } from './FormLayout'
 import { useI18n } from '@/hooks/useI18n'
+import { useToastActions } from '@/hooks/useToast'
+import { useCompanyMutations } from '@/hooks/useCompanyMutations'
+import { JDSummarizeDialog } from '@/components/applications/JDSummarizeDialog'
 
 interface ApplicationFormProps {
   initial?: Partial<JobApplication>
@@ -47,6 +51,17 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
     { value: 'Hybrid',   label: t('forms.options.workHybrid') },
     { value: 'On-site',  label: t('forms.options.workOnSite') },
   ]
+  const JOB_SCOPE_OPTS = [
+    { value: '',             label: t('forms.options.notSpecified') },
+    { value: '2 days/week',  label: '2 days / week' },
+    { value: '3 days/week',  label: '3 days / week' },
+    { value: '4 days/week',  label: '4 days / week' },
+    { value: 'Full-time',    label: 'Full-time' },
+  ]
+  const SALARY_TYPE_OPTS = [
+    { value: 'Hourly',  label: 'Hourly (₪/hr)' },
+    { value: 'Monthly', label: 'Monthly (gross)' },
+  ]
   const CURRENCY_OPTS = [
     { value: 'ILS', label: '₪ ILS' },
     { value: 'USD', label: '$ USD' },
@@ -54,7 +69,12 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
     { value: 'GBP', label: '£ GBP' },
   ]
 
-  const { register, handleSubmit, formState: { errors } } = useForm<ApplicationFormValues>({
+  const toast = useToastActions()
+  const { create: createCompany } = useCompanyMutations()
+  const [quickCompanyName, setQuickCompanyName] = useState('')
+  const [jdSummarizeOpen, setJdSummarizeOpen] = useState(false)
+
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ApplicationFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       companyId:       initial?.companyId    ?? '',
@@ -64,10 +84,14 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
       stage:           initial?.stage        ?? 'Interested',
       priority:        initial?.priority     ?? 'Medium',
       workModel:       initial?.workModel,
+      jobScope:        initial?.jobScope,
       location:        initial?.location     ?? '',
       salaryMin:       initial?.salaryMin,
       salaryMax:       initial?.salaryMax,
+      salaryType:      initial?.salaryType   ?? 'Hourly',
       currency:        initial?.currency     ?? 'ILS',
+      fitScore:        initial?.fitScore,
+      urgencyScore:    initial?.urgencyScore,
       appliedAt:       initial?.appliedAt    ? initial.appliedAt.slice(0, 10) : '',
       deadlineAt:      initial?.deadlineAt   ? initial.deadlineAt.slice(0, 10) : '',
       jobDescription:  initial?.jobDescription  ?? '',
@@ -82,15 +106,69 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
     ...companies.map(c => ({ value: c.id, label: c.name })),
   ]
 
+  // Quick-create a company on the fly so the user doesn't have to leave the
+  // form. Useful especially when the companies list is empty.
+  async function handleQuickCreateCompany() {
+    const name = quickCompanyName.trim()
+    if (!name) return
+    try {
+      const newCompany = await createCompany.mutateAsync({ name })
+      setValue('companyId',   newCompany.id,   { shouldValidate: true })
+      setValue('companyName', newCompany.name, { shouldValidate: true })
+      setQuickCompanyName('')
+    } catch {
+      // Toast is already raised by useCompanyMutations.onError
+    }
+  }
+
+  // Surface the first validation error so the submit doesn't fail silently
+  // when the user is scrolled past an invalid field.
+  function handleValidationError(errs: Record<string, { message?: string }>) {
+    const firstKey = Object.keys(errs)[0]
+    const msg = firstKey
+      ? (errs[firstKey]?.message ?? `Please fill in "${firstKey}"`)
+      : 'Some required fields are missing'
+    toast.error(msg)
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+    <form onSubmit={handleSubmit(onSubmit, handleValidationError)} className="space-y-6" noValidate>
       <FormSection title={t('forms.sections.role')}>
+        {companies.length === 0 && (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-warning-50 border border-warning-200 text-xs text-warning-800">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              You don't have any companies yet. Type a name below and click <span className="font-semibold">+ Create</span> to add one on the fly.
+            </span>
+          </div>
+        )}
         <SelectField
           label={t('forms.fields.company')} required
           options={companyOpts}
           error={errors.companyId?.message}
           {...register('companyId')}
         />
+        <div className="-mt-2 flex items-center gap-2">
+          <input
+            type="text"
+            value={quickCompanyName}
+            onChange={e => setQuickCompanyName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); void handleQuickCreateCompany() }
+            }}
+            placeholder="Or type a new company name…"
+            className="flex-1 h-8 px-3 text-xs rounded-lg border border-slate-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 bg-white"
+          />
+          <button
+            type="button"
+            onClick={handleQuickCreateCompany}
+            disabled={!quickCompanyName.trim() || createCompany.isPending}
+            className="inline-flex items-center gap-1 h-8 px-3 text-xs font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            {createCompany.isPending ? 'Creating…' : 'Create'}
+          </button>
+        </div>
         <FormRow>
           <TextField label={t('forms.fields.roleName')} required placeholder="Senior Product Manager" error={errors.roleName?.message} {...register('roleName')} />
           <TextField label={t('forms.fields.jobPostingUrl')} type="url" placeholder="https://amazon.jobs/…" error={errors.roleUrl?.message} {...register('roleUrl')} />
@@ -102,20 +180,44 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
       </FormSection>
 
       <FormSection title={t('forms.sections.details')}>
-        <FormRow>
-          <SelectField label={t('forms.fields.workModel')} options={WORK_MODEL_OPTS} error={errors.workModel?.message} {...register('workModel')} />
+        <FormRow cols={3}>
+          <SelectField label={t('forms.fields.workModel')} options={WORK_MODEL_OPTS} error={errors.workModel?.message} {...register('workModel', { setValueAs: emptyToUndef })} />
+          <SelectField label="Scope" options={JOB_SCOPE_OPTS} error={errors.jobScope?.message} {...register('jobScope', { setValueAs: emptyToUndef })} />
           <TextField   label={t('forms.fields.location')}  placeholder="Tel Aviv · Remote-first" error={errors.location?.message} {...register('location')} />
         </FormRow>
-        <FormRow cols={3}>
-          <TextField label={t('forms.fields.minSalary')} type="number" placeholder="18000" error={errors.salaryMin?.message}
+        <FormRow cols={4}>
+          <SelectField label="Salary type" options={SALARY_TYPE_OPTS} error={errors.salaryType?.message} {...register('salaryType', { setValueAs: emptyToUndef })} />
+          <TextField label="Min" type="number" placeholder="60" error={errors.salaryMin?.message}
             {...register('salaryMin', { setValueAs: v => v === '' ? undefined : Number(v) })} />
-          <TextField label={t('forms.fields.maxSalary')} type="number" placeholder="25000" error={errors.salaryMax?.message}
+          <TextField label="Max" type="number" placeholder="80" error={errors.salaryMax?.message}
             {...register('salaryMax', { setValueAs: v => v === '' ? undefined : Number(v) })} />
           <SelectField label={t('forms.fields.currency')} options={CURRENCY_OPTS} error={errors.currency?.message} {...register('currency')} />
         </FormRow>
         <FormRow>
           <TextField label={t('forms.fields.appliedDate')} type="date" error={errors.appliedAt?.message}  {...register('appliedAt')} />
           <TextField label={t('forms.fields.deadline')}    type="date" error={errors.deadlineAt?.message} {...register('deadlineAt')} />
+        </FormRow>
+        <FormRow>
+          <TextField
+            label="Fit (0–100)"
+            type="number"
+            min={0}
+            max={100}
+            placeholder="85"
+            hint="How well this role matches you"
+            error={errors.fitScore?.message}
+            {...register('fitScore', { setValueAs: v => v === '' ? undefined : Number(v) })}
+          />
+          <TextField
+            label="Urgency (0–100)"
+            type="number"
+            min={0}
+            max={100}
+            placeholder="70"
+            hint="How urgent is this opportunity"
+            error={errors.urgencyScore?.message}
+            {...register('urgencyScore', { setValueAs: v => v === '' ? undefined : Number(v) })}
+          />
         </FormRow>
       </FormSection>
 
@@ -125,8 +227,32 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
       </FormSection>
 
       <FormSection title={t('forms.sections.jobDescription')}>
+        <div className="flex items-center justify-end -mb-2">
+          <button
+            type="button"
+            onClick={() => setJdSummarizeOpen(true)}
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium bg-primary-gradient text-white shadow-sm hover:brightness-110 transition-all"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Summarize with AI
+          </button>
+        </div>
         <TextareaField label={t('forms.fields.jobDescription')} placeholder="Paste the full JD here…" rows={8} className="min-h-[160px]" error={errors.jobDescription?.message} {...register('jobDescription')} />
       </FormSection>
+
+      <JDSummarizeDialog
+        open={jdSummarizeOpen}
+        onClose={() => setJdSummarizeOpen(false)}
+        hasExisting={!!watch('jobDescription')}
+        onInsert={(text, mode) => {
+          const current = watch('jobDescription') ?? ''
+          const next = mode === 'replace'
+            ? text
+            : (current ? `${current}\n\n${text}` : text)
+          setValue('jobDescription', next, { shouldDirty: true, shouldValidate: true })
+          toast.success(mode === 'replace' ? 'JD replaced' : 'Summary appended')
+        }}
+      />
 
       <FormSection title={t('forms.sections.privateNotes')}>
         <TextareaField label={t('forms.fields.notes')} placeholder="Referral contact, insider tips, salary benchmarks…" rows={4} error={errors.notes?.message} {...register('notes')} />

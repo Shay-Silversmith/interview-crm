@@ -26,6 +26,9 @@ import { useMockStore } from '@/hooks/useMockStore'
 import { useInterviewStageMutations } from '@/hooks/useInterviewStageMutations'
 import { useTaskMutations } from '@/hooks/useTaskMutations'
 import { useApplicationMutations } from '@/hooks/useApplicationMutations'
+import { useContactMutations } from '@/hooks/useContactMutations'
+import { ContactForm } from '@/components/forms/ContactForm'
+import type { ContactFormValues } from '@/lib/schemas/contactSchema'
 import { useI18n } from '@/hooks/useI18n'
 import { applicationsService } from '@/services/applicationsService'
 import { tasksService } from '@/services/tasksService'
@@ -35,6 +38,7 @@ import { aiService } from '@/services/aiService'
 import { CVViewerButton } from '@/components/documents/CVViewerButton'
 import { DocumentViewerButton } from '@/components/documents/DocumentViewerButton'
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog'
+import { CVUploadDialog } from '@/components/documents/CVUploadDialog'
 import { formatDate, formatDateTime, formatRelative, isOverdue } from '@/utils/date'
 import { formatFileSize } from '@/utils/format'
 import { trackRecent } from '@/lib/recents'
@@ -114,6 +118,48 @@ export function ApplicationDetailPage() {
   const { updateStage: updateAppStage, updatePriority, update: updateApp, remove: removeApp } = useApplicationMutations()
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [deleteAppOpen, setDeleteAppOpen] = useState(false)
+
+  // Contact mutations (inline CRUD inside the Contacts tab)
+  const { create: createContact, update: updateContact, remove: removeContact } = useContactMutations()
+  const [contactFormOpen, setContactFormOpen] = useState(false)
+  const [editContact, setEditContact] = useState<Contact | null>(null)
+  const [deleteContactDlg, setDeleteContactDlg] = useState<Contact | null>(null)
+
+  const handleCreateContact = async (values: ContactFormValues) => {
+    await createContact.mutateAsync({
+      name:           values.name,
+      type:           values.type,
+      company:        values.company || app?.companyName,
+      companyId:      app?.companyId,
+      title:          values.title || undefined,
+      email:          values.email || undefined,
+      phone:          values.phone || undefined,
+      linkedinUrl:    values.linkedinUrl || undefined,
+      notes:          values.notes || undefined,
+      followUpDueAt:  values.followUpDueAt ? new Date(values.followUpDueAt).toISOString() : undefined,
+      applicationIds: id ? [id] : [],
+    })
+    setContactFormOpen(false)
+  }
+
+  const handleUpdateContact = async (values: ContactFormValues) => {
+    if (!editContact) return
+    await updateContact.mutateAsync({
+      id: editContact.id,
+      data: {
+        name:          values.name,
+        type:          values.type,
+        company:       values.company || undefined,
+        title:         values.title || undefined,
+        email:         values.email || undefined,
+        phone:         values.phone || undefined,
+        linkedinUrl:   values.linkedinUrl || undefined,
+        notes:         values.notes || undefined,
+        followUpDueAt: values.followUpDueAt ? new Date(values.followUpDueAt).toISOString() : undefined,
+      },
+    })
+    setEditContact(null)
+  }
 
   const handleCreateStage = async (values: InterviewStageFormValues) => {
     await createStage.mutateAsync({
@@ -367,7 +413,15 @@ export function ApplicationDetailPage() {
             t={t}
           />
         )}
-        {activeTab === 'contacts' && <ContactsTab contacts={contacts} t={t} />}
+        {activeTab === 'contacts' && (
+          <ContactsTab
+            contacts={contacts}
+            onAdd={() => setContactFormOpen(true)}
+            onEdit={setEditContact}
+            onDelete={setDeleteContactDlg}
+            t={t}
+          />
+        )}
         {activeTab === 'files' && (
           <FilesTab
             cv={submittedCV}
@@ -473,6 +527,43 @@ export function ApplicationDetailPage() {
         onClose={() => setEditDrawerOpen(false)}
         app={app}
         cvVersions={cvVersions ?? []}
+      />
+
+      {/* Contact: add modal */}
+      <Modal open={contactFormOpen} onClose={() => setContactFormOpen(false)} title={t('forms.actions.addContact')}>
+        <ContactForm
+          initial={{ company: app.companyName, companyId: app.companyId }}
+          onSubmit={handleCreateContact}
+          onCancel={() => setContactFormOpen(false)}
+          loading={createContact.isPending}
+        />
+      </Modal>
+
+      {/* Contact: edit modal */}
+      <Modal open={!!editContact} onClose={() => setEditContact(null)} title={t('common.edit')}>
+        {editContact && (
+          <ContactForm
+            initial={editContact}
+            onSubmit={handleUpdateContact}
+            onCancel={() => setEditContact(null)}
+            loading={updateContact.isPending}
+          />
+        )}
+      </Modal>
+
+      {/* Contact: delete confirm */}
+      <ConfirmDialog
+        open={!!deleteContactDlg}
+        onClose={() => setDeleteContactDlg(null)}
+        onConfirm={async () => {
+          if (!deleteContactDlg) return
+          await removeContact.mutateAsync(deleteContactDlg.id)
+          setDeleteContactDlg(null)
+        }}
+        title={t('common.delete') + '?'}
+        description={`Remove "${deleteContactDlg?.name}"? This will not delete them from any other application.`}
+        confirmLabel={t('common.delete')}
+        loading={removeContact.isPending}
       />
     </div>
   )
@@ -814,29 +905,75 @@ function TasksTab({
   )
 }
 
-function ContactsTab({ contacts, t }: { contacts: Contact[] | null; t: (key: string) => string }) {
-  if (!contacts?.length) return <EmptyState icon={User} title={t('pages.applicationDetail.noContacts')} description={t('pages.applicationDetail.noContactsSub')} className="py-16" />
+function ContactsTab({
+  contacts, onAdd, onEdit, onDelete, t,
+}: {
+  contacts: Contact[] | null
+  onAdd: () => void
+  onEdit: (c: Contact) => void
+  onDelete: (c: Contact) => void
+  t: (key: string) => string
+}) {
   return (
-    <div className="grid sm:grid-cols-2 gap-3">
-      {contacts.map(contact => (
-        <Card key={contact.id} padding="sm">
-          <div className="flex items-start gap-3">
-            <Avatar name={contact.name} size="md" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-slate-800">{contact.name}</p>
-                <ContactTypeBadge type={contact.type} />
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-slate-500">
+          {contacts?.length ?? 0} {(contacts?.length ?? 0) === 1 ? 'contact' : 'contacts'}
+        </p>
+        <Button size="sm" onClick={onAdd}>
+          <Plus className="w-3.5 h-3.5" />
+          {t('forms.actions.addContact')}
+        </Button>
+      </div>
+
+      {!contacts?.length ? (
+        <EmptyState
+          icon={User}
+          title={t('pages.applicationDetail.noContacts')}
+          description={t('pages.applicationDetail.noContactsSub')}
+          action={{ label: t('forms.actions.addContact'), onClick: onAdd }}
+          className="py-16"
+        />
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {contacts.map(contact => (
+            <Card key={contact.id} padding="sm" className="group relative">
+              <div className="flex items-start gap-3">
+                <Avatar name={contact.name} size="md" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-800">{contact.name}</p>
+                    <ContactTypeBadge type={contact.type} />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">{contact.title}</p>
+                  {contact.email && <p className="text-xs text-primary-600 mt-1 force-ltr">{contact.email}</p>}
+                  {contact.phone && <p className="text-xs text-slate-600 force-ltr">{contact.phone}</p>}
+                  {contact.lastInteractionAt && (
+                    <p className="text-2xs text-slate-400 mt-1">{t('pages.applicationDetail.lastContact')} <span className="force-ltr">{formatRelative(contact.lastInteractionAt)}</span></p>
+                  )}
+                  {contact.notes && <p className="text-xs text-slate-500 mt-2 leading-snug line-clamp-2">{contact.notes}</p>}
+                </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <button
+                    onClick={() => onEdit(contact)}
+                    className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                    aria-label="Edit contact"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => onDelete(contact)}
+                    className="p-1 rounded hover:bg-danger-50 text-slate-400 hover:text-danger-600"
+                    aria-label="Delete contact"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">{contact.title}</p>
-              {contact.email && <p className="text-xs text-primary-600 mt-1 force-ltr">{contact.email}</p>}
-              {contact.lastInteractionAt && (
-                <p className="text-2xs text-slate-400 mt-1">{t('pages.applicationDetail.lastContact')} <span className="force-ltr">{formatRelative(contact.lastInteractionAt)}</span></p>
-              )}
-              {contact.notes && <p className="text-xs text-slate-500 mt-2 leading-snug line-clamp-2">{contact.notes}</p>}
-            </div>
-          </div>
-        </Card>
-      ))}
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -853,12 +990,19 @@ function FilesTab({
   t: (key: string) => string
 }) {
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [cvUploadOpen, setCvUploadOpen] = useState(false)
 
   return (
     <div className="space-y-4">
       {/* ── Submitted CV ──────────────────────────────────────────────────── */}
       <Card>
-        <p className="text-sm font-semibold text-slate-700 mb-3">{t('pages.applicationDetail.submittedCvHeader')}</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-slate-700">{t('pages.applicationDetail.submittedCvHeader')}</p>
+          <Button variant="outline" size="sm" onClick={() => setCvUploadOpen(true)}>
+            <Plus className="w-3.5 h-3.5" />
+            {cv ? 'Replace CV' : 'Upload CV'}
+          </Button>
+        </div>
         {cv ? (
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
@@ -930,6 +1074,12 @@ function FilesTab({
       <DocumentUploadDialog
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
+        applicationId={applicationId}
+      />
+
+      <CVUploadDialog
+        open={cvUploadOpen}
+        onClose={() => setCvUploadOpen(false)}
         applicationId={applicationId}
       />
     </div>

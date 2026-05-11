@@ -9,7 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callClaude, localeSystemSuffix } from './_lib/claude'
+import { callClaude, localeSystemSuffix, getUserApiKey } from './_lib/claude'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 import {
   prepPackRequestSchema,
@@ -117,6 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       user:      sections.join('\n'),
       schema:    prepPackResponseSchema,
       maxTokens: 2500,
+      apiKey:    getUserApiKey(req.headers as Record<string, string | string[] | undefined>),
     })
 
     return res.status(200).json({ ok: true, data })

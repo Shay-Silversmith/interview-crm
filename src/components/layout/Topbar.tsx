@@ -1,19 +1,22 @@
-import { Menu, Bell, Search } from 'lucide-react'
+import { Menu, Bell, Search, Sparkles, Eye } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/ui/Button'
 import { BackendIndicator } from './BackendIndicator'
 import { LanguageToggle } from './LanguageToggle'
 import { useSearch } from '@/contexts/SearchContext'
 import { useI18n } from '@/hooks/useI18n'
+import { getDataMode, setDataMode } from '@/data/mock-store'
 
 interface TopbarProps {
   onMenuToggle: () => void
+  onOpenAgent?: () => void
   className?: string
 }
 
-export function Topbar({ onMenuToggle, className }: TopbarProps) {
+export function Topbar({ onMenuToggle, onOpenAgent, className }: TopbarProps) {
   const { open: openSearch } = useSearch()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const isHe = locale === 'he'
 
   return (
     <header
@@ -56,6 +59,43 @@ export function Topbar({ onMenuToggle, className }: TopbarProps) {
 
       {/* Right cluster: backend pill · language toggle · notifications */}
       <BackendIndicator />
+
+      {getDataMode() === 'demo' && (
+        <button
+          type="button"
+          onClick={() => setDataMode('real')}
+          className="inline-flex items-center gap-1.5 text-2xs font-semibold bg-warning-100 hover:bg-warning-200 text-warning-800 border border-warning-300 rounded-full px-2.5 py-1 transition-colors"
+          title="Click to return to your real data"
+        >
+          <Eye className="w-3 h-3" />
+          <span>{isHe ? 'מצב הדגמה — חזור לנתונים שלי' : 'Demo data — back to mine'}</span>
+        </button>
+      )}
+
+      {onOpenAgent && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onOpenAgent}
+          aria-label={isHe ? 'פתח עוזר חכם' : 'Open AI Agent'}
+          className="gap-1.5 hidden sm:inline-flex"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-primary-600" />
+          <span className="text-xs">{isHe ? 'עוזר' : 'Agent'}</span>
+        </Button>
+      )}
+      {onOpenAgent && (
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          onClick={onOpenAgent}
+          aria-label={isHe ? 'פתח עוזר חכם' : 'Open AI Agent'}
+          className="sm:hidden"
+        >
+          <Sparkles className="w-4 h-4 text-primary-600" />
+        </Button>
+      )}
 
       <LanguageToggle />
 

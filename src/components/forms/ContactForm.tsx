@@ -39,6 +39,7 @@ export function ContactForm({ initial, onSubmit, onCancel, loading }: ContactFor
       company:       initial?.company ?? '',
       title:         initial?.title ?? '',
       email:         initial?.email ?? '',
+      phone:         initial?.phone ?? '',
       linkedinUrl:   initial?.linkedinUrl ?? '',
       notes:         initial?.notes ?? '',
       followUpDueAt: initial?.followUpDueAt ? initial.followUpDueAt.slice(0, 10) : '',
@@ -56,9 +57,10 @@ export function ContactForm({ initial, onSubmit, onCancel, loading }: ContactFor
         <TextField label={t('forms.fields.title')}   placeholder="Recruiter" error={errors.title?.message}   {...register('title')} />
       </FormRow>
       <FormRow>
-        <TextField label={t('forms.fields.email')}      type="email" placeholder="maya@amazon.com"        error={errors.email?.message}       {...register('email')} />
-        <TextField label={t('forms.fields.linkedinUrl')} placeholder="https://linkedin.com/in/…"          error={errors.linkedinUrl?.message} {...register('linkedinUrl')} />
+        <TextField label={t('forms.fields.email')} type="email" placeholder="maya@amazon.com" error={errors.email?.message} {...register('email')} />
+        <TextField label="Phone" type="tel" placeholder="+972-50-123-4567" error={errors.phone?.message} {...register('phone')} />
       </FormRow>
+      <TextField label={t('forms.fields.linkedinUrl')} placeholder="https://linkedin.com/in/…" error={errors.linkedinUrl?.message} {...register('linkedinUrl')} />
       <TextField label={t('forms.fields.followUpDate')} type="date" error={errors.followUpDueAt?.message} {...register('followUpDueAt')} />
       <TextareaField label={t('forms.fields.notes')} placeholder="How you met, topics discussed…" rows={3} error={errors.notes?.message} {...register('notes')} />
       <SubmitBar

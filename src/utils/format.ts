@@ -18,10 +18,11 @@ export function truncate(str: string, maxLength: number): string {
   return str.slice(0, maxLength).trimEnd() + '…'
 }
 
-export function initials(name: string): string {
+export function initials(name: string | undefined | null): string {
+  if (!name) return '?'
   return name
     .split(' ')
     .slice(0, 2)
     .map(w => w[0]?.toUpperCase() ?? '')
-    .join('')
+    .join('') || '?'
 }

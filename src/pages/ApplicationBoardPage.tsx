@@ -1,59 +1,81 @@
-import { useMemo } from 'react'
+// ---------------------------------------------------------------------------
+// ApplicationBoardPage — pipeline overview reimagined.
+//
+// Two collapsible sections instead of a wide kanban:
+//   1. "In progress" — applications still alive in the pipeline, sorted by
+//      stage progression DESC (most advanced first), then by priority.
+//   2. "History" — closed applications (Rejected / Accepted / Withdrawn).
+//
+// Each section opens to a vertical list of full-width cards.
+// ---------------------------------------------------------------------------
+
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LayoutDashboard } from 'lucide-react'
+import {
+  LayoutDashboard, Briefcase, Archive, ChevronDown, ChevronRight, MapPin, Calendar, ExternalLink,
+} from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { StageBadge, PriorityBadge } from '@/components/ui/Badge'
 import { CompanyLogo } from '@/components/ui/Avatar'
 import { ScoreRing } from '@/components/ui/ScoreRing'
 import { CardSkeleton } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { useMockStore } from '@/hooks/useMockStore'
 import { useI18n } from '@/hooks/useI18n'
 import { applicationsService } from '@/services/applicationsService'
 import { QK } from '@/lib/query-keys'
-import { formatDate } from '@/utils/date'
+import { STAGE_ORDER, PRIORITY_WEIGHT } from '@/lib/constants'
+import { formatDate, formatRelative } from '@/utils/date'
 import { cn } from '@/lib/cn'
 import type { JobApplication } from '@/types'
 import type { ApplicationStage } from '@/lib/enums'
-import { STAGE_ORDER } from '@/lib/constants'
 
-const VISIBLE_STAGES: ApplicationStage[] = [
-  'Interested', 'Applied', 'HR Screen', 'Home Assignment',
-  'Technical Interview', 'Manager Interview', 'Final Interview', 'Offer',
-]
-
-const STAGE_META: Record<string, { headerBg: string; dot: string; dropBorder: string; dropBg: string }> = {
-  Interested:           { headerBg: 'bg-slate-100',   dot: 'bg-slate-400',    dropBorder: 'border-slate-200',   dropBg: 'bg-slate-50' },
-  Applied:              { headerBg: 'bg-primary-50',  dot: 'bg-primary-400',  dropBorder: 'border-primary-200', dropBg: 'bg-primary-50/40' },
-  'HR Screen':          { headerBg: 'bg-primary-50',  dot: 'bg-primary-500',  dropBorder: 'border-primary-200', dropBg: 'bg-primary-50/40' },
-  'Home Assignment':    { headerBg: 'bg-warning-50',  dot: 'bg-warning-400',  dropBorder: 'border-warning-200', dropBg: 'bg-warning-50/40' },
-  'Technical Interview':{ headerBg: 'bg-warning-50',  dot: 'bg-warning-500',  dropBorder: 'border-warning-200', dropBg: 'bg-warning-50/40' },
-  'Manager Interview':  { headerBg: 'bg-violet-50',   dot: 'bg-violet-400',   dropBorder: 'border-violet-200',  dropBg: 'bg-violet-50/40' },
-  'Final Interview':    { headerBg: 'bg-violet-50',   dot: 'bg-violet-500',   dropBorder: 'border-violet-200',  dropBg: 'bg-violet-50/40' },
-  Offer:                { headerBg: 'bg-success-50',  dot: 'bg-success-400',  dropBorder: 'border-success-200', dropBg: 'bg-success-50/40' },
-}
+const CLOSED_STAGES: ApplicationStage[] = ['Rejected', 'Accepted', 'Withdrawn']
 
 export function ApplicationBoardPage() {
   const { t } = useI18n()
-  const { data: apps, loading } = useMockStore(() => applicationsService.list(), [], { key: QK.applications.all() })
+  const { data: apps, loading } = useMockStore(
+    () => applicationsService.list(),
+    [],
+    { key: QK.applications.all() }
+  )
 
-  const byStage = useMemo(() => {
-    const map: Record<ApplicationStage, JobApplication[]> = {} as Record<ApplicationStage, JobApplication[]>
-    VISIBLE_STAGES.forEach(s => { map[s] = [] })
-    apps?.forEach(a => {
-      if (VISIBLE_STAGES.includes(a.stage as ApplicationStage)) {
-        map[a.stage as ApplicationStage].push(a)
-      }
-    })
-    return map
+  // Tile expansion state — start with active expanded for fast access
+  const [activeOpen,  setActiveOpen]  = useState(true)
+  const [historyOpen, setHistoryOpen] = useState(false)
+
+  const { active, closed } = useMemo(() => {
+    const all = apps ?? []
+    const stageRank = (s: string) => STAGE_ORDER.indexOf(s)
+    const sortByProgress = (a: JobApplication, b: JobApplication) => {
+      // Most advanced (highest stage index, but excluding the closed group at the end) first
+      const sb = stageRank(b.stage) - stageRank(a.stage)
+      if (sb !== 0) return sb
+      // Tie-break on priority weight DESC, then most recent applied date
+      const pb = (PRIORITY_WEIGHT[b.priority] ?? 0) - (PRIORITY_WEIGHT[a.priority] ?? 0)
+      if (pb !== 0) return pb
+      const ad = a.appliedAt ? new Date(a.appliedAt).getTime() : 0
+      const bd = b.appliedAt ? new Date(b.appliedAt).getTime() : 0
+      return bd - ad
+    }
+    const sortByClosedAt = (a: JobApplication, b: JobApplication) =>
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+
+    const active = all.filter(a => !CLOSED_STAGES.includes(a.stage as ApplicationStage)).sort(sortByProgress)
+    const closed = all.filter(a => CLOSED_STAGES.includes(a.stage as ApplicationStage)).sort(sortByClosedAt)
+    return { active, closed }
   }, [apps])
 
   return (
-    <div className="max-w-full">
+    <div className="max-w-4xl mx-auto">
       <PageHeader
         title={t('pages.board.title')}
         description={t('pages.board.subtitle')}
         actions={
-          <Link to="/applications" className="inline-flex items-center gap-2 h-8 px-3 text-xs rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium">
+          <Link
+            to="/applications"
+            className="inline-flex items-center gap-2 h-8 px-3 text-xs rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium"
+          >
             <LayoutDashboard className="w-4 h-4" />
             {t('pages.board.listView')}
           </Link>
@@ -61,95 +83,178 @@ export function ApplicationBoardPage() {
       />
 
       {loading ? (
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {VISIBLE_STAGES.map(s => (
-            <div key={s} className="w-64 shrink-0 space-y-3">
-              <div className="h-8 bg-slate-100 rounded-lg animate-pulse" />
-              <CardSkeleton />
-              <CardSkeleton />
-            </div>
-          ))}
+        <div className="space-y-4">
+          <CardSkeleton />
+          <CardSkeleton />
         </div>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-6 -mx-4 md:-mx-6 px-4 md:px-6">
-          {VISIBLE_STAGES.map(stage => {
-            const stageApps = byStage[stage] ?? []
-            const meta = STAGE_META[stage]
-            return (
-              <div key={stage} className="w-64 shrink-0 flex flex-col gap-2">
-                {/* Column header */}
-                <div className={cn('flex items-center justify-between px-3 py-2.5 rounded-xl', meta.headerBg)}>
-                  <div className="flex items-center gap-2">
-                    <div className={cn('w-2 h-2 rounded-full shrink-0', meta.dot)} />
-                    <span className="text-xs font-semibold text-slate-700 leading-none">{stage}</span>
-                  </div>
-                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-white/70 text-2xs font-bold text-slate-600">
-                    {stageApps.length}
-                  </span>
-                </div>
-
-                {/* Cards */}
-                <div className="flex flex-col gap-2 min-h-[120px]">
-                  {stageApps.map(app => (
-                    <KanbanCard key={app.id} app={app} />
-                  ))}
-                  {stageApps.length === 0 && (
-                    <div className={cn(
-                      'flex items-center justify-center h-20 rounded-xl border-2 border-dashed text-xs text-slate-400',
-                      meta.dropBorder, meta.dropBg
-                    )}>
-                      {t('pages.board.empty')}
-                    </div>
-                  )}
-                </div>
+        <div className="space-y-4">
+          <SectionTile
+            icon={Briefcase}
+            iconBg="bg-primary-gradient"
+            title="In progress"
+            count={active.length}
+            subtitle={
+              active.length === 0
+                ? 'No active applications'
+                : `Sorted by stage progression — most advanced first`
+            }
+            open={activeOpen}
+            onToggle={() => setActiveOpen(o => !o)}
+          >
+            {active.length === 0 ? (
+              <EmptyState
+                icon={Briefcase}
+                title="No active applications"
+                description="Add a new application to start tracking your pipeline."
+                className="py-10"
+              />
+            ) : (
+              <div className="space-y-2.5">
+                {active.map(app => <ApplicationRow key={app.id} app={app} />)}
               </div>
-            )
-          })}
+            )}
+          </SectionTile>
+
+          <SectionTile
+            icon={Archive}
+            iconBg="bg-slate-400"
+            title="History"
+            count={closed.length}
+            subtitle={
+              closed.length === 0
+                ? 'No closed applications yet'
+                : `Past applications — accepted, rejected, withdrawn`
+            }
+            open={historyOpen}
+            onToggle={() => setHistoryOpen(o => !o)}
+          >
+            {closed.length === 0 ? (
+              <EmptyState
+                icon={Archive}
+                title="Nothing here yet"
+                description="Closed applications will show up here for reference."
+                className="py-10"
+              />
+            ) : (
+              <div className="space-y-2.5">
+                {closed.map(app => <ApplicationRow key={app.id} app={app} muted />)}
+              </div>
+            )}
+          </SectionTile>
         </div>
       )}
-
-      <p className="text-xs text-slate-400 mt-2">
-        {t('pages.board.boardNote')}
-      </p>
     </div>
   )
 }
 
-function KanbanCard({ app }: { app: JobApplication }) {
+// ---------------------------------------------------------------------------
+// Pieces
+// ---------------------------------------------------------------------------
+
+function SectionTile({
+  icon: Icon, iconBg, title, count, subtitle, open, onToggle, children,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  iconBg: string
+  title: string
+  count: number
+  subtitle: string
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-slate-50/60 transition-colors text-start"
+      >
+        <div className={cn('w-11 h-11 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-sm', iconBg)}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold text-slate-900">{title}</h2>
+            <span className={cn(
+              'inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-xs font-bold',
+              count > 0 ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500'
+            )}>
+              {count}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+        </div>
+        <div className="shrink-0">
+          {open ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
+        </div>
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 pt-1 border-t border-slate-100 animate-fade-in">
+          <div className="pt-3">{children}</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ApplicationRow({ app, muted }: { app: JobApplication; muted?: boolean }) {
   return (
     <Link
       to={`/applications/${app.id}`}
-      className="block bg-white rounded-xl border border-slate-200 shadow-card p-3 hover:shadow-card-hover hover:-translate-y-px hover:border-slate-300 transition-all group cursor-grab active:cursor-grabbing"
-      draggable
-      onDragStart={e => e.dataTransfer.setData('text/plain', app.id)}
-    >
-      <div className="flex items-start gap-2 mb-2.5">
-        <CompanyLogo name={app.companyName} size="sm" logoUrl={app.companyLogoUrl} />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-slate-800 leading-tight group-hover:text-primary-700 transition-colors truncate">
-            {app.roleName}
-          </p>
-          <p className="text-2xs text-slate-400 mt-0.5">{app.companyName}</p>
-        </div>
-        {app.urgencyScore !== undefined && (
-          <ScoreRing score={app.urgencyScore} size="sm" />
-        )}
-      </div>
-      <div className="flex items-center gap-2">
-        <PriorityBadge priority={app.priority} />
-        {app.submittedCvName && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-2xs text-slate-500 truncate max-w-[80px] force-ltr">
-            {app.submittedCvName}
-          </span>
-        )}
-      </div>
-      {app.nextEventAt && (
-        <p className="mt-2 text-2xs text-slate-400 border-t border-slate-50 pt-2 truncate force-ltr">
-          {app.nextEventDescription
-            ? app.nextEventDescription.split(' — ')[0]
-            : formatDate(app.nextEventAt, 'MMM d')}
-        </p>
+      className={cn(
+        'block bg-white rounded-xl border shadow-card hover:shadow-card-hover hover:-translate-y-px hover:border-primary-200',
+        'transition-all p-4',
+        muted ? 'border-slate-200 opacity-80' : 'border-slate-200/80'
       )}
+    >
+      <div className="flex items-start gap-3">
+        <CompanyLogo name={app.companyName} size="md" logoUrl={app.companyLogoUrl} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900 truncate">{app.roleName}</p>
+              <p className="text-xs text-slate-500 mt-0.5 truncate">
+                {app.companyName}
+                {app.location && (
+                  <>
+                    <span className="text-slate-300 mx-1.5">·</span>
+                    <MapPin className="inline w-3 h-3 mb-0.5" /> {app.location}
+                  </>
+                )}
+              </p>
+            </div>
+            {app.urgencyScore !== undefined && !muted && (
+              <ScoreRing score={app.urgencyScore} size="sm" label="" />
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mt-2.5">
+            <StageBadge stage={app.stage} />
+            <PriorityBadge priority={app.priority} />
+            {app.workModel && (
+              <span className="text-2xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{app.workModel}</span>
+            )}
+            {app.appliedAt && (
+              <span className="text-2xs text-slate-400">
+                Applied {formatDate(app.appliedAt)}
+              </span>
+            )}
+          </div>
+
+          {app.nextEventAt && app.nextEventDescription && !muted && (
+            <div className="mt-2.5 flex items-center gap-1.5 text-2xs text-primary-700 bg-primary-50 border border-primary-100 px-2 py-1 rounded-lg w-fit">
+              <Calendar className="w-3 h-3 shrink-0" />
+              <span className="truncate">
+                {app.nextEventDescription} <span className="text-slate-500 force-ltr">· {formatRelative(app.nextEventAt)}</span>
+              </span>
+            </div>
+          )}
+        </div>
+        <ExternalLink className="w-3.5 h-3.5 text-slate-300 shrink-0 mt-1.5 rtl:rotate-90" />
+      </div>
     </Link>
   )
 }

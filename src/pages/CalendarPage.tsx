@@ -13,12 +13,23 @@ import { useCalendarMutations } from '@/hooks/useCalendarMutations'
 import { useI18n } from '@/hooks/useI18n'
 import { calendarService } from '@/services/calendarService'
 import { applicationsService } from '@/services/applicationsService'
+import { tasksService } from '@/services/tasksService'
 import { getCalendarDays, formatDate, formatDateTime, isSameMonth, isToday, parseISO } from '@/utils/date'
 import { cn } from '@/lib/cn'
 import { QK } from '@/lib/query-keys'
 import type { CalendarEvent } from '@/types'
 import type { CalendarEventType } from '@/lib/enums'
 import type { CalendarEventFormValues } from '@/lib/schemas/calendarEventSchema'
+
+/** Marks a CalendarEvent that was synthesized from a Task or InterviewStage —
+ *  these are read-only and link back to the source. */
+type VirtualSource =
+  | { kind: 'task';  taskId: string }
+  | { kind: 'round'; applicationId: string; stageId: string }
+
+interface SyntheticEvent extends CalendarEvent {
+  _virtual?: VirtualSource
+}
 
 const EVENT_TYPE_BG: Record<CalendarEventType, string> = {
   Interview: 'bg-violet-500',
@@ -35,13 +46,63 @@ const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
 export function CalendarPage() {
   const { t } = useI18n()
   const { data: events } = useMockStore(() => calendarService.list(), [], { key: QK.calendar.all() })
-  const { data: apps } = useMockStore(() => applicationsService.list(), [], { key: QK.applications.all() })
+  const { data: apps }   = useMockStore(() => applicationsService.list(), [], { key: QK.applications.all() })
+  const { data: tasks }  = useMockStore(() => tasksService.list(), [], { key: QK.tasks.all() })
   const { create, update, remove } = useCalendarMutations()
+
+  // Combine real events + synthesized events from tasks (with dueAt) and
+  // interview rounds (with scheduledAt). Virtual events show in the grid but
+  // can't be edited/deleted from here — the source lives elsewhere.
+  const allEvents: SyntheticEvent[] = useMemo(() => {
+    const real = (events ?? []) as SyntheticEvent[]
+
+    const fromTasks: SyntheticEvent[] = (tasks ?? [])
+      .filter(t => !!t.dueAt && t.status !== 'Done' && t.status !== 'Cancelled')
+      .map(t => ({
+        id:          `task:${t.id}`,
+        title:       t.title,
+        type:        (t.category === 'Assignment' ? 'Assignment Deadline' : 'General Task') as CalendarEventType,
+        startAt:     t.dueAt!,
+        applicationId: t.applicationId,
+        companyName:   t.companyName,
+        description:   t.description,
+        createdAt:     t.createdAt,
+        updatedAt:     t.updatedAt,
+        _virtual:      { kind: 'task', taskId: t.id },
+      }))
+
+    const fromRounds: SyntheticEvent[] = (apps ?? []).flatMap(app =>
+      (app.interviewStages ?? [])
+        .filter(s => !!s.scheduledAt)
+        .map(s => ({
+          id:          `round:${s.id}`,
+          title:       `${app.companyName} — ${s.type}`,
+          type:        'Interview' as CalendarEventType,
+          startAt:     s.scheduledAt!,
+          applicationId: app.id,
+          companyName:   app.companyName,
+          description:   s.notes,
+          location:      s.interviewer,
+          createdAt:     new Date().toISOString(),
+          updatedAt:     new Date().toISOString(),
+          _virtual:      { kind: 'round', applicationId: app.id, stageId: s.id },
+        }))
+    )
+
+    // De-dupe: if a real event was created with the same id-suffix, prefer real.
+    const realIds = new Set(real.map(e => e.id))
+    const merged = [
+      ...real,
+      ...fromTasks.filter(e => !realIds.has(e.id)),
+      ...fromRounds.filter(e => !realIds.has(e.id)),
+    ]
+    return merged
+  }, [events, tasks, apps])
 
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<SyntheticEvent | null>(null)
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteEvent, setDeleteEvent] = useState<CalendarEvent | null>(null)
@@ -49,18 +110,23 @@ export function CalendarPage() {
   const days = useMemo(() => getCalendarDays(year, month), [year, month])
 
   const eventsByDay = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>()
-    events?.forEach(e => {
-      const key = formatDate(parseISO(e.startAt), 'yyyy-MM-dd')
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(e)
+    const map = new Map<string, SyntheticEvent[]>()
+    allEvents.forEach(e => {
+      if (!e.startAt) return
+      try {
+        const d = parseISO(e.startAt)
+        if (Number.isNaN(d.getTime())) return
+        const key = formatDate(d, 'yyyy-MM-dd')
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(e)
+      } catch { /* skip unparseable */ }
     })
     return map
-  }, [events])
+  }, [allEvents])
 
   const agendaEvents = useMemo(() => {
-    return [...(events ?? [])].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-  }, [events])
+    return [...allEvents].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+  }, [allEvents])
 
   const prevMonth = () => {
     if (month === 0) { setMonth(11); setYear(y => y - 1) }
@@ -269,14 +335,22 @@ export function CalendarPage() {
                 <p className="text-sm text-slate-600 leading-relaxed">{selectedEvent.description}</p>
               </div>
             )}
-            <div className="flex gap-2 pt-2 border-t border-slate-100">
-              <Button variant="outline" size="sm" onClick={() => { setEditEvent(selectedEvent); setSelectedEvent(null) }}>
-                <Edit2 className="w-3.5 h-3.5" /> {t('common.edit')}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => { setDeleteEvent(selectedEvent); setSelectedEvent(null) }} className="text-danger-600 hover:bg-danger-50">
-                <Trash2 className="w-3.5 h-3.5" /> {t('common.delete')}
-              </Button>
-            </div>
+            {selectedEvent._virtual ? (
+              <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-600">
+                {selectedEvent._virtual.kind === 'task'
+                  ? <>This event is auto-generated from a <span className="font-semibold">Task</span>. Edit it on the Tasks page.</>
+                  : <>This event is auto-generated from an <span className="font-semibold">Interview round</span>. Edit it inside the application.</>}
+              </div>
+            ) : (
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
+                <Button variant="outline" size="sm" onClick={() => { setEditEvent(selectedEvent); setSelectedEvent(null) }}>
+                  <Edit2 className="w-3.5 h-3.5" /> {t('common.edit')}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => { setDeleteEvent(selectedEvent); setSelectedEvent(null) }} className="text-danger-600 hover:bg-danger-50">
+                  <Trash2 className="w-3.5 h-3.5" /> {t('common.delete')}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Drawer>
