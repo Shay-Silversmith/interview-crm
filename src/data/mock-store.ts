@@ -35,7 +35,7 @@ import { mockRecentActivity } from './mock-activity'
 const REAL_PREFIX = 'interviewflow_mock_v1_'
 const DEMO_PREFIX = 'interviewflow_demo_v1_'
 const MODE_KEY    = 'interviewflow.dataMode'
-const DEMO_SEED_VERSION = 'v2-nvidia-google' // bump this when demo seed data changes
+const SEED_VERSION = 'v2-nvidia-google' // bump when seed data changes — clears all cached localStorage
 
 export type DataMode = 'real' | 'demo'
 
@@ -62,19 +62,22 @@ function storageKey(name: string): string {
   return prefix + name
 }
 
-// Wipe demo localStorage if the seed version changed so fresh seed loads.
-function clearStaleDemoCache(): void {
+// Wipe both namespaces if seed version changed so fresh seed loads everywhere.
+function clearStaleCache(): void {
   if (typeof localStorage === 'undefined') return
   try {
-    const versionKey = DEMO_PREFIX + '__seedVersion'
-    if (localStorage.getItem(versionKey) !== DEMO_SEED_VERSION) {
+    const versionKey = 'interviewflow.__seedVersion'
+    if (localStorage.getItem(versionKey) !== SEED_VERSION) {
       const names = ['applications','companies','tasks','contacts','events','cvVersions','documents','prep','ai','activity']
-      for (const n of names) localStorage.removeItem(DEMO_PREFIX + n)
-      localStorage.setItem(versionKey, DEMO_SEED_VERSION)
+      for (const n of names) {
+        localStorage.removeItem(REAL_PREFIX + n)
+        localStorage.removeItem(DEMO_PREFIX + n)
+      }
+      localStorage.setItem(versionKey, SEED_VERSION)
     }
   } catch { /* ignore */ }
 }
-clearStaleDemoCache()
+clearStaleCache()
 
 function loadOrSeed<T>(name: string, seed: T[]): T[] {
   if (typeof localStorage === 'undefined') return [...seed]
