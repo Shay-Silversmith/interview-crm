@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Edit2, User, Target, Wrench, Sparkles, Calendar, TrendingUp, AlertTriangle, RotateCcw, Trash2, Key, Eye, EyeOff, Check, Presentation } from 'lucide-react'
+import { Edit2, User, Target, Wrench, Sparkles, Calendar, TrendingUp, AlertTriangle, RotateCcw, Trash2, Key, Eye, EyeOff, Check, Presentation, Download, Upload, Database } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey } from '@/services/aiClientService'
-import { getDataMode, setDataMode } from '@/data/mock-store'
+import { getDataMode, setDataMode, exportData, parseImportFile, importData } from '@/data/mock-store'
+import type { BackupPayload } from '@/data/mock-store'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -212,6 +213,112 @@ function ApiKeySection() {
   )
 }
 
+function BackupSection() {
+  const toast  = useToastActions()
+  const qc     = useQueryClient()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [importOpen,    setImportOpen]    = useState(false)
+  const [importWarning, setImportWarning] = useState<string | null>(null)
+  const [pending,       setPending]       = useState<BackupPayload | null>(null)
+
+  const handleExport = () => {
+    try {
+      exportData()
+      const mode = getDataMode()
+      toast.success(`Backup downloaded${mode === 'demo' ? ' (demo workspace)' : ''}`)
+    } catch {
+      toast.error('Export failed — could not generate backup file.')
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const json = ev.target?.result
+      if (typeof json !== 'string') return
+      const result = parseImportFile(json)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+      setPending(result.payload)
+      setImportWarning(
+        result.payload.dataMode === 'demo'
+          ? 'This backup was exported from the demo workspace. It will be imported into your real workspace.'
+          : null
+      )
+      setImportOpen(true)
+    }
+    reader.onerror = () => toast.error('Could not read file.')
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  const handleImportConfirm = () => {
+    if (!pending) return
+    importData(pending)   // writes to real namespace then reloads page
+    qc.invalidateQueries()
+    setImportOpen(false)
+  }
+
+  const currentMode = getDataMode()
+
+  return (
+    <Card>
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
+          <Database className="w-4 h-4 text-primary-600" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">Backup & Restore</h3>
+          <p className="text-xs text-slate-400">Download your data as JSON, or restore from a previous backup</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-xs text-slate-500 leading-relaxed">
+          The export includes all applications, companies, contacts, tasks, calendar events, CVs, documents, and prep notes.
+          API keys are not included.
+        </p>
+
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={handleExport} variant="outline" size="sm">
+            <Download className="w-3.5 h-3.5" />
+            Export backup
+          </Button>
+          <Button onClick={() => fileRef.current?.click()} variant="outline" size="sm">
+            <Upload className="w-3.5 h-3.5" />
+            Import backup
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json,application/json"
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </div>
+
+        <p className="text-2xs text-slate-400">
+          Export saves from the <strong>{currentMode === 'demo' ? 'demo' : 'real'} workspace</strong>.
+          Import always restores into your <strong>real workspace</strong>.
+        </p>
+      </div>
+
+      <ConfirmDialog
+        open={importOpen}
+        onClose={() => { setImportOpen(false); setPending(null) }}
+        onConfirm={handleImportConfirm}
+        title="Restore from backup?"
+        description={`This will replace your current real workspace data with the selected backup. This cannot be undone.${importWarning ? ` Note: ${importWarning}` : ''}`}
+        confirmLabel="Yes, restore"
+      />
+    </Card>
+  )
+}
+
 export function SettingsPage() {
   const { profile } = useProfile()
   const { t } = useI18n()
@@ -220,12 +327,13 @@ export function SettingsPage() {
   const [clearOpen, setClearOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
 
+  const dataMode     = getDataMode()
   const invalidateAll = () => qc.invalidateQueries()
 
   const handleClearAll = () => {
     mockStore.__clearAll()
     invalidateAll()
-    toast.success('All data cleared. Start fresh — add your own applications, contacts, and CVs.')
+    toast.success(dataMode === 'demo' ? 'Demo workspace cleared.' : 'All data cleared. Start fresh.')
     setClearOpen(false)
   }
   const handleReset = () => {
@@ -294,6 +402,8 @@ export function SettingsPage() {
 
         <DataModeSection />
 
+        <BackupSection />
+
         <ApiKeySection />
 
         <SettingsSection icon={Sparkles} title={t('pages.settings.sections.aiPreferences.title')} description={t('pages.settings.sections.aiPreferences.desc')}>
@@ -325,7 +435,7 @@ export function SettingsPage() {
         </SettingsSection>
       </div>
 
-      {/* Danger zone — clear / reset all stored data */}
+      {/* Danger zone — clear / reset stored data for current mode */}
       <div className="mt-8 rounded-2xl border border-danger-200 bg-danger-50/40 p-5">
         <div className="flex items-start gap-3 mb-4">
           <div className="w-9 h-9 rounded-lg bg-danger-100 flex items-center justify-center shrink-0">
@@ -334,7 +444,9 @@ export function SettingsPage() {
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Manage data</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Wipe demo / outdated data, or reset back to the seed examples.
+              {dataMode === 'demo'
+                ? 'Actions below affect the demo workspace only — your real data is untouched.'
+                : 'Actions below affect your real workspace. Export a backup first if needed.'}
             </p>
           </div>
         </div>
@@ -346,25 +458,32 @@ export function SettingsPage() {
           >
             <Trash2 className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-slate-900">Start fresh — clear everything</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {dataMode === 'demo' ? 'Clear demo workspace' : 'Start fresh — clear everything'}
+              </p>
               <p className="text-xs text-slate-500 mt-0.5">
-                Removes every application, contact, task, CV, document, calendar event, and AI summary. The app starts empty.
+                Removes every application, contact, task, CV, document, calendar event, and AI summary from the{' '}
+                <strong>{dataMode === 'demo' ? 'demo' : 'real'} workspace</strong>. The app starts empty.
               </p>
             </div>
           </button>
-          <button
-            type="button"
-            onClick={() => setResetOpen(true)}
-            className="flex items-start gap-3 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-start"
-          >
-            <RotateCcw className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-slate-900">Reset to demo data</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Restores the bundled example applications and contacts so you can explore the UI again.
-              </p>
-            </div>
-          </button>
+
+          {/* Only show seed-reset in demo mode — running it in real mode would overwrite real data */}
+          {dataMode === 'demo' && (
+            <button
+              type="button"
+              onClick={() => setResetOpen(true)}
+              className="flex items-start gap-3 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-start"
+            >
+              <RotateCcw className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Reset demo data</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Restores the bundled sample applications and contacts in the demo workspace.
+                </p>
+              </div>
+            </button>
+          )}
         </div>
       </div>
 
@@ -372,8 +491,12 @@ export function SettingsPage() {
         open={clearOpen}
         onClose={() => setClearOpen(false)}
         onConfirm={handleClearAll}
-        title="Clear all data?"
-        description="This permanently removes every application, contact, task, CV, document, and calendar event from local storage. There is no undo."
+        title={dataMode === 'demo' ? 'Clear demo workspace?' : 'Clear all data?'}
+        description={
+          dataMode === 'demo'
+            ? 'This clears the demo workspace. Your real data is not affected.'
+            : 'This permanently removes every application, contact, task, CV, document, and calendar event from your real workspace. Export a backup before proceeding.'
+        }
         confirmLabel="Yes, clear everything"
       />
 
@@ -381,9 +504,9 @@ export function SettingsPage() {
         open={resetOpen}
         onClose={() => setResetOpen(false)}
         onConfirm={handleReset}
-        title="Reset to demo data?"
-        description="Anything you've added will be replaced with the original sample applications, contacts, and tasks."
-        confirmLabel="Reset"
+        title="Reset demo data?"
+        description="Anything you've added to the demo workspace will be replaced with the original sample applications and contacts."
+        confirmLabel="Reset demo"
       />
 
       <p className="text-xs text-center text-slate-400 mt-8">

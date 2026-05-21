@@ -4,13 +4,30 @@
 // Services use this so CRUD operations survive page refresh in mock mode.
 //
 // Schema:
-//   key  = `interviewflow_mock_v1_<collection>`
+//   key  = `interviewflow_mock_v1_<collection>`   ← real user data
+//   key  = `interviewflow_demo_v1_<collection>`   ← demo workspace data
 //   body = JSON.stringify(items)
 //
-// On first load each collection hydrates from localStorage, falling back to
-// the static seed if no key exists or the JSON is corrupt. Every set also
-// writes back to localStorage. To wipe everything: clear localStorage or
-// call mockStore.__resetAll().
+// DATA SAFETY RULES — read before touching this file:
+//
+//   1. REAL data (REAL_PREFIX) must NEVER be cleared, overwritten, or
+//      reseeded automatically. The only permitted mutations are:
+//      (a) user-initiated CRUD via mockStore.*.create/update/delete
+//      (b) user-initiated "Start fresh" in Settings (current mode only)
+//      (c) user-initiated Import from backup (importData)
+//
+//   2. DEMO data (DEMO_PREFIX) may be cleared when SEED_VERSION changes
+//      so that updated seed data is reflected for demo presentations.
+//
+//   3. clearStaleDemoCache() touches ONLY DEMO_PREFIX keys. It must
+//      never reference REAL_PREFIX.
+//
+//   4. __resetAll() and __clearAll() operate on the CURRENT mode's
+//      namespace via storageKey(). Do NOT call these from application
+//      code — they are only for explicit user actions in Settings.
+//
+//   5. Export reads from localStorage. Import writes to REAL_PREFIX only,
+//      regardless of the current mode.
 // ---------------------------------------------------------------------------
 
 import type {
@@ -28,26 +45,31 @@ import { mockAISummaries } from './mock-ai'
 import { mockRecentActivity } from './mock-activity'
 
 // ---------------------------------------------------------------------------
-// localStorage helpers
-// Two parallel data spaces ("real" and "demo") so the user can flip into a
-// demo view for presentations without touching their real data.
+// Storage namespaces — keep these two prefixes strictly separate.
+// REAL_PREFIX = real user data. DEMO_PREFIX = demo workspace.
 // ---------------------------------------------------------------------------
-const REAL_PREFIX = 'interviewflow_mock_v1_'
-const DEMO_PREFIX = 'interviewflow_demo_v1_'
-const MODE_KEY    = 'interviewflow.dataMode'
-const SEED_VERSION = 'v3-real-companies-2026-05' // bump when seed data changes — clears all cached localStorage
+const REAL_PREFIX  = 'interviewflow_mock_v1_'
+const DEMO_PREFIX  = 'interviewflow_demo_v1_'
+const MODE_KEY     = 'interviewflow.dataMode'
+// Bump SEED_VERSION whenever demo seed data changes — clears ONLY demo cache.
+const SEED_VERSION = 'v3-real-companies-2026-05'
+
+const COLLECTION_NAMES = [
+  'applications', 'companies', 'tasks', 'contacts', 'events',
+  'cvVersions', 'documents', 'prep', 'ai', 'activity',
+] as const
+type CollectionName = typeof COLLECTION_NAMES[number]
 
 export type DataMode = 'real' | 'demo'
 
 export function getDataMode(): DataMode {
   if (typeof localStorage === 'undefined') return 'real'
   try {
-    const v = localStorage.getItem(MODE_KEY)
-    return v === 'demo' ? 'demo' : 'real'
+    return localStorage.getItem(MODE_KEY) === 'demo' ? 'demo' : 'real'
   } catch { return 'real' }
 }
 
-/** Switch data mode and reload the page so all collections re-hydrate. */
+/** Switch data mode and reload so all collections re-hydrate from the new namespace. */
 export function setDataMode(mode: DataMode): void {
   if (typeof localStorage === 'undefined') return
   try {
@@ -58,18 +80,19 @@ export function setDataMode(mode: DataMode): void {
 }
 
 function storageKey(name: string): string {
-  const prefix = getDataMode() === 'demo' ? DEMO_PREFIX : REAL_PREFIX
-  return prefix + name
+  return (getDataMode() === 'demo' ? DEMO_PREFIX : REAL_PREFIX) + name
 }
 
-// Wipe ONLY demo namespace if seed version changed. Never touch real data.
+// ---------------------------------------------------------------------------
+// Demo-only cache invalidation — NEVER touches REAL_PREFIX.
+// ---------------------------------------------------------------------------
 function clearStaleDemoCache(): void {
   if (typeof localStorage === 'undefined') return
   try {
     const versionKey = DEMO_PREFIX + '__seedVersion'
     if (localStorage.getItem(versionKey) !== SEED_VERSION) {
-      const names = ['applications','companies','tasks','contacts','events','cvVersions','documents','prep','ai','activity']
-      for (const n of names) localStorage.removeItem(DEMO_PREFIX + n)
+      // Only wipe DEMO_PREFIX keys — real data is untouched.
+      for (const n of COLLECTION_NAMES) localStorage.removeItem(DEMO_PREFIX + n)
       localStorage.setItem(versionKey, SEED_VERSION)
     }
   } catch { /* ignore */ }
@@ -81,7 +104,6 @@ function loadOrSeed<T>(name: string, seed: T[]): T[] {
   try {
     const raw = localStorage.getItem(storageKey(name))
     if (raw === null) {
-      // First time: write the seed so subsequent loads are deterministic
       localStorage.setItem(storageKey(name), JSON.stringify(seed))
       return [...seed]
     }
@@ -97,9 +119,7 @@ function persist<T>(name: string, items: T[]): void {
   if (typeof localStorage === 'undefined') return
   try {
     localStorage.setItem(storageKey(name), JSON.stringify(items))
-  } catch {
-    // Quota exceeded or private browsing — silently ignore; in-memory state still works
-  }
+  } catch { /* quota exceeded or private browsing — in-memory state still works */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -111,8 +131,7 @@ function newId(): string {
 const now = () => new Date().toISOString()
 
 // ---------------------------------------------------------------------------
-// Generic store factory — only requires id + createdAt.
-// Wraps the setter so every mutation persists to localStorage.
+// Generic store factory
 // ---------------------------------------------------------------------------
 function makeStore<T extends { id: string; createdAt: string }>(
   name: string,
@@ -122,8 +141,8 @@ function makeStore<T extends { id: string; createdAt: string }>(
 ) {
   const save = (items: T[]) => { setRef(items); persist(name, items) }
   return {
-    list:    (): T[]            => [...getRef()],
-    getById: (id: string): T | null => getRef().find(x => x.id === id) ?? null,
+    list:    (): T[]                 => [...getRef()],
+    getById: (id: string): T | null  => getRef().find(x => x.id === id) ?? null,
     create: (data: Partial<T>): T => {
       const ts = now()
       const item = { ...defaults, ...data, id: newId(), createdAt: ts, updatedAt: ts } as unknown as T
@@ -144,8 +163,7 @@ function makeStore<T extends { id: string; createdAt: string }>(
 }
 
 // ---------------------------------------------------------------------------
-// Mutable arrays — hydrated from localStorage on first import, seeded from
-// static mock data when no persisted state exists.
+// In-memory collections — hydrated from localStorage on module init.
 // ---------------------------------------------------------------------------
 let _apps:       JobApplication[] = loadOrSeed('applications', mockApplications)
 let _companies:  Company[]        = loadOrSeed('companies',    mockCompanies)
@@ -159,7 +177,7 @@ let _ai:         AISummary[]      = loadOrSeed('ai',           mockAISummaries)
 let _activity:   RecentActivity[] = loadOrSeed('activity',     mockRecentActivity)
 
 // ---------------------------------------------------------------------------
-// Exported store
+// Exported CRUD store
 // ---------------------------------------------------------------------------
 export const mockStore = {
   applications: makeStore<JobApplication>(
@@ -203,18 +221,18 @@ export const mockStore = {
     { questionId: '', question: '', category: 'Behavioral', answer: '', confidence: 3, isReady: false, lastUpdatedAt: now() }
   ),
   ai: {
-    list:     (): AISummary[]            => [..._ai],
-    getById:  (id: string): AISummary | null => _ai.find(x => x.id === id) ?? null,
-    create:   (data: Partial<AISummary>): AISummary => {
+    list:    (): AISummary[]                     => [..._ai],
+    getById: (id: string): AISummary | null      => _ai.find(x => x.id === id) ?? null,
+    create:  (data: Partial<AISummary>): AISummary => {
       const item = { toolType: 'Company Summary', inputData: {}, outputData: {}, isMocked: true, ...data, id: newId(), createdAt: now() } as AISummary
       _ai = [item, ..._ai]
       persist('ai', _ai)
       return item
     },
-    delete:   (id: string): void => { _ai = _ai.filter(x => x.id !== id); persist('ai', _ai) },
+    delete:  (id: string): void => { _ai = _ai.filter(x => x.id !== id); persist('ai', _ai) },
   },
   activity: {
-    list:    (): RecentActivity[] => [..._activity],
+    list:    (): RecentActivity[]                          => [..._activity],
     prepend: (item: Omit<RecentActivity, 'id' | 'createdAt'>): RecentActivity => {
       const full = { ...item, id: newId(), createdAt: now() } as RecentActivity
       _activity = [full, ..._activity].slice(0, 50)
@@ -223,11 +241,11 @@ export const mockStore = {
     },
   },
 
-  /** Wipe all persisted mock data and reseed from the static defaults. */
+  /** Wipe CURRENT MODE data and reseed from static defaults.
+   *  Safe for demo mode. In real mode — only call on explicit user request. */
   __resetAll(): void {
     if (typeof localStorage !== 'undefined') {
-      const names = ['applications','companies','tasks','contacts','events','cvVersions','documents','prep','ai','activity']
-      for (const n of names) {
+      for (const n of COLLECTION_NAMES) {
         try { localStorage.removeItem(storageKey(n)) } catch { /* ignore */ }
       }
     }
@@ -243,20 +261,107 @@ export const mockStore = {
     _activity   = [...mockRecentActivity]
   },
 
-  /** Wipe all data and start fully empty (no seed data). Persists empty state
-   *  so the next reload doesn't re-seed. Use when the user wants a clean slate. */
+  /** Wipe CURRENT MODE data and persist empty state (no re-seed).
+   *  Safe for demo mode. In real mode — only call on explicit user request. */
   __clearAll(): void {
     _apps = []; _companies = []; _tasks = []; _contacts = []; _events = []
     _cvVersions = []; _documents = []; _prep = []; _ai = []; _activity = []
-    persist('applications', _apps)
-    persist('companies',    _companies)
-    persist('tasks',        _tasks)
-    persist('contacts',     _contacts)
-    persist('events',       _events)
-    persist('cvVersions',   _cvVersions)
-    persist('documents',    _documents)
-    persist('prep',         _prep)
-    persist('ai',           _ai)
-    persist('activity',     _activity)
+    for (const n of COLLECTION_NAMES) persist(n, [])
   },
+}
+
+// ---------------------------------------------------------------------------
+// Export / Import — data backup and restore
+// ---------------------------------------------------------------------------
+
+export interface BackupPayload {
+  appName: string
+  exportVersion: string
+  exportedAt: string
+  dataMode: DataMode
+  data: Record<string, unknown[]>
+}
+
+export type ParseResult =
+  | { ok: true; payload: BackupPayload }
+  | { ok: false; error: string }
+
+/**
+ * Download all data for the current mode as a JSON backup file.
+ * Reads directly from localStorage so every persisted change is included.
+ * API keys are intentionally excluded.
+ */
+export function exportData(): void {
+  if (typeof localStorage === 'undefined' || typeof window === 'undefined') return
+  const mode   = getDataMode()
+  const prefix = mode === 'demo' ? DEMO_PREFIX : REAL_PREFIX
+
+  const data: Record<string, unknown[]> = {}
+  for (const name of COLLECTION_NAMES) {
+    try {
+      const raw = localStorage.getItem(prefix + name)
+      data[name] = raw ? (JSON.parse(raw) as unknown[]) : []
+    } catch {
+      data[name] = []
+    }
+  }
+
+  const payload: BackupPayload = {
+    appName: 'InterviewFlow',
+    exportVersion: '1',
+    exportedAt: new Date().toISOString(),
+    dataMode: mode,
+    data,
+  }
+
+  const json = JSON.stringify(payload, null, 2)
+  const blob = new Blob([json], { type: 'application/json' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `interviewflow-backup-${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * Parse and validate a backup file JSON string.
+ * Returns the payload on success, or an error message on failure.
+ */
+export function parseImportFile(json: string): ParseResult {
+  try {
+    const parsed = JSON.parse(json) as Record<string, unknown>
+    if (
+      parsed['appName'] !== 'InterviewFlow' ||
+      typeof parsed['exportVersion'] !== 'string' ||
+      typeof parsed['data'] !== 'object' ||
+      parsed['data'] === null
+    ) {
+      return { ok: false, error: 'Invalid file — not an InterviewFlow backup.' }
+    }
+    return { ok: true, payload: parsed as unknown as BackupPayload }
+  } catch {
+    return { ok: false, error: 'Could not read file. Make sure it is a valid InterviewFlow backup JSON.' }
+  }
+}
+
+/**
+ * Restore data from a validated backup payload.
+ * ALWAYS writes to REAL_PREFIX regardless of current mode.
+ * Triggers a page reload so in-memory state re-hydrates from the restored data.
+ */
+export function importData(payload: BackupPayload): void {
+  if (typeof localStorage === 'undefined') return
+  for (const name of COLLECTION_NAMES) {
+    const items = payload.data[name]
+    if (Array.isArray(items)) {
+      try {
+        // Explicitly use REAL_PREFIX — never import into demo namespace.
+        localStorage.setItem(REAL_PREFIX + name, JSON.stringify(items))
+      } catch { /* quota exceeded — skip this collection */ }
+    }
+  }
+  if (typeof window !== 'undefined') window.location.reload()
 }
