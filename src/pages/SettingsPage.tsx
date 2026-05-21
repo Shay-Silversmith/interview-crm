@@ -1,15 +1,17 @@
 import { useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Edit2, User, Target, Wrench, Sparkles, Calendar, TrendingUp, AlertTriangle, RotateCcw, Trash2, Key, Eye, EyeOff, Check, Presentation, Download, Upload, Database } from 'lucide-react'
+import { Edit2, User, Target, Wrench, Sparkles, Calendar, TrendingUp, AlertTriangle, RotateCcw, Trash2, Key, Eye, EyeOff, Check, Presentation, Download, Upload, Database, LogOut } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey } from '@/services/aiClientService'
 import { getDataMode, setDataMode, exportData, parseImportFile, importData } from '@/data/mock-store'
 import type { BackupPayload } from '@/data/mock-store'
+import { isSupabaseMode } from '@/lib/env'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useProfile } from '@/hooks/useProfile'
+import { useUser } from '@/hooks/useUser'
 import { useI18n } from '@/hooks/useI18n'
 import { useToastActions } from '@/hooks/useToast'
 import { mockUser } from '@/data/mock-user'
@@ -321,13 +323,14 @@ function BackupSection() {
 
 export function SettingsPage() {
   const { profile } = useProfile()
+  const { user, signOut } = useUser()
   const { t } = useI18n()
   const toast = useToastActions()
   const qc = useQueryClient()
   const [clearOpen, setClearOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
 
-  const dataMode     = getDataMode()
+  const dataMode      = getDataMode()
   const invalidateAll = () => qc.invalidateQueries()
 
   const handleClearAll = () => {
@@ -342,16 +345,23 @@ export function SettingsPage() {
     toast.info('Reset to demo data')
     setResetOpen(false)
   }
+  const handleSignOut = async () => {
+    await signOut()
+    toast.info('Signed out')
+  }
 
-  // Live profile data takes priority; fall back to mock persona for fields
-  // not yet stored in the profiles table (degree, targetRoles, etc.).
-  const displayName      = profile?.name          ?? mockUser.name
-  const displayBio       = profile?.bio            ?? mockUser.bio
-  const displayUniversity = profile?.university   ?? mockUser.university
-  const displayYear      = profile?.year           ?? mockUser.year
-  const displayUnit      = profile?.unit           ?? mockUser.unit
-  const displaySkills    = profile?.skills?.length ? profile.skills : mockUser.skills
-  const displayPitch     = profile?.defaultPitch   ?? mockUser.defaultPitch
+  // In demo mode: always show the generic demo persona.
+  // In real mode: prefer live profile data, fall back to auth email, then generic placeholder.
+  const isDemo = dataMode === 'demo'
+  const displayName       = isDemo ? mockUser.name       : (profile?.name          ?? user?.email?.split('@')[0] ?? 'Your Profile')
+  const displayBio        = isDemo ? mockUser.bio        : (profile?.bio            ?? mockUser.bio)
+  const displayUniversity = isDemo ? mockUser.university : (profile?.university    ?? mockUser.university)
+  const displayYear       = isDemo ? mockUser.year       : (profile?.year           ?? mockUser.year)
+  const displayUnit       = isDemo ? mockUser.unit       : (profile?.unit           ?? mockUser.unit)
+  const displaySkills     = isDemo ? mockUser.skills     : (profile?.skills?.length ? profile.skills : mockUser.skills)
+  const displayPitch      = isDemo ? mockUser.defaultPitch : (profile?.defaultPitch ?? mockUser.defaultPitch)
+  const displayDegree     = isDemo ? mockUser.degree     : (profile?.degree         ?? mockUser.degree)
+  const displayLocation   = isDemo ? mockUser.location   : (profile?.location       ?? mockUser.location)
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -361,29 +371,39 @@ export function SettingsPage() {
       <Card className="mb-5">
         <div className="flex items-center gap-4">
           <Avatar name={displayName} size="xl" />
-          <div>
+          <div className="flex-1 min-w-0">
             <h2 className="text-lg font-bold text-slate-900">{displayName}</h2>
-            <p className="text-sm text-slate-500">{mockUser.degree} · {displayUniversity}</p>
-            <p className="text-sm text-slate-500">{mockUser.location}</p>
+            <p className="text-sm text-slate-500">{displayDegree} · {displayUniversity}</p>
+            <p className="text-sm text-slate-500">{displayLocation}</p>
+            {isSupabaseMode() && user?.email && (
+              <p className="text-xs text-slate-400 mt-0.5">{user.email}</p>
+            )}
           </div>
-          <Button variant="outline" size="sm" className="ms-auto" disabled>
-            <Edit2 className="w-3.5 h-3.5" /> {t('pages.settings.editProfile')}
-          </Button>
+          <div className="ms-auto flex gap-2">
+            <Button variant="outline" size="sm" disabled>
+              <Edit2 className="w-3.5 h-3.5" /> {t('pages.settings.editProfile')}
+            </Button>
+            {isSupabaseMode() && (
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="w-3.5 h-3.5" /> Sign out
+              </Button>
+            )}
+          </div>
         </div>
       </Card>
 
       <div className="space-y-4">
         <SettingsSection icon={User} title={t('pages.settings.sections.background.title')} description={t('pages.settings.sections.background.desc')}>
           <Field label="University" value={`${displayUniversity} — Year ${displayYear}`} />
-          <Field label="Degree" value={mockUser.degree} />
+          <Field label="Degree" value={displayDegree} />
           <Field label="Military Service" value={displayUnit ?? '—'} />
-          <Field label="Languages" value={mockUser.languages} />
+          <Field label="Languages" value={isDemo ? mockUser.languages : (profile?.languages ?? mockUser.languages)} />
           <Field label="Bio" value={displayBio} />
         </SettingsSection>
 
         <SettingsSection icon={Target} title={t('pages.settings.sections.preferredRoles.title')} description={t('pages.settings.sections.preferredRoles.desc')}>
-          <Field label="Target Roles" value={mockUser.targetRoles} />
-          <Field label="Target Industries" value={mockUser.targetIndustries} />
+          <Field label="Target Roles" value={isDemo ? mockUser.targetRoles : (profile?.targetRoles ?? mockUser.targetRoles)} />
+          <Field label="Target Industries" value={isDemo ? mockUser.targetIndustries : (profile?.targetIndustries ?? mockUser.targetIndustries)} />
         </SettingsSection>
 
         <SettingsSection icon={Wrench} title={t('pages.settings.sections.skills.title')} description={t('pages.settings.sections.skills.desc')}>

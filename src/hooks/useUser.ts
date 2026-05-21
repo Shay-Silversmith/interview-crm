@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // InterviewFlow — useUser.ts
-// Auth state hook backed by Supabase magic-link auth.
+// Auth state hook backed by Supabase email+password auth.
 // In mock mode (no env vars), user is always null + loading false.
 // ---------------------------------------------------------------------------
 
@@ -8,6 +8,8 @@ import { useState, useEffect } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
+import { profilesService } from '@/services/profilesService'
+import { setCurrentUserId } from '@/lib/currentUser'
 
 export interface AuthState {
   user: User | null
@@ -16,13 +18,14 @@ export interface AuthState {
 }
 
 export function useUser(): AuthState & {
-  signIn: (email: string) => Promise<void>
+  signIn:  (email: string, password: string) => Promise<void>
+  signUp:  (email: string, password: string) => Promise<{ needsConfirmation: boolean }>
   signOut: () => Promise<void>
 } {
   const [state, setState] = useState<AuthState>({
     user: null,
     session: null,
-    loading: isSupabaseMode(), // start loading only if Supabase is active
+    loading: isSupabaseMode(),
   })
 
   useEffect(() => {
@@ -30,29 +33,42 @@ export function useUser(): AuthState & {
 
     const sb = getSupabaseClient()
 
-    // Hydrate from persisted session
     sb.auth.getSession().then(({ data: { session } }) => {
       setState({ user: session?.user ?? null, session, loading: false })
     })
 
-    // Subscribe to auth changes (sign-in, sign-out, token refresh)
-    const {
-      data: { subscription },
-    } = sb.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
       setState({ user: session?.user ?? null, session, loading: false })
+      setCurrentUserId(session?.user?.id ?? null)
+      // Ensure a profile row exists the first time a user signs in
+      if (event === 'SIGNED_IN' && session?.user?.email) {
+        profilesService.ensureProfile(session.user.email).catch(() => { /* silent */ })
+      }
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = async (email: string): Promise<void> => {
+  const signIn = async (email: string, password: string): Promise<void> => {
     if (!isSupabaseMode()) return
     const sb = getSupabaseClient()
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin },
-    })
+    const { error } = await sb.auth.signInWithPassword({ email, password })
     if (error) throw error
+  }
+
+  const signUp = async (email: string, password: string): Promise<{ needsConfirmation: boolean }> => {
+    if (!isSupabaseMode()) return { needsConfirmation: false }
+    const sb = getSupabaseClient()
+    const { data, error } = await sb.auth.signUp({ email, password })
+    if (error) throw error
+    // If email confirmation is disabled in Supabase dashboard, user is signed in immediately.
+    // If enabled, data.user exists but data.session is null — needs email confirmation.
+    const needsConfirmation = !!data.user && !data.session
+    // Seed the profile row now if the session is already active (no email confirm required)
+    if (data.session) {
+      await profilesService.ensureProfile(email)
+    }
+    return { needsConfirmation }
   }
 
   const signOut = async (): Promise<void> => {
@@ -62,5 +78,5 @@ export function useUser(): AuthState & {
     if (error) throw error
   }
 
-  return { ...state, signIn, signOut }
+  return { ...state, signIn, signUp, signOut }
 }
