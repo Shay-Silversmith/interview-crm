@@ -35,7 +35,7 @@ import { mockRecentActivity } from './mock-activity'
 const REAL_PREFIX = 'interviewflow_mock_v1_'
 const DEMO_PREFIX = 'interviewflow_demo_v1_'
 const MODE_KEY    = 'interviewflow.dataMode'
-const SEED_VERSION = 'v2-nvidia-google' // bump when seed data changes — clears all cached localStorage
+const SEED_VERSION = 'v3-real-companies-2026-05' // bump when seed data changes — clears all cached localStorage
 
 export type DataMode = 'real' | 'demo'
 
