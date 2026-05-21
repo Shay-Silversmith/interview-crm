@@ -3,13 +3,26 @@
 // Email + password sign-in / sign-up. Only shown in Supabase mode.
 // ---------------------------------------------------------------------------
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useUser } from '@/hooks/useUser'
 
 type Mode = 'signin' | 'signup'
 
 export function LoginPage() {
-  const { signIn, signUp } = useUser()
+  const { user, signIn, signUp } = useUser()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // Once authenticated, leave the login page. Honor a redirect `from` if present
+  // (e.g. AuthGuard sends an unauthed user to /login but remembers their target).
+  useEffect(() => {
+    if (user) {
+      const from = (location.state as { from?: string } | null)?.from ?? '/'
+      navigate(from, { replace: true })
+    }
+  }, [user, navigate, location.state])
+
   const [mode,     setMode]     = useState<Mode>('signin')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
