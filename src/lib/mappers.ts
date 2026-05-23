@@ -41,43 +41,52 @@ import type {
 // ---------------------------------------------------------------------------
 export interface ProfileRow {
   id: string
-  user_id: string
-  name: string
+  name: string | null
+  display_name: string | null
   email: string | null
+  phone: string | null
+  location: string | null
   university: string | null
-  year_of_study: number | null
-  military_unit: string | null
-  headline: string | null
+  degree: string | null
+  year: number | null
+  unit: string | null
   bio: string | null
-  skills: string[]
+  linkedin_url: string | null
+  github_url: string | null
+  target_roles: string[] | null
+  target_industries: string[] | null
+  skills: string[] | null
+  languages: string[] | null
+  default_pitch: string | null
   avatar_url: string | null
   created_at: string
   updated_at: string
 }
 
 export function mapProfile(row: ProfileRow): UserProfile {
+  const name = row.name ?? row.display_name ?? ''
+  const displayName = row.display_name?.trim() || undefined
   return {
     id: row.id,
-    user_id: row.user_id,
-    name: row.name,
-    // Derive preferredName from the first word of the stored name so greetings
-    // use "Shay" rather than "Shay Silversmith" without needing a DB column.
-    preferredName: row.name.split(' ')[0],
+    name,
+    displayName,
+    // preferredName: prefer the stored display_name, otherwise first word of name.
+    preferredName: displayName ?? (name ? name.split(' ')[0] : undefined),
     email: row.email ?? '',
-    phone: undefined,
-    location: '',
+    phone: row.phone ?? undefined,
+    location: row.location ?? '',
     university: row.university ?? '',
-    degree: '',
-    year: row.year_of_study ?? 0,
-    unit: row.military_unit ?? undefined,
+    degree: row.degree ?? '',
+    year: row.year ?? 0,
+    unit: row.unit ?? undefined,
     bio: row.bio ?? '',
-    linkedinUrl: undefined,
-    githubUrl: undefined,
-    targetRoles: [],
-    targetIndustries: [],
-    skills: row.skills,
-    languages: [],
-    defaultPitch: row.headline ?? undefined,
+    linkedinUrl: row.linkedin_url ?? undefined,
+    githubUrl: row.github_url ?? undefined,
+    targetRoles: row.target_roles ?? [],
+    targetIndustries: row.target_industries ?? [],
+    skills: row.skills ?? [],
+    languages: row.languages ?? [],
+    defaultPitch: row.default_pitch ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

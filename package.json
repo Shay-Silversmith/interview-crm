@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "gen:types": "supabase gen types typescript --project-id YOUR_PROJECT_ID > src/types/database.ts"
+    "gen:types": "supabase gen types typescript --project-id YOUR_PROJECT_ID > src/types/database.ts",
+    "sb:sql": "tsx scripts/supabase-sql.ts",
+    "sb:auth": "tsx scripts/supabase-auth-config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.0",
@@ -34,8 +36,10 @@
     "@vercel/node": "^5.7.15",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^17.4.2",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
+    "tsx": "^4.22.3",
     "typescript": "^5.5.3",
     "vite": "^5.4.8"
   }

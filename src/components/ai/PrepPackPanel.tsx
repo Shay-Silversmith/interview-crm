@@ -17,7 +17,6 @@ import { AppSelector } from './AppSelector'
 import { SectionedDraft } from './SectionedDraft'
 import type { FieldValue } from './EditableField'
 import type { PrepPackResponse } from '@/services/aiClientService'
-import { mockUser } from '@/data/mock-user'
 import { cn } from '@/lib/cn'
 
 const INTERVIEW_TYPES = [
@@ -92,8 +91,11 @@ export function PrepPackPanel() {
         roughAnswers: [],
         takeaways:    s.notes ?? '',
       })),
-      // Live profile pitch takes priority; fall back to mock persona.
-      userBackground: profile?.defaultPitch ?? mockUser.defaultPitch ?? '',
+      // Live profile pitch takes priority; generic fallback if user hasn't set one yet.
+      userBackground:
+        profile?.defaultPitch ||
+        profile?.bio ||
+        `${profile?.displayName || profile?.name || 'I'} — currently exploring opportunities`,
       interviewType,
     }, locale as 'en' | 'he' | undefined)
 

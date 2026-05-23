@@ -353,15 +353,18 @@ export function SettingsPage() {
   // In demo mode: always show the generic demo persona.
   // In real mode: prefer live profile data, fall back to auth email, then generic placeholder.
   const isDemo = dataMode === 'demo'
-  const displayName       = isDemo ? mockUser.name       : (profile?.name          ?? user?.email?.split('@')[0] ?? 'Your Profile')
-  const displayBio        = isDemo ? mockUser.bio        : (profile?.bio            ?? mockUser.bio)
-  const displayUniversity = isDemo ? mockUser.university : (profile?.university    ?? mockUser.university)
-  const displayYear       = isDemo ? mockUser.year       : (profile?.year           ?? mockUser.year)
-  const displayUnit       = isDemo ? mockUser.unit       : (profile?.unit           ?? mockUser.unit)
-  const displaySkills     = isDemo ? mockUser.skills     : (profile?.skills?.length ? profile.skills : mockUser.skills)
-  const displayPitch      = isDemo ? mockUser.defaultPitch : (profile?.defaultPitch ?? mockUser.defaultPitch)
-  const displayDegree     = isDemo ? mockUser.degree     : (profile?.degree         ?? mockUser.degree)
-  const displayLocation   = isDemo ? mockUser.location   : (profile?.location       ?? mockUser.location)
+  // Real (non-demo) users: prefer live profile data, fall back to empty/placeholder.
+  // Never fall back to mockUser for a signed-in real user (see Prompt 4 for editor).
+  const NS = '(not set)'
+  const displayName       = isDemo ? mockUser.name       : (profile?.displayName ?? profile?.name ?? user?.email?.split('@')[0] ?? 'Your Profile')
+  const displayBio        = isDemo ? mockUser.bio        : (profile?.bio || NS)
+  const displayUniversity = isDemo ? mockUser.university : (profile?.university || NS)
+  const displayYear       = isDemo ? mockUser.year       : (profile?.year || 0)
+  const displayUnit       = isDemo ? mockUser.unit       : (profile?.unit ?? NS)
+  const displaySkills     = isDemo ? mockUser.skills     : (profile?.skills?.length ? profile.skills : [])
+  const displayPitch      = isDemo ? mockUser.defaultPitch : (profile?.defaultPitch || NS)
+  const displayDegree     = isDemo ? mockUser.degree     : (profile?.degree || NS)
+  const displayLocation   = isDemo ? mockUser.location   : (profile?.location || NS)
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -397,13 +400,13 @@ export function SettingsPage() {
           <Field label="University" value={`${displayUniversity} — Year ${displayYear}`} />
           <Field label="Degree" value={displayDegree} />
           <Field label="Military Service" value={displayUnit ?? '—'} />
-          <Field label="Languages" value={isDemo ? mockUser.languages : (profile?.languages ?? mockUser.languages)} />
+          <Field label="Languages" value={isDemo ? mockUser.languages : (profile?.languages?.length ? profile.languages : [])} />
           <Field label="Bio" value={displayBio} />
         </SettingsSection>
 
         <SettingsSection icon={Target} title={t('pages.settings.sections.preferredRoles.title')} description={t('pages.settings.sections.preferredRoles.desc')}>
-          <Field label="Target Roles" value={isDemo ? mockUser.targetRoles : (profile?.targetRoles ?? mockUser.targetRoles)} />
-          <Field label="Target Industries" value={isDemo ? mockUser.targetIndustries : (profile?.targetIndustries ?? mockUser.targetIndustries)} />
+          <Field label="Target Roles" value={isDemo ? mockUser.targetRoles : (profile?.targetRoles?.length ? profile.targetRoles : [])} />
+          <Field label="Target Industries" value={isDemo ? mockUser.targetIndustries : (profile?.targetIndustries?.length ? profile.targetIndustries : [])} />
         </SettingsSection>
 
         <SettingsSection icon={Wrench} title={t('pages.settings.sections.skills.title')} description={t('pages.settings.sections.skills.desc')}>

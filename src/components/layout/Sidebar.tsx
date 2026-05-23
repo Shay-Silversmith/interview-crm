@@ -1,12 +1,17 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Briefcase, KanbanSquare, Building2, CheckSquare,
   Calendar, Users, FileText, BookOpen, Sparkles, Settings, X,
-  ChevronRight,
+  ChevronRight, LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { ROUTES } from '@/lib/constants'
 import { useI18n } from '@/hooks/useI18n'
+import { useProfile } from '@/hooks/useProfile'
+import { useUser } from '@/hooks/useUser'
+import { useToastActions } from '@/hooks/useToast'
+import { isSupabaseMode } from '@/lib/env'
+import { Avatar } from '@/components/ui/Avatar'
 
 interface SidebarProps {
   onClose?: () => void
@@ -15,7 +20,32 @@ interface SidebarProps {
 
 export function Sidebar({ onClose, mobile }: SidebarProps) {
   const location = useLocation()
+  const navigate = useNavigate()
   const { t } = useI18n()
+  const { profile } = useProfile()
+  const { user, signOut } = useUser()
+  const toast = useToastActions()
+
+  const displayName =
+    profile?.displayName?.trim() ||
+    profile?.name?.trim() ||
+    (user?.email ? user.email.split('@')[0] : 'User')
+  const secondaryLine =
+    (profile?.defaultPitch
+      ? profile.defaultPitch.slice(0, 40) + (profile.defaultPitch.length > 40 ? '…' : '')
+      : '') ||
+    user?.email ||
+    ''
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      toast.info('Signed out')
+      navigate('/login', { replace: true })
+    } catch (err) {
+      toast.error((err as Error).message || 'Sign out failed')
+    }
+  }
 
   // Nav groups are computed inside the component so labels update on locale change.
   const NAV_GROUPS = [
@@ -138,14 +168,32 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
           <Settings className="w-4 h-4 text-slate-400" />
           {t('nav.settings')}
         </NavLink>
-        <div className="flex items-center gap-2.5 px-3 py-2 mt-1">
-          <div className="w-7 h-7 rounded-full bg-primary-100 flex items-center justify-center text-xs font-bold text-primary-700 shrink-0">
-            SS
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-slate-800 truncate">Shay Silversmith</p>
-            <p className="text-2xs text-slate-400 truncate">3rd year · BGU</p>
-          </div>
+        <div className="flex items-center gap-2 mt-1">
+          <button
+            type="button"
+            onClick={() => { onClose?.(); navigate(ROUTES.settings) }}
+            className="flex-1 flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-100 transition-colors min-w-0 text-start"
+            title="Open settings"
+          >
+            <Avatar name={displayName} size="sm" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-slate-800 truncate">{displayName}</p>
+              {secondaryLine && (
+                <p className="text-2xs text-slate-400 truncate">{secondaryLine}</p>
+              )}
+            </div>
+          </button>
+          {isSupabaseMode() && (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </aside>

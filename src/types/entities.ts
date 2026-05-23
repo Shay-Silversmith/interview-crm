@@ -22,6 +22,8 @@ export interface UserProfile {
   id: string
   user_id?: string
   name: string
+  /** Short greeting name captured at signup (profiles.display_name). */
+  displayName?: string
   /** First name or chosen short name shown in greetings and headers. */
   preferredName?: string
   email: string

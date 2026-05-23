@@ -19,7 +19,7 @@ export interface AuthState {
 
 export function useUser(): AuthState & {
   signIn:  (email: string, password: string) => Promise<void>
-  signUp:  (email: string, password: string) => Promise<{ needsConfirmation: boolean }>
+  signUp:  (email: string, password: string, displayName: string) => Promise<{ needsConfirmation: boolean }>
   signOut: () => Promise<void>
 } {
   const [state, setState] = useState<AuthState>({
@@ -56,15 +56,24 @@ export function useUser(): AuthState & {
     if (error) throw error
   }
 
-  const signUp = async (email: string, password: string): Promise<{ needsConfirmation: boolean }> => {
+  const signUp = async (email: string, password: string, displayName: string): Promise<{ needsConfirmation: boolean }> => {
     if (!isSupabaseMode()) return { needsConfirmation: false }
     const sb = getSupabaseClient()
-    const { data, error } = await sb.auth.signUp({ email, password })
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+        data: { display_name: displayName.trim() },
+      },
+    })
     if (error) throw error
-    // If email confirmation is disabled in Supabase dashboard, user is signed in immediately.
-    // If enabled, data.user exists but data.session is null — needs email confirmation.
+    // With mailer_autoconfirm=true (set via Management API), data.session is non-null.
+    // If a future config disables autoconfirm, data.session will be null and the
+    // user must click the confirmation email link.
     const needsConfirmation = !!data.user && !data.session
-    // Seed the profile row now if the session is already active (no email confirm required)
+    // Defensive fallback — the on_auth_user_created trigger should have created
+    // the profile row already, but ensureProfile is idempotent.
     if (data.session) {
       await profilesService.ensureProfile(email)
     }

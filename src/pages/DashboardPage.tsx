@@ -19,10 +19,10 @@ import { RecentActivityWidget } from '@/components/dashboard/RecentActivityWidge
 import { QuickAIWidget } from '@/components/dashboard/QuickAIWidget'
 import { useMockStore } from '@/hooks/useMockStore'
 import { useProfile } from '@/hooks/useProfile'
+import { useUser } from '@/hooks/useUser'
 import { useI18n } from '@/hooks/useI18n'
 import { dashboardService } from '@/services/dashboardService'
 import { QK } from '@/lib/query-keys'
-import { mockUser } from '@/data/mock-user'
 import { formatDate } from '@/utils/date'
 import { cn } from '@/lib/cn'
 
@@ -38,9 +38,13 @@ type TileId = 'top-apps' | 'deadlines' | 'activity' | 'ai'
 export function DashboardPage() {
   const { data, loading } = useMockStore(() => dashboardService.getDashboardData(), [], { key: QK.dashboard.all() })
   const { profile } = useProfile()
+  const { user } = useUser()
   const { t } = useI18n()
   const today     = formatDate(new Date(), 'EEEE, MMMM d')
-  const firstName = profile?.preferredName ?? mockUser.preferredName ?? 'there'
+  const firstName =
+    profile?.displayName?.trim() ||
+    profile?.name?.trim().split(' ')[0] ||
+    (user?.email ? user.email.split('@')[0] : 'there')
 
   // Single-expand: only one tile open at a time keeps the page calm
   const [openTile, setOpenTile] = useState<TileId | null>('top-apps')
