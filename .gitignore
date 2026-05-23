@@ -13,6 +13,9 @@ dist/
 # Claude Code internal config (session-specific permissions, not project code)
 .claude/
 
+# MCP config — contains secrets (API tokens)
+.mcp.json
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
