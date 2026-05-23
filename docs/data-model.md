@@ -100,9 +100,9 @@ RLS uses `auth.uid() = id` (not `user_id`).
 | `user_id` | `uuid → auth.users` | redundant but included for schema consistency |
 | `name` | `text` | Display name |
 | `email` | `text` | Contact email |
-| `university` | `text` | e.g. Ben-Gurion University |
+| `university` | `text` | e.g. Bar-Ilan University |
 | `year_of_study` | `integer` | Current academic year |
-| `military_unit` | `text` | e.g. Unit 9900 |
+| `military_unit` | `text` | Optional, military or first-job context |
 | `headline` | `text` | Short professional headline |
 | `bio` | `text` | About paragraph |
 | `skills` | `text[]` | Skill tags array |

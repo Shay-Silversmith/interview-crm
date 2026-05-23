@@ -1,30 +1,32 @@
 import type { UserProfile } from '@/types'
 
-// Generic demo persona — shown in demo mode and as UI fallback.
+// Generic demo persona — shown in demo mode and as UI fallback for mock mode.
 // Never put real personal details here; this file is committed to version control.
+// "Maya Cohen" is a placeholder; intended for marketing screenshots and demos.
 export const mockUser: UserProfile = {
   id: 'user-demo',
-  name: 'Demo User',
-  preferredName: 'Demo',
-  email: 'demo@example.com',
+  name: 'Maya Cohen',
+  displayName: 'Maya',
+  preferredName: 'Maya',
+  email: 'maya.cohen@example.com',
   phone: '',
   location: 'Tel Aviv, Israel',
-  university: 'Tel Aviv University',
-  degree: 'B.Sc. Information Systems Engineering',
+  university: 'Bar-Ilan University',
+  degree: 'B.Sc. Industrial Engineering & Management',
   year: 3,
-  unit: 'IDF Intelligence Corps',
-  bio: 'Third-year Information Systems Engineering student with a background in data analysis, GIS, and project management. Experienced in cross-functional environments and passionate about building data-driven products.',
-  linkedinUrl: 'https://linkedin.com/in/demo-user',
-  githubUrl: 'https://github.com/demo-user',
-  targetRoles: ['Product Manager Student', 'Project Manager Student', 'Data Engineer Intern', 'AI Product Manager'],
-  targetIndustries: ['Tech', 'Cybersecurity', 'AI / ML', 'GIS / Mapping', 'SaaS'],
+  unit: undefined,
+  bio: 'Third-year Industrial Engineering & Management student focused on product and data internships. Strong foundations in analytics, SQL, and cross-functional project work.',
+  linkedinUrl: 'https://linkedin.com/in/maya-cohen-demo',
+  githubUrl: 'https://github.com/maya-cohen-demo',
+  targetRoles: ['Product Manager Intern', 'Project Manager Intern', 'Data Analyst Intern', 'Associate Product Manager'],
+  targetIndustries: ['Tech', 'SaaS', 'AI / ML', 'Fintech', 'Consumer'],
   skills: [
-    'Python', 'SQL', 'GIS (QGIS, ArcGIS)', 'Data Analysis', 'Tableau', 'Power BI',
+    'Python', 'SQL', 'Data Analysis', 'Tableau', 'Excel',
     'JIRA', 'Agile / Scrum', 'Product Thinking', 'PostgreSQL',
-    'React', 'TypeScript',
+    'React', 'TypeScript', 'A/B Testing',
   ],
   languages: ['Hebrew (Native)', 'English (Fluent)'],
-  defaultPitch: `I'm a third-year Information Systems Engineering student with hands-on experience in GIS, large-scale data systems, and cross-functional project management. I'm now focused on product, project, and data roles where I can combine technical depth with strategic thinking.`,
+  defaultPitch: `I'm a third-year Industrial Engineering & Management student looking for product and data internships. I combine analytical depth — SQL, Python, A/B testing — with cross-functional project experience from a prior internship at a SaaS startup.`,
   createdAt: '2025-01-15T10:00:00Z',
   updatedAt: '2026-04-20T14:30:00Z',
 }

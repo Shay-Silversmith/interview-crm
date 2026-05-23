@@ -92,7 +92,7 @@ export const mockTasks: Task[] = [
   {
     id: 'task-myheritage-prep',
     title: 'Prepare for MyHeritage HR Screen interview',
-    description: 'Review MyHeritage product, prepare why MyHeritage answer, rehearse project management examples from Unit 9900.',
+    description: 'Review MyHeritage product, prepare why MyHeritage answer, rehearse project management examples from prior internship.',
     category: 'Preparation',
     priority: 'High',
     status: 'Done',
@@ -151,7 +151,7 @@ export const mockTasks: Task[] = [
   {
     id: 'task-linkedin-update',
     title: 'Update LinkedIn profile headline and about section',
-    description: 'Update headline to reflect current search focus. Add recent BGU project and GIS coursework.',
+    description: 'Update headline to reflect current search focus. Add recent capstone project and analytics coursework.',
     category: 'Admin',
     priority: 'Low',
     status: 'Todo',

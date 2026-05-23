@@ -30,7 +30,19 @@
       "Bash(grep -v \"^$\")",
       "Bash(git check-ignore *)",
       "Bash(findstr /i \"env\")",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git commit *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://interview-crm-shay-silversmith-s-projects.vercel.app)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://interview-crm.vercel.app/)",
+      "Bash(git -C /mnt/c/Users/ah200/interview-crm status)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\ah200\\\\interview-crm\\\\src\\\\\" -Recurse -Filter \"*.ts\" -File | Select-Object FullName | head -40)",
+      "Bash(git rev-list *)",
+      "Bash(tee /tmp/tsc2.log)",
+      "Read(//tmp/**)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
 }

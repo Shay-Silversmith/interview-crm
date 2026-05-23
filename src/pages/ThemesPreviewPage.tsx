@@ -114,7 +114,7 @@ function MinimalVariant() {
     <div className="bg-slate-50 rounded-xl p-5 space-y-4 font-[Inter,sans-serif]">
       <div>
         <p className="text-2xs uppercase tracking-wide text-slate-400">Tuesday, May 12</p>
-        <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Good morning, Amir.</h2>
+        <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Good morning, Maya.</h2>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -157,7 +157,7 @@ function DarkVariant() {
     <div className="bg-slate-950 rounded-xl p-5 space-y-4">
       <div>
         <p className="text-2xs uppercase tracking-wide text-slate-500">Tuesday, May 12</p>
-        <h2 className="text-xl font-semibold text-white tracking-tight">Good morning, Amir.</h2>
+        <h2 className="text-xl font-semibold text-white tracking-tight">Good morning, Maya.</h2>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -204,7 +204,7 @@ function NotionVariant() {
         <span className="text-xl">🌿</span>
         <div>
           <p className="text-2xs uppercase tracking-wide text-stone-500">Tuesday, May 12</p>
-          <h2 className="text-xl font-semibold text-stone-800">Good morning, Amir</h2>
+          <h2 className="text-xl font-semibold text-stone-800">Good morning, Maya</h2>
         </div>
       </div>
 
@@ -268,7 +268,7 @@ function BoldVariant() {
         <p className="text-2xs uppercase tracking-wide text-white/60">Tuesday, May 12</p>
       </div>
       <h2 className="relative text-2xl font-bold text-white tracking-tight">
-        Good morning, Amir.
+        Good morning, Maya.
       </h2>
 
       <div className="relative grid grid-cols-3 gap-3">

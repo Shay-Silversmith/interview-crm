@@ -62,7 +62,7 @@ Parse a job description into structured insights.
 {
   "jdText": "We are looking for a Data Engineer…",
   "roleTitle": "Data Engineer",           // optional
-  "userBackground": "BGU IS, 3y Unit 9900", // optional
+  "userBackground": "Industrial Engineering, 1y analytics internship", // optional
   "locale": "en"                          // optional — accepted but IGNORED (output always English)
 }
 ```
@@ -115,7 +115,7 @@ Generate a comprehensive interview prep pack.
   "cv": null,
   "company": { "name": "Amazon" },
   "pastInterviews": [],
-  "userBackground": "BGU IS Engineering, Python/SQL",
+  "userBackground": "Industrial Engineering, Python/SQL",
   "interviewType": "Technical Interview",
   "locale": "he"                          // optional — omit or "en" for English output
 }
@@ -151,7 +151,7 @@ curl -X POST http://localhost:3000/api/ai/prep-pack \
     "cv":null,
     "company":{"name":"Amazon"},
     "pastInterviews":[],
-    "userBackground":"BGU IS Engineering, Python/SQL, 3y Unit 9900",
+    "userBackground":"Industrial Engineering, Python/SQL, 1y analytics internship",
     "interviewType":"Technical Interview"
   }'
 ```

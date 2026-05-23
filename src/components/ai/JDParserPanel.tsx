@@ -149,7 +149,7 @@ export function JDParserPanel() {
             <textarea
               value={userBackground}
               onChange={e => setUserBackground(e.target.value)}
-              placeholder="e.g. BGU IS Engineering, 3 years Unit 9900 data analysis, Python/SQL"
+              placeholder="e.g. 3rd-year Industrial Engineering, 1-year analytics internship, Python/SQL"
               rows={2}
               className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-none"
             />

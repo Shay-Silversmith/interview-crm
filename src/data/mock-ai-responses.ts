@@ -32,12 +32,12 @@ export const mockJDParserResponse: JDParserResponse = {
   whatTheyWant:
     'A technically strong, ownership-driven engineer who can move fast on ambiguous problems and communicate clearly with non-technical stakeholders.',
   howIMatch: [
-    'Unit 9900 GIS/data work maps directly to large-scale pipeline requirements',
+    'Prior internship analytics pipeline work maps directly to large-scale pipeline requirements',
     'SQL and Python background covers the core technical must-haves',
-    'Cross-functional military experience demonstrates ownership and delivery',
+    'Cross-functional internship experience demonstrates ownership and delivery',
   ],
   whatToEmphasize: [
-    'Large-scale data work from Unit 9900 service',
+    'Analytics pipeline work from prior internship',
     'SQL optimisation projects and advanced query skills',
     'Python/Pandas proficiency with real data pipeline experience',
     'Ability to work on ambiguous, high-stakes problems',
@@ -63,7 +63,7 @@ export const mockPrepPackResponse: PrepPackResponse = {
   roleSummary:
     'The role requires building and owning data infrastructure end-to-end — from ingestion to querying. Expect technical depth on SQL and Python, at least one system design scenario, and behavioural questions anchored in company values.',
   reviewFromCV: [
-    'Unit 9900 GIS/data pipeline work is your strongest anchor — lead with it',
+    'Prior internship analytics pipeline work is your strongest anchor — lead with it',
     'SQL and Python skills cover the core requirements well',
     'Highlight the cross-functional coordination experience for behavioural rounds',
     'Add a quantified outcome to the data pipeline project if possible',
@@ -85,8 +85,8 @@ export const mockPrepPackResponse: PrepPackResponse = {
   recommendedStarStories: [
     {
       situation:
-        'During Unit 9900 service, a time-critical analytical request arrived with a 3-hour deadline — well below the standard 8–12 hour process.',
-      task: 'Deliver a complete, verified spatial analysis without cutting corners on accuracy.',
+        'During a prior internship, a time-critical analytics request arrived with a 3-hour deadline — well below the standard 8–12 hour process.',
+      task: 'Deliver a complete, verified analysis without cutting corners on accuracy.',
       action:
         'Triaged requirements immediately. Ran critical analysis paths in parallel, automated the most repetitive verification steps with a Python script, and delegated the summary section while focusing on the highest-uncertainty data.',
       result:
@@ -94,7 +94,7 @@ export const mockPrepPackResponse: PrepPackResponse = {
     },
     {
       situation:
-        'A cross-unit intelligence project lacked a clear owner — three teams were producing overlapping data with no shared schema.',
+        'A cross-team analytics project lacked a clear owner — three teams were producing overlapping data with no shared schema.',
       task: 'As the informal lead, standardise the data model and get buy-in from all parties within one sprint.',
       action:
         'Mapped each team\'s output format, identified the 4 fields that overlapped, proposed a minimal shared schema, and ran a 30-minute sync to align on it. Built a Python normalisation script to automate the merge.',
@@ -121,8 +121,8 @@ export const mockPrepPackResponse: PrepPackResponse = {
 export function getMockFollowUpResponse(company: string, contactName: string): FollowUpResponse {
   const firstName = contactName.split(' ')[0] || 'there'
   return {
-    short: `Hi ${firstName},\n\nThank you for your time — I genuinely enjoyed the conversation about the role at ${company}. I'm excited about the opportunity and look forward to next steps.\n\nBest,\nShay`,
-    warm: `Hi ${firstName},\n\nI wanted to take a moment to thank you for the interview. The conversation gave me a much clearer picture of what the team is working on at ${company} — and it confirmed how genuinely excited I am about contributing there.\n\nI was particularly energised by what you mentioned about [specific point from the conversation]. It aligns closely with the kind of work I want to be doing.\n\nLooking forward to hearing from you on next steps.\n\nWarm regards,\nShay`,
+    short: `Hi ${firstName},\n\nThank you for your time — I genuinely enjoyed the conversation about the role at ${company}. I'm excited about the opportunity and look forward to next steps.\n\nBest,\nMaya`,
+    warm: `Hi ${firstName},\n\nI wanted to take a moment to thank you for the interview. The conversation gave me a much clearer picture of what the team is working on at ${company} — and it confirmed how genuinely excited I am about contributing there.\n\nI was particularly energised by what you mentioned about [specific point from the conversation]. It aligns closely with the kind of work I want to be doing.\n\nLooking forward to hearing from you on next steps.\n\nWarm regards,\nMaya`,
     linkedIn: `Hi ${firstName} — great speaking with you about the ${company} opportunity! Really appreciated the conversation and excited about what the team is building. Looking forward to next steps.`,
   }
 }

@@ -41,13 +41,13 @@ export const demoJDParser: JDParserResponse = {
   whatTheyWant:
     'An analytical PM who can balance customer empathy with rigorous metrics. They want someone who reads SQL fluently and can drive product decisions from data.',
   howIMatch: [
-    'BGU IS Engineering — strong technical foundation and SQL proficiency',
-    'Unit 9900 experience demonstrates ability to own ambiguous, high-stakes problems',
-    'Past projects in data engineering map directly to the analytical PM profile',
+    'Industrial Engineering & Management — strong technical foundation and SQL proficiency',
+    'Prior internship experience demonstrates ability to own ambiguous, high-stakes problems',
+    'Past projects in data analytics map directly to the analytical PM profile',
   ],
   whatToEmphasize: [
     'Concrete metrics from past projects (activation lifts, time-to-value reductions)',
-    'Cross-functional leadership stories from Unit 9900',
+    'Cross-functional leadership stories from prior internship',
     'Examples of using SQL to drive product decisions',
   ],
   possibleQuestions: [
@@ -72,8 +72,8 @@ export const demoPrepPack: PrepPackResponse = {
   roleSummary:
     'Product Manager on the core analytics product — owning roadmap, discovery, and shipping for enterprise customers.',
   reviewFromCV: [
-    'Your data engineering project at BGU directly mirrors the technical depth they want in a PM',
-    'Unit 9900 mission ownership is a strong signal for the autonomy expected here',
+    'Your university analytics project directly mirrors the technical depth they want in a PM',
+    'Prior internship ownership is a strong signal for the autonomy expected here',
     'SQL fluency from coursework is exactly what they screen for in technical rounds',
   ],
   expectedHRQuestions: [
@@ -92,7 +92,7 @@ export const demoPrepPack: PrepPackResponse = {
   ],
   recommendedStarStories: [
     {
-      situation: 'During my Unit 9900 service, a critical intelligence product had stale data refreshing only weekly.',
+      situation: 'During my prior internship, a critical internal dashboard had stale data refreshing only weekly.',
       task: 'I was asked to evaluate whether to invest in real-time infrastructure.',
       action:
         'I interviewed 12 analysts, mapped their decision latency to data freshness, and built a cost model comparing three architectures.',
@@ -100,7 +100,7 @@ export const demoPrepPack: PrepPackResponse = {
         'My recommendation was adopted; we shipped a near-real-time pipeline that cut analyst response time by 60% with 30% less infrastructure cost than the original proposal.',
     },
     {
-      situation: 'In a BGU group project, our team disagreed on whether to use a relational or document database.',
+      situation: 'In a university group project, our team disagreed on whether to use a relational or document database.',
       task: 'As the data lead, I needed to resolve the dispute without alienating the team.',
       action:
         'I proposed a 2-day spike: each side built a prototype with realistic data volume. We then evaluated on read latency, schema flexibility, and team familiarity.',
@@ -126,9 +126,9 @@ export const demoPrepPack: PrepPackResponse = {
 
 export const demoFollowUp: FollowUpResponse = {
   short:
-    'Hi [Name],\n\nThanks again for the conversation today — I really enjoyed hearing about the team\'s direction on the analytics roadmap. Excited about the possibility of contributing.\n\nLooking forward to next steps.\n\nBest,\nAmir',
+    'Hi [Name],\n\nThanks again for the conversation today — I really enjoyed hearing about the team\'s direction on the analytics roadmap. Excited about the possibility of contributing.\n\nLooking forward to next steps.\n\nBest,\nMaya',
   warm:
-    'Hi [Name],\n\nReally appreciated the time today. The deep-dive into how your team approaches customer discovery was the highlight — it matches the kind of rigor I\'ve been looking for in my next role.\n\nIf it would help, I\'m happy to share more context on the analytics pipeline I built at BGU. Otherwise, looking forward to hearing about next steps.\n\nThanks again,\nAmir',
+    'Hi [Name],\n\nReally appreciated the time today. The deep-dive into how your team approaches customer discovery was the highlight — it matches the kind of rigor I\'ve been looking for in my next role.\n\nIf it would help, I\'m happy to share more context on the analytics pipeline I built at university. Otherwise, looking forward to hearing about next steps.\n\nThanks again,\nMaya',
   linkedIn:
     'Hi [Name] — thanks for our conversation today. Loved hearing about the team\'s approach to data-driven product decisions. Hoping to stay in touch either way!',
 }
@@ -148,14 +148,14 @@ export const demoCompanyFill: CompanyFillResponse = {
 
 export const demoCVParse: CVParseResponse = {
   emphasis:
-    'Strong technical foundation in data engineering and SQL, with leadership experience from Unit 9900. Targeting PM and DE roles at growth-stage Israeli tech companies.',
+    'Strong technical foundation in data analytics and SQL, with leadership experience from a prior internship. Targeting PM and Data roles at growth-stage Israeli tech companies.',
   skillsHighlighted: ['SQL', 'Python', 'Data modeling', 'Cross-functional leadership', 'Hebrew & English'],
   projectsHighlighted: [
-    'Real-time intelligence pipeline (Unit 9900) — reduced analyst response time by 60%',
-    'BGU senior project: B2B analytics dashboard with PostgreSQL backend',
+    'Real-time analytics pipeline (prior internship) — reduced analyst response time by 60%',
+    'University senior project: B2B analytics dashboard with PostgreSQL backend',
     'Independent project: InterviewFlow — full-stack TS/React app with AI integration',
   ],
-  suggestedName: 'Amir — Demo CV',
+  suggestedName: 'Maya — Demo CV',
 }
 
 export const demoJDSummarize: JDSummarizeResponse = {

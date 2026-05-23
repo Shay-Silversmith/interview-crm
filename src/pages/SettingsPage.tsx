@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Edit2, User, Target, Wrench, Sparkles, Calendar, TrendingUp, AlertTriangle, RotateCcw, Trash2, Key, Eye, EyeOff, Check, Presentation, Download, Upload, Database, LogOut } from 'lucide-react'
+import { Edit2, User, Target, Wrench, Sparkles, Calendar, TrendingUp, AlertTriangle, Trash2, Key, Eye, EyeOff, Check, Presentation, Download, Upload, Database, LogOut } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey } from '@/services/aiClientService'
 import { getDataMode, setDataMode, exportData, parseImportFile, importData } from '@/data/mock-store'
 import type { BackupPayload } from '@/data/mock-store'
 import { isSupabaseMode } from '@/lib/env'
+import { useIsAdmin } from '@/lib/admin'
+import { startFresh } from '@/services/dataResetService'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -15,7 +17,6 @@ import { useUser } from '@/hooks/useUser'
 import { useI18n } from '@/hooks/useI18n'
 import { useToastActions } from '@/hooks/useToast'
 import { mockUser } from '@/data/mock-user'
-import { mockStore } from '@/data/mock-store'
 
 interface SettingsSectionProps {
   icon: React.ElementType
@@ -327,23 +328,28 @@ export function SettingsPage() {
   const { t } = useI18n()
   const toast = useToastActions()
   const qc = useQueryClient()
-  const [clearOpen, setClearOpen] = useState(false)
-  const [resetOpen, setResetOpen] = useState(false)
+  const isAdmin = useIsAdmin()
+  const [clearOpen, setClearOpen]       = useState(false)
+  const [clearConfirm, setClearConfirm] = useState('')
+  const [clearBusy, setClearBusy]       = useState(false)
 
   const dataMode      = getDataMode()
   const invalidateAll = () => qc.invalidateQueries()
 
-  const handleClearAll = () => {
-    mockStore.__clearAll()
-    invalidateAll()
-    toast.success(dataMode === 'demo' ? 'Demo workspace cleared.' : 'All data cleared. Start fresh.')
-    setClearOpen(false)
-  }
-  const handleReset = () => {
-    mockStore.__resetAll()
-    invalidateAll()
-    toast.info('Reset to demo data')
-    setResetOpen(false)
+  const handleStartFresh = async () => {
+    if (clearConfirm.trim().toUpperCase() !== 'DELETE') return
+    setClearBusy(true)
+    try {
+      await startFresh()
+      invalidateAll()
+      toast.success(dataMode === 'demo' ? 'Demo workspace cleared.' : 'All your data has been deleted.')
+      setClearOpen(false)
+      setClearConfirm('')
+    } catch (err) {
+      toast.error((err as Error).message || 'Failed to clear data.')
+    } finally {
+      setClearBusy(false)
+    }
   }
   const handleSignOut = async () => {
     await signOut()
@@ -423,7 +429,7 @@ export function SettingsPage() {
           <p className="text-sm text-slate-700 leading-relaxed">{displayPitch}</p>
         </SettingsSection>
 
-        <DataModeSection />
+        {isAdmin && <DataModeSection />}
 
         <BackupSection />
 
@@ -458,7 +464,7 @@ export function SettingsPage() {
         </SettingsSection>
       </div>
 
-      {/* Danger zone — clear / reset stored data for current mode */}
+      {/* Manage data — Start fresh (only option). Requires typing DELETE. */}
       <div className="mt-8 rounded-2xl border border-danger-200 bg-danger-50/40 p-5">
         <div className="flex items-start gap-3 mb-4">
           <div className="w-9 h-9 rounded-lg bg-danger-100 flex items-center justify-center shrink-0">
@@ -467,70 +473,62 @@ export function SettingsPage() {
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Manage data</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              {dataMode === 'demo'
-                ? 'Actions below affect the demo workspace only — your real data is untouched.'
-                : 'Actions below affect your real workspace. Export a backup first if needed.'}
+              Permanently delete all of your data — applications, companies, contacts, tasks, calendar events,
+              CVs, documents, and prep notes. Your account and profile stay. Export a backup first if needed.
             </p>
           </div>
         </div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setClearOpen(true)}
-            className="flex items-start gap-3 p-3 rounded-xl bg-white border border-danger-200 hover:border-danger-300 hover:bg-danger-50 transition-colors text-start"
-          >
-            <Trash2 className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {dataMode === 'demo' ? 'Clear demo workspace' : 'Start fresh — clear everything'}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Removes every application, contact, task, CV, document, calendar event, and AI summary from the{' '}
-                <strong>{dataMode === 'demo' ? 'demo' : 'real'} workspace</strong>. The app starts empty.
-              </p>
-            </div>
-          </button>
-
-          {/* Only show seed-reset in demo mode — running it in real mode would overwrite real data */}
-          {dataMode === 'demo' && (
-            <button
-              type="button"
-              onClick={() => setResetOpen(true)}
-              className="flex items-start gap-3 p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-start"
-            >
-              <RotateCcw className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Reset demo data</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Restores the bundled sample applications and contacts in the demo workspace.
-                </p>
-              </div>
-            </button>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={() => { setClearOpen(true); setClearConfirm('') }}
+          className="flex items-start gap-3 p-3 w-full rounded-xl bg-white border border-danger-200 hover:border-danger-300 hover:bg-danger-50 transition-colors text-start"
+        >
+          <Trash2 className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Start fresh — clear everything</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Removes every row owned by your account. You will need to type <strong>DELETE</strong> to confirm.
+            </p>
+          </div>
+        </button>
       </div>
 
-      <ConfirmDialog
-        open={clearOpen}
-        onClose={() => setClearOpen(false)}
-        onConfirm={handleClearAll}
-        title={dataMode === 'demo' ? 'Clear demo workspace?' : 'Clear all data?'}
-        description={
-          dataMode === 'demo'
-            ? 'This clears the demo workspace. Your real data is not affected.'
-            : 'This permanently removes every application, contact, task, CV, document, and calendar event from your real workspace. Export a backup before proceeding.'
-        }
-        confirmLabel="Yes, clear everything"
-      />
-
-      <ConfirmDialog
-        open={resetOpen}
-        onClose={() => setResetOpen(false)}
-        onConfirm={handleReset}
-        title="Reset demo data?"
-        description="Anything you've added to the demo workspace will be replaced with the original sample applications and contacts."
-        confirmLabel="Reset demo"
-      />
+      {/* Typed-confirm dialog for Start fresh. */}
+      {clearOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-card p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-900">Delete all your data?</h2>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              This is permanent. Every application, company, contact, task, calendar event, CV, document,
+              and prep note owned by your account will be deleted. Your account and profile stay.
+            </p>
+            <p className="text-sm text-slate-700">
+              Type <strong className="font-mono">DELETE</strong> to confirm:
+            </p>
+            <input
+              type="text"
+              value={clearConfirm}
+              onChange={e => setClearConfirm(e.target.value)}
+              placeholder="DELETE"
+              autoFocus
+              className="w-full h-9 px-3 text-sm font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-danger-500/30 focus:border-danger-400"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => { setClearOpen(false); setClearConfirm('') }} disabled={clearBusy}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleStartFresh}
+                disabled={clearConfirm.trim().toUpperCase() !== 'DELETE' || clearBusy}
+                className="bg-danger-600 hover:bg-danger-700"
+              >
+                {clearBusy ? 'Deleting…' : 'Yes, delete everything'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-center text-slate-400 mt-8">
         {t('pages.settings.editProfileSoon')}

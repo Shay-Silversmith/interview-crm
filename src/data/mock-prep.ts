@@ -6,9 +6,9 @@ export const mockPreparedAnswers: PreparedAnswer[] = [
     questionId: 'q-pitch',
     question: 'Tell me about yourself',
     category: 'Personal Pitch',
-    answer: `I'm a third-year Information Systems Engineering student at Ben-Gurion University. Before starting my degree, I served for two years in Unit 9900 — the IDF's geospatial intelligence unit — where I worked on large-scale GIS and data systems under operational conditions. That experience gave me strong analytical foundations and the ability to drive clarity in ambiguous, high-stakes environments.
+    answer: `I'm a third-year Industrial Engineering & Management student at Bar-Ilan University. Before starting my degree, I did a year-long analytics internship at a SaaS startup, where I owned a usage-data pipeline and reported insights to the product team. That experience gave me strong analytical foundations and the ability to drive clarity in ambiguous environments.
 
-At BGU, I'm deepening my technical skills in data engineering, systems design, and product development. I've led a cross-disciplinary capstone project and won a hackathon building a data-driven urban mobility app.
+At university, I'm deepening my technical skills in data analytics, systems design, and product development. I've led a cross-disciplinary capstone project and won a hackathon building a data-driven urban mobility app.
 
 I'm now looking for a student role where I can combine my technical depth with product or project management — specifically in tech companies building things that matter at scale.`,
     confidence: 5,
@@ -26,7 +26,7 @@ I'm now looking for a student role where I can combine my technical depth with p
 
 Specifically for the Data Engineer role: I want to work on real production data pipelines, not toy datasets. The AWS ecosystem (Redshift, Glue, Spark on EMR) is the industry standard for what I want to do long-term, and getting hands-on experience here would compress years of learning into months.
 
-The Leadership Principles also resonate with me personally. "Dive Deep" and "Are Right A Lot" describe how I operated in Unit 9900 — where precision mattered and assumptions could be costly.`,
+The Leadership Principles also resonate with me personally. "Dive Deep" and "Are Right A Lot" describe how I operated in my prior internship — where data-quality decisions had direct downstream impact on the product team.`,
     confidence: 4,
     isReady: true,
     tags: ['motivation', 'amazon', 'company-specific'],
@@ -41,7 +41,7 @@ The Leadership Principles also resonate with me personally. "Dive Deep" and "Are
     category: 'HR',
     answer: `Why Wix: I've been a Wix user — I actually built a portfolio site for a side project on Wix. What impressed me wasn't just the tool but the product decisions behind it: how they balance simplicity for non-technical users with power for developers. That's a genuinely hard product problem, and I want to work on it from the inside.
 
-Why PM: I keep gravitating toward the "why" questions — why are we building this, who is it for, how do we know it worked? In Unit 9900, even as a technical contributor, I ended up driving decisions about what data to collect and why. At BGU, I led a team in our capstone project and found that the coordination and prioritization challenges were more interesting to me than pure implementation. PM is the natural fit.`,
+Why PM: I keep gravitating toward the "why" questions — why are we building this, who is it for, how do we know it worked? In my prior internship, even as a technical contributor, I ended up driving decisions about what data to collect and why. At university, I led a team in our capstone project and found that the coordination and prioritization challenges were more interesting to me than pure implementation. PM is the natural fit.`,
     confidence: 4,
     isReady: true,
     tags: ['motivation', 'wix', 'pm', 'company-specific'],
@@ -51,19 +51,19 @@ Why PM: I keep gravitating toward the "why" questions — why are we building th
   },
   {
     id: 'prep-4',
-    questionId: 'q-unit-9900',
-    question: 'Tell me about your military service in Unit 9900',
+    questionId: 'q-prior-internship',
+    question: 'Tell me about your prior internship experience',
     category: 'Behavioral',
-    answer: `Unit 9900 is the IDF's visual intelligence and geospatial analysis unit. My role involved working with large-scale GIS data — satellite imagery, sensor data, spatial databases — to extract actionable intelligence under tight timelines.
+    answer: `My prior internship was a year-long analytics role at a Series-A SaaS startup. I owned the usage-data pipeline that fed the product team's weekly metrics review.
 
-The technical side: I worked with PostGIS, Python scripting, and QGIS on datasets of thousands of records per day. I also contributed to automating parts of a manual analysis pipeline, which cut processing time by roughly 40%.
+The technical side: I worked in PostgreSQL, Python (Pandas), and dbt on event datasets of millions of records per week. I also contributed to automating parts of the manual reporting pipeline, which cut report-prep time by roughly 40%.
 
-The professional side: I learned to communicate under uncertainty, prioritize ruthlessly, and work across unit boundaries with people who had very different specializations. Those skills translate directly to product and data roles where cross-functional collaboration is everything.
+The professional side: I learned to communicate under uncertainty, prioritize ruthlessly, and work across team boundaries with people who had very different specializations. Those skills translate directly to product and data roles where cross-functional collaboration is everything.
 
-I can't share specifics about projects or tools for security reasons, but the core takeaway is: high-stakes, ambiguous environments where precision and speed both matter.`,
+Core takeaway: ambiguous, fast-moving environments where data quality and speed both matter.`,
     confidence: 5,
     isReady: true,
-    tags: ['military', 'unit-9900', 'background', 'gis'],
+    tags: ['internship', 'background', 'analytics'],
     lastUpdatedAt: '2026-04-22T10:00:00Z',
     createdAt: '2026-03-01T09:00:00Z',
   },
@@ -72,16 +72,16 @@ I can't share specifics about projects or tools for security reasons, but the co
     questionId: 'q-data-problem',
     question: 'Tell me about a time you used data to solve a problem',
     category: 'STAR',
-    answer: `**Situation:** During my service in Unit 9900, our team was spending 4+ hours per day manually reviewing and classifying satellite imagery records in a spreadsheet-based workflow. The process was error-prone and created bottlenecks.
+    answer: `**Situation:** During my prior internship, the analytics team was spending 4+ hours per day manually triaging and tagging anomalous events in a spreadsheet-based workflow. The process was error-prone and created bottlenecks.
 
 **Task:** I was asked (informally at first) to look into why the process was slow and whether anything could be automated.
 
-**Action:** I mapped the existing workflow end-to-end, identified that ~60% of records had clear classification patterns that didn't require manual judgment. I wrote a Python script using GeoPandas and some spatial heuristics to pre-classify records based on feature geometry. I presented the approach to my supervisor, got sign-off, and worked with the team to test and refine it over two weeks.
+**Action:** I mapped the existing workflow end-to-end, identified that ~60% of records had clear patterns that didn't require manual judgment. I wrote a Python script using Pandas and a few simple rules to pre-tag records. I presented the approach to my supervisor, got sign-off, and worked with the team to test and refine it over two weeks.
 
-**Result:** The automated pre-classification handled about 60% of daily volume, reducing manual review time from 4 hours to under 90 minutes. Error rate also dropped because analysts could focus attention on truly ambiguous cases.`,
+**Result:** The automated pre-tagging handled about 60% of daily volume, reducing manual review time from 4 hours to under 90 minutes. Error rate also dropped because analysts could focus attention on truly ambiguous cases.`,
     confidence: 5,
     isReady: true,
-    tags: ['star', 'data', 'automation', 'unit-9900', 'python'],
+    tags: ['star', 'data', 'automation', 'internship', 'python'],
     lastUpdatedAt: '2026-04-25T14:00:00Z',
     createdAt: '2026-03-10T09:00:00Z',
   },
@@ -90,20 +90,20 @@ I can't share specifics about projects or tools for security reasons, but the co
     questionId: 'q-project-cv',
     question: 'Walk me through a project from your CV',
     category: 'Behavioral',
-    answer: `I'll walk through the BGU Geospatial Analytics project — a semester-long capstone where I led a team of 4.
+    answer: `I'll walk through my university Capstone — an A/B Testing Platform project — a semester-long capstone where I led a team of 4.
 
-We were tasked with building a system to analyze urban accessibility for people with mobility impairments using open-source map data (OpenStreetMap) and accessibility data from the municipality.
+We were tasked with building a lightweight experimentation platform for a partner startup that wanted to run product A/B tests without paying for a full SaaS tool.
 
-I designed the data pipeline: Python (GeoPandas + NetworkX) to process the road graph, PostgreSQL + PostGIS for spatial storage, and a simple Leaflet.js frontend to visualize accessibility scores by neighborhood.
+I designed the data pipeline: Python (Pandas + scikit-learn) for statistical analysis, PostgreSQL for experiment metadata and event storage, and a simple React frontend for experiment configuration and results dashboards.
 
-The biggest challenge was data quality — municipal data was incomplete and inconsistently formatted. I implemented a cleaning layer that standardized formats and flagged records needing manual review.
+The biggest challenge was data quality — incoming event data was inconsistently formatted across the startup's clients. I implemented a cleaning layer that standardized formats and flagged records needing manual review.
 
-Final output: an interactive map showing accessibility scores with the ability to filter by disability type. The municipality expressed interest in the methodology.
+Final output: a working dashboard showing experiment results with statistical significance and sample-size warnings. The partner startup adopted the methodology.
 
-Key takeaway for my career: I enjoyed every part — the data modeling, the pipeline design, the product thinking about what "accessibility" means to end users — more than any single specialization.`,
+Key takeaway for my career: I enjoyed every part — the data modeling, the pipeline design, the product thinking about what "experimentation" means to end users — more than any single specialization.`,
     confidence: 4,
     isReady: true,
-    tags: ['project', 'gis', 'python', 'product', 'leadership'],
+    tags: ['project', 'experimentation', 'python', 'product', 'leadership'],
     lastUpdatedAt: '2026-04-18T11:00:00Z',
     createdAt: '2026-03-05T09:00:00Z',
   },
@@ -155,7 +155,7 @@ Common interview trap: understanding that window functions run after WHERE filte
 
 5. **Statistics** — make sure table stats are fresh (ANALYZE in Postgres). The optimizer makes bad plans with stale statistics.
 
-**Example I've done:** In a geospatial analysis, a query joining two PostGIS tables on a spatial relationship was doing a full sequential scan. Adding a spatial index (GiST on the geometry column) and rewriting the ST_Contains check dropped runtime from 45 seconds to under 2 seconds.`,
+**Example I've done:** In a reporting query, a join between an events table (50M rows) and a sessions table (5M rows) was doing a full sequential scan. Adding a composite index on (user_id, event_at) and rewriting the EXISTS subquery as a JOIN dropped runtime from 45 seconds to under 2 seconds.`,
     confidence: 4,
     isReady: true,
     tags: ['sql', 'optimization', 'performance', 'technical'],
@@ -220,15 +220,15 @@ I always document the imputation strategy and its assumptions, especially in pro
     questionId: 'q-conflict',
     question: 'Tell me about a time you had a conflict with a teammate',
     category: 'STAR',
-    answer: `**Situation:** During my BGU capstone project, I was leading a team of 4. One team member wanted to use a NoSQL database for our geospatial data; I thought PostGIS was the right choice given our spatial query requirements.
+    answer: `**Situation:** During my university capstone project, I was leading a team of 4. One team member wanted to use a NoSQL database for our event data; I thought PostgreSQL was the right choice given our reporting and join requirements.
 
 **Task:** We needed to make a technical decision quickly (deadline approaching) while preserving team cohesion.
 
-**Action:** Instead of overruling, I proposed a one-day spike: we'd each implement a proof-of-concept query against sample data in both systems and compare results. I made the evaluation criteria explicit upfront: query flexibility, performance on spatial operations, ease of deployment.
+**Action:** Instead of overruling, I proposed a one-day spike: we'd each implement a proof-of-concept query against sample data in both systems and compare results. I made the evaluation criteria explicit upfront: query flexibility, performance on aggregate operations, ease of deployment.
 
-The POC took 6 hours total. PostGIS clearly handled the spatial joins and radius queries better. My teammate agreed with the results — importantly, they'd arrived at the same conclusion themselves through the experiment.
+The POC took 6 hours total. PostgreSQL clearly handled the joins and aggregations better for our workload. My teammate agreed with the results — importantly, they'd arrived at the same conclusion themselves through the experiment.
 
-**Result:** We moved forward with PostGIS with full team buy-in. More importantly, the process built trust — later decisions went smoother because we had an established template for technical disagreements.
+**Result:** We moved forward with PostgreSQL with full team buy-in. More importantly, the process built trust — later decisions went smoother because we had an established template for technical disagreements.
 
 **Takeaway:** Data over debate when possible. Give people a path to reach their own conclusions.`,
     confidence: 4,
@@ -246,9 +246,9 @@ The POC took 6 hours total. PostGIS clearly handled the spatial joins and radius
 
 Pure engineering is interesting, but I find myself most energized when I can ask "what should we build and why" alongside "how do we build it." That's the PM axis.
 
-On the data side specifically: I've seen firsthand (in Unit 9900) how the quality and structure of data directly determines the quality of decisions made downstream. Bad data architecture isn't just a technical debt problem — it's a decision-quality problem. Building systems that produce reliable, well-structured data feels like leverage.
+On the data side specifically: I've seen firsthand (in my prior internship) how the quality and structure of data directly determines the quality of decisions made downstream. Bad data architecture isn't just a technical debt problem — it's a decision-quality problem. Building systems that produce reliable, well-structured data feels like leverage.
 
-Project management appeals to the part of me that likes orchestrating parallel workstreams and removing blockers — skills I built under time pressure in the military.
+Project management appeals to the part of me that likes orchestrating parallel workstreams and removing blockers — skills I built under time pressure in the internship.
 
 So: data + product + project management aren't three different careers to me. They're three views of the same problem: how do you build things that work, for the right people, with the right information?`,
     confidence: 5,
@@ -288,10 +288,10 @@ So: data + product + project management aren't three different careers to me. Th
   },
   {
     id: 'prep-14',
-    questionId: 'q-is-systems',
-    question: 'How does your Information Systems Engineering background help you in this role?',
-    category: 'Information Systems',
-    answer: `Information Systems Engineering sits at the intersection of CS and business — it's not pure CS, which means we're trained to think about systems from both the technical architecture and the user/business requirements side simultaneously.
+    questionId: 'q-iem',
+    question: 'How does your Industrial Engineering & Management background help you in this role?',
+    category: 'Personal Pitch',
+    answer: `Industrial Engineering & Management sits at the intersection of operations research, statistics, and business — which means we're trained to think about systems from both the technical/analytical side and the user/business requirements side simultaneously.
 
 Concretely: I've done coursework in databases, systems analysis, software engineering, operations research, organizational behavior, and project management — as well as CS fundamentals (algorithms, data structures, OS).
 
@@ -300,7 +300,7 @@ For a data role: I have the depth to understand query optimization, database des
 For a PM/project role: I understand enough about engineering to have credible conversations with developers, estimate technical complexity, and catch when something is being over- or under-engineered. I'm not faking technical literacy — I can read code, write scripts, and understand system constraints.`,
     confidence: 4,
     isReady: true,
-    tags: ['background', 'university', 'information-systems'],
+    tags: ['background', 'university', 'industrial-engineering'],
     lastUpdatedAt: '2026-04-18T11:00:00Z',
     createdAt: '2026-03-20T09:00:00Z',
   },
@@ -317,7 +317,7 @@ Second, I look for dependencies — which tasks are blocking others? Those move 
 
 Third, I communicate. If I have 5 urgent things and I can only deliver 3 today, I'd rather tell stakeholders early that something will be delayed than miss everything without warning.
 
-**In practice (Unit 9900 example):** There were days with multiple simultaneous analytical requests, each marked "priority." My approach was to spend 10 minutes at the start of each day mapping the requests, identifying which required input from me before others could proceed, and sequencing accordingly. I'd communicate expected completion times so people could adjust their plans.
+**In practice (internship example):** There were days with multiple simultaneous analytics requests, each marked "priority." My approach was to spend 10 minutes at the start of each day mapping the requests, identifying which required input from me before others could proceed, and sequencing accordingly. I'd communicate expected completion times so people could adjust their plans.
 
 **At university:** During finals season with concurrent project deadlines, I use time-blocking aggressively. I don't multitask — I context-switch in blocks of 90+ minutes and protect deep work time.`,
     confidence: 5,
