@@ -2,13 +2,13 @@
 // InterviewFlow — api/ai/jd-parser.ts
 // POST /api/ai/jd-parser
 //
-// Parses a job description into structured insights using Claude.
+// Parses a job description into structured insights using Gemini.
 // Input:  { jdText, roleTitle?, userBackground? }
 // Output: { ok: true, data: JDParserResponse } | { ok: false, error: string }
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callClaude, getUserApiKey } from './_lib/claude'
+import { callGemini, getGeminiApiKey } from './_lib/gemini'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 import {
   jdParserRequestSchema,
@@ -16,16 +16,10 @@ import {
   type JDParserRequest,
 } from './_lib/schemas'
 
-// ---------------------------------------------------------------------------
-// System prompt
-// ---------------------------------------------------------------------------
-
 const SYSTEM = `\
 You are a precise job search analyst helping a candidate prepare for applications.
 
-Analyze the provided job description and return ONLY a single JSON object — no markdown fences, no explanation text before or after.
-
-The JSON must have exactly these keys:
+Analyze the provided job description and return a single JSON object with exactly these keys:
 {
   "roleSummary":       "2-3 sentence overview of the role and its context",
   "responsibilities":  ["5-8 specific key responsibilities"],
@@ -45,17 +39,18 @@ Rules:
 — If userBackground is provided, tailor howIMatch and whatToEmphasize specifically to that candidate.
 — Be direct and specific, not generic.`
 
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCORSHeaders(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST')   return res.status(405).json({ ok: false, error: 'Method not allowed' })
 
-  // Rate limit
-  const ip = getIP(req.headers as Record<string, string | string[] | undefined>)
+  const headers = req.headers as Record<string, string | string[] | undefined>
+  const apiKey = getGeminiApiKey(headers)
+  if (!apiKey) {
+    return res.status(401).json({ ok: false, error: 'Gemini API key required. Set it in Settings → AI Preferences.' })
+  }
+
+  const ip = getIP(headers)
   const rl = checkRateLimit(ip)
   if (!rl.allowed) {
     return res.status(429).json({
@@ -64,7 +59,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   }
 
-  // Validate input
   const parsed = jdParserRequestSchema.safeParse(req.body)
   if (!parsed.success) {
     return res.status(400).json({
@@ -74,22 +68,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body: JDParserRequest = parsed.data
-
-  // Build user message
   const userParts: string[] = []
   if (body.roleTitle)      userParts.push(`Role title: ${body.roleTitle}`)
   if (body.userBackground) userParts.push(`Candidate background: ${body.userBackground}`)
   userParts.push(`\nJob description:\n${body.jdText}`)
 
   try {
-    const data = await callClaude({
+    const data = await callGemini({
+      apiKey,
       system:    SYSTEM,
       user:      userParts.join('\n\n'),
       schema:    jdParserResponseSchema,
       maxTokens: 1500,
-      apiKey:    getUserApiKey(req.headers as Record<string, string | string[] | undefined>),
     })
-
     return res.status(200).json({ ok: true, data })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error'
@@ -101,5 +92,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 function setCORSHeaders(res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin',  '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-gemini-api-key')
 }

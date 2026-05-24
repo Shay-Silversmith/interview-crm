@@ -1,269 +1,104 @@
 # AI Serverless Functions — Operations Guide
 
-Three Vercel serverless functions proxy requests from the browser to Anthropic's Claude API. The browser **never** holds the API key.
+Seven Vercel serverless functions proxy requests from the browser to
+**Google Gemini** (`gemini-2.5-pro`). The browser sends each request with a
+header `x-gemini-api-key: <user's key>`; the function forwards the key only
+to Google's Gemini API and never persists it.
 
 ---
 
-## Environment Variables
+## BYOK (Bring Your Own Key) model
+
+Each user pastes their own Gemini API key into Settings → AI Preferences
+(UI shipping in Prompt 3b). The key lives in the user's browser
+`localStorage` under the slot `interviewflow_gemini_key` and is attached as
+the `x-gemini-api-key` header to every `/api/ai/*` request.
+
+**Security tradeoff:** `localStorage` is readable by any script running in
+the same origin — including a successful XSS. This is acceptable for the
+friend-beta phase: the blast radius is the user's own Gemini quota.
+
+Stronger alternatives for a future iteration:
+- **Per-user DB column** (`profiles.gemini_api_key`, RLS-protected) — the
+  key still lives in plaintext but never in the browser. Requires routing
+  every `/api/ai/*` call through a Supabase session lookup.
+- **Supabase Vault** — provider-managed secret storage. Same routing
+  requirement as above, plus encryption-at-rest beyond the table.
+
+Users generate Gemini keys at https://aistudio.google.com/app/apikey
+
+---
+
+## Environment variables
 
 | Variable | Where | Required |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Vercel env vars (or `.env.local`) | Yes |
-| `VITE_SUPABASE_URL` | Vercel env vars / `.env.local` | No (mock mode if absent) |
-| `VITE_SUPABASE_ANON_KEY` | Vercel env vars / `.env.local` | No |
+| `VITE_AI_ENABLED` | `.env.local` + Vercel envs | Yes — set to `true` to call the real backend |
+| `VITE_SUPABASE_URL` | `.env.local` + Vercel envs | Yes for live mode |
+| `VITE_SUPABASE_ANON_KEY` | `.env.local` + Vercel envs | Yes for live mode |
 
-Add your Anthropic key to `.env.local` for local dev:
-
-```
-ANTHROPIC_API_KEY=sk-ant-api03-...
-```
-
-Get a key at <https://console.anthropic.com/>.
+There is **no longer** a server-side AI key env var. The Anthropic
+`ANTHROPIC_API_KEY` from the Claude era was removed in p3a.
 
 ---
 
-## Local Development
+## Endpoints (all `POST /api/ai/<name>`)
 
-Use **`vercel dev`** (not `npm run dev`) so serverless functions are served alongside the Vite frontend:
-
-```bash
-npm install -g vercel        # one-time
-vercel login                 # one-time
-vercel dev                   # runs on http://localhost:3000
-```
-
-> `npm run dev` starts Vite only (port 5173) — API calls to `/api/ai/*` will 404 because Vercel's function runtime isn't running.
-
----
-
-## Hebrew Output Mode
-
-When the app locale is `he`, the frontend passes `"locale": "he"` in the request body to the **Prep Pack** and **Follow-up** endpoints. The server appends a language instruction to the system prompt:
-
-> Respond in modern professional Hebrew. Use English for programming language and tool names (SQL, Python, JavaScript, React, etc.), technical concepts commonly used in Israeli tech (REST, OAuth, KPI, OKR, A/B test, ETL, ML, AI, CRM, API, SaaS, CI/CD), proper nouns (company names, products, frameworks), and any acronyms. Embed English terms directly in Hebrew sentences (e.g., "הפרויקט בנוי ב-React עם TypeScript"). Use Western Arabic numerals.
-
-**JD Parser intentionally ignores `locale`** — job descriptions are written in English, and structured fields (`responsibilities`, `requirements`, etc.) read better in their source language. The endpoint accepts the field for API schema consistency but discards it.
-
-Only *newly generated* drafts are affected. Saved AI summaries from previous sessions render exactly as they were stored, regardless of the current locale.
-
-The JSON response shape is identical in both languages — only the string *values* change. The frontend adds `dir="auto"` to all AI text containers so that mixed Hebrew/English content (e.g., "הפרויקט משתמש ב-Python ו-SQL") renders with correct bidirectionality without explicit bidi markup.
-
----
-
-## Endpoints
-
-### `POST /api/ai/jd-parser`
-
-Parse a job description into structured insights.
-
-**Request**
-
-```json
-{
-  "jdText": "We are looking for a Data Engineer…",
-  "roleTitle": "Data Engineer",           // optional
-  "userBackground": "Industrial Engineering, 1y analytics internship", // optional
-  "locale": "en"                          // optional — accepted but IGNORED (output always English)
-}
-```
-
-**Response (success)**
-
-```json
-{
-  "ok": true,
-  "data": {
-    "roleSummary": "…",
-    "responsibilities": ["…"],
-    "requirements": ["…"],
-    "niceToHaves": ["…"],
-    "technologies": ["…"],
-    "whatTheyWant": "…",
-    "howIMatch": ["…"],
-    "whatToEmphasize": ["…"],
-    "possibleQuestions": ["…"],
-    "prepChecklist": ["…"]
-  }
-}
-```
-
-**cURL test**
-
-```bash
-curl -X POST http://localhost:3000/api/ai/jd-parser \
-  -H "Content-Type: application/json" \
-  -d '{"jdText":"We need a senior data engineer with 5+ years Spark experience."}'
-```
-
----
-
-### `POST /api/ai/prep-pack`
-
-Generate a comprehensive interview prep pack.
-
-**Request**
-
-```json
-{
-  "application": {
-    "title": "Data Engineer",
-    "company": "Amazon",
-    "stage": "Applied",
-    "jdText": "…",        // optional
-    "notes": "…"          // optional
-  },
-  "cv": null,
-  "company": { "name": "Amazon" },
-  "pastInterviews": [],
-  "userBackground": "Industrial Engineering, Python/SQL",
-  "interviewType": "Technical Interview",
-  "locale": "he"                          // optional — omit or "en" for English output
-}
-```
-
-**Response (success)**
-
-```json
-{
-  "ok": true,
-  "data": {
-    "companySnapshot": "…",
-    "roleSummary": "…",
-    "reviewFromCV": ["…"],
-    "expectedHRQuestions": ["…"],
-    "expectedTechnicalQuestions": ["…"],
-    "recommendedStarStories": [
-      { "situation": "…", "task": "…", "action": "…", "result": "…" }
-    ],
-    "questionsToAsk": ["…"],
-    "finalChecklist": ["…"]
-  }
-}
-```
-
-**cURL test**
-
-```bash
-curl -X POST http://localhost:3000/api/ai/prep-pack \
-  -H "Content-Type: application/json" \
-  -d '{
-    "application":{"title":"Data Engineer","company":"Amazon","stage":"Applied"},
-    "cv":null,
-    "company":{"name":"Amazon"},
-    "pastInterviews":[],
-    "userBackground":"Industrial Engineering, Python/SQL, 1y analytics internship",
-    "interviewType":"Technical Interview"
-  }'
-```
-
----
-
-### `POST /api/ai/follow-up`
-
-Draft three follow-up message variants.
-
-**Request**
-
-```json
-{
-  "messageType": "post-interview",
-  "company": "Wix",
-  "contactName": "Lihi Shachar",
-  "role": "Data Engineer",
-  "tone": "warm",
-  "context": "Had a 45-min video call with the data team lead",
-  "locale": "he"                          // optional — omit or "en" for English output
-}
-```
-
-`messageType` values: `post-interview` | `ping-after-silence` | `thank-you` | `decline-politely`
-
-`tone` values: `professional` | `warm` | `casual`
-
-**Response (success)**
-
-```json
-{
-  "ok": true,
-  "data": {
-    "short":    "Hi Lihi, thank you for your time yesterday…",
-    "warm":     "Hi Lihi,\n\nI really enjoyed our conversation…",
-    "linkedIn": "Hi Lihi — great chatting yesterday…"
-  }
-}
-```
-
-**cURL test**
-
-```bash
-curl -X POST http://localhost:3000/api/ai/follow-up \
-  -H "Content-Type: application/json" \
-  -d '{
-    "messageType":"post-interview",
-    "company":"Wix",
-    "contactName":"Lihi Shachar",
-    "role":"Data Engineer",
-    "tone":"warm",
-    "context":"45-min video call with data team lead"
-  }'
-```
-
----
-
-## Error Response Shape
-
-All errors return `{ "ok": false, "error": "…" }`:
-
-| HTTP status | Cause |
+| Endpoint | What it does |
 |---|---|
-| `400` | Invalid request body (Zod validation) |
-| `405` | Wrong HTTP method (only POST allowed) |
-| `429` | Rate limit exceeded (10 req/min per IP) |
-| `500` | Anthropic API error or JSON parse failure after retry |
+| `jd-parser` | Parses a JD into structured insights (responsibilities, requirements, how I match, etc.) |
+| `prep-pack` | Generates a personalised interview prep pack from application + CV + past rounds |
+| `follow-up` | Drafts three follow-up message variants (short / warm / LinkedIn) |
+| `company-fill` | Researches a company name and returns structured CRM fields |
+| `cv-parse` | Extracts emphasis / skills / projects from an uploaded CV (multimodal: PDF & images) |
+| `jd-summarize` | Turns a pasted JD into headline + bullet summary |
+| `agent` | Conversational planner — takes a user message + open-applications context, returns proposed mutations for the user to approve |
+| `_test` | Trivial Gemini probe used by the "Test key" button in Settings |
 
 ---
 
-## Rate Limiting
+## Migration notes from Claude → Gemini (p3a)
 
-- **Limit:** 10 requests per minute per IP
-- **Algorithm:** Sliding window (in-memory)
-- **Headers returned on 429:** none (just `{ ok: false, error: "Rate limit exceeded. Try again in Xs." }`)
-- **Scope:** Per function, per IP — limits are independent across the three endpoints
-- **Reset:** Automatic; the bucket is cleared after 60 seconds of inactivity
-
-> ⚠️ In-memory rate limiting is per-instance. On Vercel's multi-instance deployments this provides best-effort protection, not hard enforcement. For production hardening, replace with a Redis-backed solution (Upstash recommended).
-
----
-
-## Retry Behaviour
-
-Each function calls Claude once and validates the JSON response with Zod. If validation fails, a single correction turn is sent:
-
-```
-Your JSON output failed validation. Fix these issues and return ONLY the corrected JSON object:
-<validation issues summary>
-```
-
-If the retry also fails validation, the function returns `{ ok: false, error: "…" }` with HTTP 500.
-
----
-
-## Model & Token Limits
-
-| Function | Model | maxTokens |
+| Aspect | Claude (old) | Gemini (now) |
 |---|---|---|
-| jd-parser | `claude-sonnet-4-6` | 1500 |
-| prep-pack | `claude-sonnet-4-6` | 2500 |
-| follow-up | `claude-sonnet-4-6` | 1200 |
+| Model | `claude-sonnet-4-6` | `gemini-2.5-pro` |
+| Key source | Server env `ANTHROPIC_API_KEY` (with optional BYOK `x-anthropic-key`) | Always BYOK — header `x-gemini-api-key` |
+| JSON output | Prompted via "ONLY a JSON object" | Native `responseMimeType: 'application/json'` |
+| `company-fill` web research | `web_search_20250305` server tool | None — Gemini answers from training-data knowledge only |
+| `jd-summarize` URL fetch | `web_fetch_20250910` server tool | None — caller should paste JD text |
+| `cv-parse` multimodal | Claude `document` / `image` blocks | Gemini `inlineData` parts |
 
-Vercel function timeout: **30 seconds** (configured in `vercel.json`).
+The `_lib/claude.ts` wrapper was deleted; `_lib/gemini.ts` is the new
+single entry point. The `@anthropic-ai/sdk` dep was removed.
 
 ---
 
-## Deployment
+## Curl examples
 
 ```bash
-vercel --prod
+# JD parser
+curl -X POST http://localhost:5173/api/ai/jd-parser \
+  -H 'content-type: application/json' \
+  -H "x-gemini-api-key: $GEMINI_KEY" \
+  -d '{
+    "jdText": "We are looking for a Data Engineer...",
+    "roleTitle": "Data Engineer",
+    "userBackground": "Industrial Engineering, 1y analytics internship"
+  }'
+
+# Probe (no quota cost beyond ~30 tokens)
+curl -X POST http://localhost:5173/api/ai/_test \
+  -H "x-gemini-api-key: $GEMINI_KEY"
 ```
 
-Add `ANTHROPIC_API_KEY` in the Vercel project dashboard under **Settings → Environment Variables** (Production + Preview scopes). Never commit it to the repo.
+---
+
+## Failure modes
+
+| HTTP | Cause | Frontend behaviour |
+|---|---|---|
+| `401 NO_API_KEY` | User hasn't set a Gemini key | Toast: "Set your Gemini API key in Settings to use AI features." |
+| `429 Rate limit` | IP-based limit (see `_lib/rate-limit.ts`) | Toast with wait time |
+| `400` | Zod request validation failed | Toast with field-level error |
+| `500` | Gemini error after retry | DEV: surface to console; PROD: silent mock fallback |
+| `502` (only `_test`) | Gemini rejected the key or network error | Settings UI shows red status |

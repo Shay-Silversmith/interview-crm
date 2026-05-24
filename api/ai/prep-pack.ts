@@ -2,14 +2,11 @@
 // InterviewFlow — api/ai/prep-pack.ts
 // POST /api/ai/prep-pack
 //
-// Generates a comprehensive, personalised interview prep pack using Claude.
-// Designed for the "Prepare Me" tool on the AI page.
-// Input:  PrepPackRequest (see schemas.ts)
-// Output: { ok: true, data: PrepPackResponse } | { ok: false, error: string }
+// Generates a comprehensive, personalised interview prep pack using Gemini.
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callClaude, localeSystemSuffix, getUserApiKey } from './_lib/claude'
+import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 import {
   prepPackRequestSchema,
@@ -17,17 +14,10 @@ import {
   type PrepPackRequest,
 } from './_lib/schemas'
 
-// ---------------------------------------------------------------------------
-// System prompt
-// ---------------------------------------------------------------------------
-
 const SYSTEM = `\
 You are an elite interview coach with deep knowledge of technical and behavioural interviews at top tech companies.
 
-Build a comprehensive, personalised prep pack for the candidate's upcoming interview.
-Return ONLY a single JSON object — no markdown fences, no explanation text before or after.
-
-The JSON must have exactly these keys:
+Build a comprehensive, personalised prep pack for the candidate's upcoming interview. Return a single JSON object with exactly these keys:
 {
   "companySnapshot":            "2-3 sentences on what the company does, culture signals, and why this role matters there",
   "roleSummary":                "What winning in this role looks like — measurable outcomes, team context, career trajectory",
@@ -49,16 +39,18 @@ Rules:
 — Be specific and actionable. Avoid filler advice like "get a good night's sleep."
 — If context is limited, say so clearly rather than inventing details.`
 
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCORSHeaders(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST')   return res.status(405).json({ ok: false, error: 'Method not allowed' })
 
-  const ip = getIP(req.headers as Record<string, string | string[] | undefined>)
+  const headers = req.headers as Record<string, string | string[] | undefined>
+  const apiKey = getGeminiApiKey(headers)
+  if (!apiKey) {
+    return res.status(401).json({ ok: false, error: 'Gemini API key required. Set it in Settings → AI Preferences.' })
+  }
+
+  const ip = getIP(headers)
   const rl = checkRateLimit(ip)
   if (!rl.allowed) {
     return res.status(429).json({
@@ -76,17 +68,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body: PrepPackRequest = parsed.data
-
-  // Build rich context message
   const sections: string[] = [
     `Interview type: ${body.interviewType}`,
     `Role: ${body.application.title} at ${body.application.company}`,
     `Current stage: ${body.application.stage}`,
   ]
-
-  if (body.userBackground)
-    sections.push(`\nCandidate background:\n${body.userBackground}`)
-
+  if (body.userBackground)      sections.push(`\nCandidate background:\n${body.userBackground}`)
   if (body.cv) {
     sections.push(
       `\nCV focus:\nEmphasis: ${body.cv.emphasis}` +
@@ -94,16 +81,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `\nProjects: ${body.cv.projectsHighlighted.join(', ')}`
     )
   }
-
-  if (body.company?.summary)
-    sections.push(`\nCompany summary: ${body.company.summary}`)
-
-  if (body.application.jdText)
-    sections.push(`\nJob description:\n${body.application.jdText}`)
-
-  if (body.application.notes)
-    sections.push(`\nApplication notes: ${body.application.notes}`)
-
+  if (body.company?.summary)    sections.push(`\nCompany summary: ${body.company.summary}`)
+  if (body.application.jdText)  sections.push(`\nJob description:\n${body.application.jdText}`)
+  if (body.application.notes)   sections.push(`\nApplication notes: ${body.application.notes}`)
   if (body.pastInterviews.length > 0) {
     const interviewSummary = body.pastInterviews.map(pi =>
       `${pi.type}: questions asked — ${pi.questions.join('; ')}. Takeaways: ${pi.takeaways}`
@@ -112,14 +92,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const data = await callClaude({
+    const data = await callGemini({
+      apiKey,
       system:    SYSTEM + localeSystemSuffix(body.locale),
       user:      sections.join('\n'),
       schema:    prepPackResponseSchema,
       maxTokens: 2500,
-      apiKey:    getUserApiKey(req.headers as Record<string, string | string[] | undefined>),
     })
-
     return res.status(200).json({ ok: true, data })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error'
@@ -131,5 +110,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 function setCORSHeaders(res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin',  '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-gemini-api-key')
 }

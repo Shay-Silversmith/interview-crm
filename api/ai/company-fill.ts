@@ -2,15 +2,17 @@
 // InterviewFlow — api/ai/company-fill.ts
 // POST /api/ai/company-fill
 //
-// Researches a company by name and returns structured fields the user can
-// drop into a new Company record (industry, size, location, description,
-// website, LinkedIn, glassdoor rating, tech stack). Uses Claude with the
-// built-in web_search server tool so facts are grounded in live sources.
+// Researches a company by name and returns structured fields for a new
+// Company record. Uses Gemini's training-data knowledge.
+//
+// NOTE: The Claude version used the web_search server tool to verify live
+// facts. Gemini's googleSearch tool conflicts with responseMimeType=json,
+// so this port runs without grounding. The model is instructed to set null
+// for any field it can't confirm from its own knowledge.
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import type Anthropic from '@anthropic-ai/sdk'
-import { callClaudeAdvanced, localeSystemSuffix, getUserApiKey } from './_lib/claude'
+import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 import {
   companyFillRequestSchema,
@@ -18,16 +20,8 @@ import {
   type CompanyFillRequest,
 } from './_lib/schemas'
 
-// ---------------------------------------------------------------------------
-// System prompt
-// ---------------------------------------------------------------------------
-
 const SYSTEM = `\
-You research companies for a job-seeker's CRM. The user will give you a company name and you will return ONLY a single JSON object — no markdown fences, no commentary before or after.
-
-Use the web_search tool when needed to verify current facts (employee count, recent products, headquarters, etc.). Prefer the company's own site, LinkedIn, and Glassdoor over secondary sources. For very well-known companies (FAANG, Israeli tech giants, etc.) you may answer from your own knowledge if you are confident.
-
-Return JSON with exactly these keys:
+You research companies for a job-seeker's CRM. The user will give you a company name and you will return a single JSON object with exactly these keys:
 {
   "industry":        "primary industry tag, e.g. 'AI / Cybersecurity' or 'E-commerce'",
   "size":            one of "1-10" | "11-50" | "51-200" | "201-500" | "501-2000" | "2001-10000" | "10000+" | null,
@@ -41,6 +35,7 @@ Return JSON with exactly these keys:
 }
 
 Rules:
+— Answer from your own knowledge. You do NOT have live web access.
 — Never invent specifics. If you don't know a field, set it to null (where allowed) or use a generic descriptor.
 — Keep description neutral and factual; don't editorialize.
 — For Israeli companies, location should normally include "Israel" or a city like "Tel Aviv, Israel".
@@ -48,16 +43,18 @@ Rules:
 — If the name is ambiguous, set disambiguation to ask which company. In that case all other fields can still be best-guess for the most likely match.
 — Do NOT include a leading "@" in linkedinUrl. Use a full https:// URL or null.`
 
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCORSHeaders(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST')   return res.status(405).json({ ok: false, error: 'Method not allowed' })
 
-  const ip = getIP(req.headers as Record<string, string | string[] | undefined>)
+  const headers = req.headers as Record<string, string | string[] | undefined>
+  const apiKey = getGeminiApiKey(headers)
+  if (!apiKey) {
+    return res.status(401).json({ ok: false, error: 'Gemini API key required. Set it in Settings → AI Preferences.' })
+  }
+
+  const ip = getIP(headers)
   const rl = checkRateLimit(ip)
   if (!rl.allowed) {
     return res.status(429).json({
@@ -80,19 +77,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     : `Company name: ${body.companyName}`
 
   try {
-    const data = await callClaudeAdvanced({
+    const data = await callGemini({
+      apiKey,
       system:    SYSTEM + localeSystemSuffix(body.locale),
-      messages:  [{ role: 'user', content: userMsg }],
+      user:      userMsg,
       schema:    companyFillResponseSchema,
       maxTokens: 1500,
-      tools: [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 3,
-        } as Anthropic.Messages.WebSearchTool20250305,
-      ],
-      apiKey: getUserApiKey(req.headers as Record<string, string | string[] | undefined>),
     })
     return res.status(200).json({ ok: true, data })
   } catch (err) {
@@ -105,5 +95,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 function setCORSHeaders(res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin',  '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-gemini-api-key')
 }

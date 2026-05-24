@@ -2,15 +2,12 @@
 // InterviewFlow — api/ai/cv-parse.ts
 // POST /api/ai/cv-parse
 //
-// Reads an uploaded CV (PDF / DOCX / image) and extracts structured highlights:
-// emphasis, top skills, top projects, and a suggested CV-version name. Files
-// are sent inline as base64 (no storage required). Claude reads PDFs natively
-// via the document content type.
+// Reads an uploaded CV (PDF / DOCX / image) and extracts structured
+// highlights via Gemini's multimodal API. Files are sent inline as base64.
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import type Anthropic from '@anthropic-ai/sdk'
-import { callClaudeAdvanced, localeSystemSuffix, getUserApiKey } from './_lib/claude'
+import { callGemini, localeSystemSuffix, getGeminiApiKey, type GeminiPart } from './_lib/gemini'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 import {
   cvParseRequestSchema,
@@ -18,14 +15,8 @@ import {
   type CVParseRequest,
 } from './_lib/schemas'
 
-// ---------------------------------------------------------------------------
-// System prompt
-// ---------------------------------------------------------------------------
-
 const SYSTEM = `\
-You read resumes (CVs) and extract structured highlights for a job-search CRM. The user will attach the file. Return ONLY a single JSON object — no markdown fences, no commentary.
-
-The JSON must have exactly these keys:
+You read resumes (CVs) and extract structured highlights for a job-search CRM. The user will attach the file. Return a single JSON object with exactly these keys:
 {
   "emphasis":            "1 sentence describing the role types this CV is best suited for, e.g. 'Data-heavy PM roles at scale-ups' or 'Backend engineering with distributed systems focus'",
   "skillsHighlighted":   ["6-12 specific hard skills, languages, frameworks, tools — drawn directly from the CV"],
@@ -39,16 +30,18 @@ Rules:
 — Project phrases should be 3-12 words, including a quantifiable outcome when present.
 — suggestedName should be ≤ 30 chars, focused on the candidate's specialty.`
 
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCORSHeaders(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST')   return res.status(405).json({ ok: false, error: 'Method not allowed' })
 
-  const ip = getIP(req.headers as Record<string, string | string[] | undefined>)
+  const headers = req.headers as Record<string, string | string[] | undefined>
+  const apiKey = getGeminiApiKey(headers)
+  if (!apiKey) {
+    return res.status(401).json({ ok: false, error: 'Gemini API key required. Set it in Settings → AI Preferences.' })
+  }
+
+  const ip = getIP(headers)
   const rl = checkRateLimit(ip)
   if (!rl.allowed) {
     return res.status(429).json({
@@ -66,51 +59,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body: CVParseRequest = parsed.data
+  const isInlineMime =
+    body.mimeType === 'application/pdf' || body.mimeType.startsWith('image/')
 
-  // Build a multimodal user message: document + brief instruction
-  const userContent: Anthropic.Messages.ContentBlockParam[] =
-    body.mimeType === 'application/pdf'
-      ? [
-          {
-            type: 'document',
-            source: { type: 'base64', media_type: 'application/pdf', data: body.base64Data },
-          },
-          {
-            type: 'text',
-            text: `Filename: ${body.fileName}\n\nExtract the structured highlights as specified.`,
-          },
-        ]
-      : body.mimeType.startsWith('image/')
-      ? [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: body.mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-              data: body.base64Data,
-            },
-          },
-          { type: 'text', text: `Filename: ${body.fileName}\n\nExtract the structured highlights.` },
-        ]
-      : [
-          // For DOCX / TXT we send the base64 payload as text — quality varies.
-          // The frontend should warn users that PDFs work best.
-          {
-            type: 'text',
-            text:
-              `Filename: ${body.fileName}\nMime: ${body.mimeType}\n\n` +
-              `(Base64 payload follows — extract what you can; if unreadable return reasonable empty values)\n\n` +
-              body.base64Data.slice(0, 200_000),
-          },
-        ]
+  const userParts: GeminiPart[] = isInlineMime
+    ? [
+        { inlineData: { mimeType: body.mimeType, data: body.base64Data } },
+        { text: `Filename: ${body.fileName}\n\nExtract the structured highlights as specified.` },
+      ]
+    : [
+        // DOCX / TXT — pass base64 inline as text. Quality varies; PDF works best.
+        {
+          text:
+            `Filename: ${body.fileName}\nMime: ${body.mimeType}\n\n` +
+            `(Base64 payload follows — extract what you can; if unreadable return reasonable empty values)\n\n` +
+            body.base64Data.slice(0, 200_000),
+        },
+      ]
 
   try {
-    const data = await callClaudeAdvanced({
+    const data = await callGemini({
+      apiKey,
       system:    SYSTEM + localeSystemSuffix(body.locale),
-      messages:  [{ role: 'user', content: userContent }],
+      userParts,
       schema:    cvParseResponseSchema,
       maxTokens: 1200,
-      apiKey:    getUserApiKey(req.headers as Record<string, string | string[] | undefined>),
     })
     return res.status(200).json({ ok: true, data })
   } catch (err) {
@@ -123,5 +96,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 function setCORSHeaders(res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin',  '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-gemini-api-key')
 }

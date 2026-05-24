@@ -22,7 +22,7 @@ export function isSupabaseMode(): boolean {
 
 /**
  * Returns true when VITE_AI_ENABLED=true is set.
- * Live AI functions require both this flag AND ANTHROPIC_API_KEY on the server.
+ * Live AI functions require both this flag AND a user-supplied Gemini API key.
  * When false, all AI service functions fall back to mock output immediately.
  */
 export function isAIEnabled(): boolean {

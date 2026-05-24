@@ -2,13 +2,11 @@
 // InterviewFlow — api/ai/follow-up.ts
 // POST /api/ai/follow-up
 //
-// Drafts three variants of a professional follow-up message using Claude.
-// Input:  { messageType, company, contactName, role, tone, context }
-// Output: { ok: true, data: { short, warm, linkedIn } } | { ok: false, error }
+// Drafts three variants of a professional follow-up message using Gemini.
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callClaude, localeSystemSuffix, getUserApiKey } from './_lib/claude'
+import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 import {
   followUpRequestSchema,
@@ -16,16 +14,10 @@ import {
   type FollowUpRequest,
 } from './_lib/schemas'
 
-// ---------------------------------------------------------------------------
-// System prompt
-// ---------------------------------------------------------------------------
-
 const SYSTEM = `\
 You are an expert professional communications writer. Draft follow-up messages that are genuine, specific, and effective.
 
-Return ONLY a single JSON object — no markdown fences, no explanation text before or after.
-
-The JSON must have exactly these keys:
+Return a single JSON object with exactly these keys:
 {
   "short":    "Concise version — maximum 80 words. Direct and punchy.",
   "warm":     "Personal version — 4-6 sentences, maximum 150 words. Warmer tone, still professional.",
@@ -43,16 +35,18 @@ Hard rules:
 — Match the tone requested (professional = crisp and formal; warm = genuine and personal; casual = conversational).
 — All three variants should feel written by the same authentic person, just pitched differently.`
 
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCORSHeaders(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST')   return res.status(405).json({ ok: false, error: 'Method not allowed' })
 
-  const ip = getIP(req.headers as Record<string, string | string[] | undefined>)
+  const headers = req.headers as Record<string, string | string[] | undefined>
+  const apiKey = getGeminiApiKey(headers)
+  if (!apiKey) {
+    return res.status(401).json({ ok: false, error: 'Gemini API key required. Set it in Settings → AI Preferences.' })
+  }
+
+  const ip = getIP(headers)
   const rl = checkRateLimit(ip)
   if (!rl.allowed) {
     return res.status(429).json({
@@ -70,14 +64,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body: FollowUpRequest = parsed.data
-
   const messageTypeLabels: Record<FollowUpRequest['messageType'], string> = {
     'post-interview':      'Post-interview follow-up',
     'ping-after-silence':  'Follow-up after no response',
     'thank-you':           'Thank-you message',
     'decline-politely':    'Polite decline',
   }
-
   const userMessage = [
     `Message type: ${messageTypeLabels[body.messageType]}`,
     `Recipient: ${body.contactName} at ${body.company}`,
@@ -87,14 +79,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   ].join('\n\n')
 
   try {
-    const data = await callClaude({
+    const data = await callGemini({
+      apiKey,
       system:    SYSTEM + localeSystemSuffix(body.locale),
       user:      userMessage,
       schema:    followUpResponseSchema,
       maxTokens: 1200,
-      apiKey:    getUserApiKey(req.headers as Record<string, string | string[] | undefined>),
     })
-
     return res.status(200).json({ ok: true, data })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error'
@@ -106,5 +97,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 function setCORSHeaders(res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin',  '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-gemini-api-key')
 }

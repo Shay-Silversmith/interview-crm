@@ -5,10 +5,13 @@
 // Conversational planner. Reads a user message + context (open applications,
 // today's date) and returns a list of proposed mutations the client should
 // preview to the user before executing.
+//
+// Ported from Claude → Gemini in p3a. The original used the standard
+// text-in / JSON-out pattern (no tool-use), so the port is a straight swap.
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callClaude, localeSystemSuffix, getUserApiKey } from './_lib/claude'
+import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 import {
   agentRequestSchema,
@@ -16,16 +19,12 @@ import {
   type AgentRequest,
 } from './_lib/agent-schemas'
 
-// ---------------------------------------------------------------------------
-// System prompt
-// ---------------------------------------------------------------------------
-
 const SYSTEM = `\
 You are an assistant inside InterviewFlow, a personal job-search CRM. The user describes things that happened (or will happen) in their job search and you propose precise CRM updates.
 
 You receive a snapshot of the user's open applications, including each application's id, company name, role name, current stage, and existing interview rounds (with their ids, types, outcomes, and dates). You also receive today's date in ISO format and the user's timezone.
 
-Return ONLY a single JSON object — no markdown fences, no commentary before or after — with exactly these keys:
+Return a single JSON object with exactly these keys:
 {
   "assistantMessage":   "1-3 sentence reply to the user, in their language. Summarize what you're about to do and ask a clarifying question only if absolutely necessary.",
   "actions":            [ ...zero or more action objects... ],
@@ -64,18 +63,20 @@ CRITICAL RULES
 — If the user's intent is unclear or you cannot identify which application they mean, set needsClarification=true, return actions=[], and ask the question in assistantMessage.
 — NEVER propose destructive actions (deletes, withdrawals, rejections) unless the user explicitly asks.
 
-Be concise. Be precise. Return valid JSON.`
-
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
+Be concise. Be precise.`
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCORSHeaders(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST')   return res.status(405).json({ ok: false, error: 'Method not allowed' })
 
-  const ip = getIP(req.headers as Record<string, string | string[] | undefined>)
+  const headers = req.headers as Record<string, string | string[] | undefined>
+  const apiKey = getGeminiApiKey(headers)
+  if (!apiKey) {
+    return res.status(401).json({ ok: false, error: 'Gemini API key required. Set it in Settings → AI Preferences.' })
+  }
+
+  const ip = getIP(headers)
   const rl = checkRateLimit(ip)
   if (!rl.allowed) {
     return res.status(429).json({
@@ -93,17 +94,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body: AgentRequest = parsed.data
-
-  // Build the user-side message: context first, then the conversation
   const userMessage = buildUserMessage(body)
 
   try {
-    const data = await callClaude({
+    const data = await callGemini({
+      apiKey,
       system:    SYSTEM + localeSystemSuffix(body.context.locale),
       user:      userMessage,
       schema:    agentResponseSchema,
       maxTokens: 2000,
-      apiKey:    getUserApiKey(req.headers as Record<string, string | string[] | undefined>),
     })
     return res.status(200).json({ ok: true, data })
   } catch (err) {
@@ -113,13 +112,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function buildUserMessage(body: AgentRequest): string {
   const parts: string[] = []
-
   parts.push(`# Context`)
   parts.push(`Today: ${body.context.today}`)
   parts.push(`Timezone: ${body.context.timezone}`)
@@ -142,7 +136,6 @@ function buildUserMessage(body: AgentRequest): string {
     }
   }
   parts.push('')
-
   if (body.history.length > 0) {
     parts.push(`# Conversation so far`)
     for (const m of body.history) {
@@ -150,15 +143,13 @@ function buildUserMessage(body: AgentRequest): string {
     }
     parts.push('')
   }
-
   parts.push(`# Current user message`)
   parts.push(body.message)
-
   return parts.join('\n')
 }
 
 function setCORSHeaders(res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin',  '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-gemini-api-key')
 }

@@ -1,8 +1,11 @@
 // ---------------------------------------------------------------------------
 // InterviewFlow — src/services/aiClientService.ts
-// Client-side fetch wrappers for the three live AI serverless functions.
-// The browser NEVER sees the Anthropic API key — all calls go through /api/ai/*.
+// Client-side fetch wrappers for the AI serverless functions.
+// BYOK: the user's Gemini API key is read from localStorage via aiKey.ts and
+// forwarded as the `x-gemini-api-key` header. The key is never logged.
 // ---------------------------------------------------------------------------
+
+import { aiHeaders, hasStoredGeminiKey } from './aiKey'
 
 // Mirror the response shapes from api/ai/_lib/schemas.ts
 // (We duplicate the types here so src/ stays isolated from api/)
@@ -168,46 +171,41 @@ export interface JDSummarizeResponse {
 // Fetch helpers
 // ---------------------------------------------------------------------------
 
-const API_KEY_STORAGE_KEY = 'interviewflow.anthropicApiKey'
+// Legacy storage key (Claude era). Kept as a no-op shim so the existing
+// SettingsPage BYOK input compiles until Prompt 3b replaces it with a
+// dedicated Gemini-key UI. Reads/writes the same localStorage slot but no
+// longer affects request routing.
+const LEGACY_API_KEY_STORAGE_KEY = 'interviewflow.anthropicApiKey'
 
 export function getStoredApiKey(): string {
-  try {
-    return localStorage.getItem(API_KEY_STORAGE_KEY) ?? ''
-  } catch {
-    return ''
-  }
+  try { return localStorage.getItem(LEGACY_API_KEY_STORAGE_KEY) ?? '' }
+  catch { return '' }
 }
 
 export function setStoredApiKey(key: string): void {
   try {
-    if (key.trim().length === 0) localStorage.removeItem(API_KEY_STORAGE_KEY)
-    else localStorage.setItem(API_KEY_STORAGE_KEY, key.trim())
-  } catch {
-    /* ignore */
-  }
+    if (key.trim().length === 0) localStorage.removeItem(LEGACY_API_KEY_STORAGE_KEY)
+    else localStorage.setItem(LEGACY_API_KEY_STORAGE_KEY, key.trim())
+  } catch { /* ignore */ }
 }
 
 async function post<TReq, TRes>(path: string, body: TReq): Promise<AIResult<TRes>> {
+  let headers: HeadersInit
   try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    const userKey = getStoredApiKey()
-    if (userKey) headers['x-anthropic-key'] = userKey
+    headers = aiHeaders()  // throws Error('NO_API_KEY') if no Gemini key stored
+  } catch (err) {
+    return { ok: false, error: (err as Error).message }
+  }
 
-    const res = await fetch(path, {
-      method:  'POST',
-      headers,
-      body:    JSON.stringify(body),
-    })
-
+  try {
+    const res = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body) })
     const json = await res.json() as AIResult<TRes>
-
     if (!res.ok) {
       return {
         ok:    false,
         error: (json as { ok: false; error: string }).error ?? `HTTP ${res.status}`,
       }
     }
-
     return json
   } catch (err) {
     return {
@@ -218,15 +216,14 @@ async function post<TReq, TRes>(path: string, body: TReq): Promise<AIResult<TRes
 }
 
 // ---------------------------------------------------------------------------
-// Demo mode — return canned responses when no API key is configured.
-// In development we still hit the real backend (uses ANTHROPIC_API_KEY from
-// .env), so visitors only get demo when they have no key AND we're deployed.
+// Demo mode — return canned responses when no Gemini API key is configured.
+// In DEV mode we surface real errors instead of masking them with mocks, so
+// the developer sees Gemini problems clearly.
 // ---------------------------------------------------------------------------
 
 export function isDemoMode(): boolean {
-  if (getStoredApiKey().length > 0) return false
-  // In dev, .env on the server supplies the key — let calls go through.
-  if (import.meta.env.DEV) return false
+  if (hasStoredGeminiKey()) return false
+  if (import.meta.env.DEV)  return false
   return true
 }
 

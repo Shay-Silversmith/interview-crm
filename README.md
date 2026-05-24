@@ -13,7 +13,7 @@ Track every application, prep for every interview, and use AI to stay one step a
 | Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
 | Auth & DB | Supabase (Postgres + Row-Level Security) |
 | Storage | Supabase Storage (cv-files, documents buckets) |
-| AI | Anthropic Claude via Vercel serverless functions |
+| AI | Google Gemini (`gemini-2.5-pro`) via Vercel serverless functions — BYOK |
 | Hosting | Vercel |
 
 ---
@@ -41,12 +41,16 @@ cp .env.example .env.local
 
 **To run in mock/demo mode** (no Supabase): leave `VITE_SUPABASE_URL` unset — the app works fully offline with in-memory data.
 
-**To enable AI features locally**: set `VITE_AI_ENABLED=true` and `ANTHROPIC_API_KEY=sk-ant-…` in `.env.local`, then start the dev server with the Vercel CLI so serverless functions work:
+**To enable AI features locally**: set `VITE_AI_ENABLED=true` in `.env.local`, start the dev server with the Vercel CLI so the serverless functions work, then paste your personal Gemini API key into Settings → AI Preferences (UI shipping in Prompt 3b; until then, set it manually via DevTools: `localStorage.setItem('interviewflow_gemini_key','<your-key>')`).
 ```bash
 npm i -g vercel
 vercel dev   # starts both Vite and /api/* functions on http://localhost:3000
 ```
-Without `vercel dev`, the AI tools fall back to mock responses automatically.
+Generate a Gemini key at https://aistudio.google.com/app/apikey. The key
+lives only in your browser's localStorage; it is sent as the
+`x-gemini-api-key` header on each `/api/ai/*` request and forwarded only to
+Google's API. Without a key the AI tools fall back to mock responses
+(non-DEV) or surface a clear error toast (DEV).
 
 ### 3 — Start
 
@@ -111,7 +115,10 @@ In Vercel → Project → Settings → Environment Variables, add:
 | `VITE_SUPABASE_URL` | `https://xxx.supabase.co` | From Supabase → Settings → API |
 | `VITE_SUPABASE_ANON_KEY` | `eyJ…` | anon public key |
 | `VITE_AI_ENABLED` | `true` | Enables live AI tools |
-| `ANTHROPIC_API_KEY` | `sk-ant-…` | **Server-only** — do NOT prefix with VITE_ |
+| `VITE_ADMIN_EMAIL` | `you@example.com` | Email of the admin user; gates demo-mode UI |
+
+No server-side AI key is needed — users provide their own Gemini key in
+the app's Settings (BYOK).
 
 ### Step 7 — Deploy
 
@@ -154,8 +161,8 @@ See `.env.example` for full descriptions. Quick summary:
 |---|---|---|
 | `VITE_SUPABASE_URL` | For prod | Supabase client |
 | `VITE_SUPABASE_ANON_KEY` | For prod | Supabase client |
-| `VITE_AI_ENABLED` | Optional | Feature flag |
-| `ANTHROPIC_API_KEY` | When AI enabled | Server-only (Vercel functions) |
+| `VITE_AI_ENABLED` | Optional | Feature flag — set `true` to call live Gemini |
+| `VITE_ADMIN_EMAIL` | Optional | Email of the admin user; gates demo-mode UI |
 
 ---
 
