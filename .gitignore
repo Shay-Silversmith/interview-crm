@@ -21,3 +21,6 @@ dist/
 Thumbs.db
 *.swp
 .vscode/settings.json
+
+.vercel
+.env*

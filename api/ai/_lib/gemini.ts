@@ -9,7 +9,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { z } from 'zod'
 
-const DEFAULT_MODEL = 'gemini-2.5-pro'
+const DEFAULT_MODEL = 'gemini-2.5-flash'
 
 // ---------------------------------------------------------------------------
 // Hebrew output instruction (preserved from the Claude wrapper)

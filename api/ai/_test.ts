@@ -15,7 +15,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { callGeminiRaw, getGeminiApiKey } from './_lib/gemini'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 
-const MODEL = 'gemini-2.5-pro'
+const MODEL = 'gemini-2.5-flash'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCORSHeaders(res)
