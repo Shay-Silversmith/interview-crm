@@ -62,6 +62,7 @@ export function CompanyForm({ initial, onSubmit, onCancel, loading, submitLabel 
   const [previewError, setPreviewError] = useState(false)
   const [autoFilling, setAutoFilling] = useState(false)
   const [disambiguation, setDisambiguation] = useState<string | null>(null)
+  const [sampleNotice, setSampleNotice]     = useState<string | null>(null)
   const toast = useToastActions()
 
   // Reset error whenever the URL changes so a new URL gets a fresh attempt
@@ -86,6 +87,18 @@ export function CompanyForm({ initial, onSubmit, onCancel, loading, submitLabel 
     try {
       const { data, fromFallback, fallbackReason } = await aiService.fillCompany({ companyName: name })
 
+      // A fallback answer describes an example company, not this one. Writing it
+      // into the form would turn placeholder text into saved company facts, so
+      // say what happened and leave the fields untouched.
+      if (fromFallback) {
+        setSampleNotice(
+          fallbackReason === 'disabled'
+            ? 'No Gemini API key is set, so nothing was researched. Add a key in Settings to fill this from the web.'
+            : 'The research request failed, so no fields were changed. Try again in a moment.')
+        return
+      }
+      setSampleNotice(null)
+
       // Apply each non-empty field. Don't overwrite name (user typed it).
       if (data.industry)            setValue('industry',        data.industry,          { shouldDirty: true })
       if (data.size)                setValue('size',            data.size,              { shouldDirty: true })
@@ -107,15 +120,7 @@ export function CompanyForm({ initial, onSubmit, onCancel, loading, submitLabel 
 
       if (data.disambiguation) setDisambiguation(data.disambiguation)
 
-      if (fromFallback) {
-        toast.info(
-          fallbackReason === 'disabled'
-            ? 'Demo data — set VITE_AI_ENABLED=true and run vercel dev for live web research.'
-            : 'AI request failed; showing fallback data.'
-        )
-      } else {
-        toast.success('Company details filled from web research')
-      }
+      toast.success('Company details filled from web research')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Auto-fill failed')
     } finally {
@@ -154,6 +159,11 @@ export function CompanyForm({ initial, onSubmit, onCancel, loading, submitLabel 
               Type the company name above, then click to research.
             </span>
           </div>
+          {sampleNotice && (
+            <div className="mt-2 px-3 py-2 rounded-lg bg-warning-50 border border-warning-200 text-xs text-warning-800">
+              <span className="font-semibold">Nothing was filled in:</span> {sampleNotice}
+            </div>
+          )}
           {disambiguation && (
             <div className="mt-2 px-3 py-2 rounded-lg bg-warning-50 border border-warning-200 text-xs text-warning-800">
               <span className="font-semibold">Heads up:</span> {disambiguation}

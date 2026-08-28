@@ -3,16 +3,19 @@
 // POST /api/ai/company-fill
 //
 // Researches a company by name and returns structured fields for a new
-// Company record. Uses Gemini's training-data knowledge.
+// Company record, grounded in Google Search.
 //
-// NOTE: The Claude version used the web_search server tool to verify live
-// facts. Gemini's googleSearch tool conflicts with responseMimeType=json,
-// so this port runs without grounding. The model is instructed to set null
-// for any field it can't confirm from its own knowledge.
+// Grounding matters here more than anywhere else in the app: an ungrounded
+// model will confidently size a Big Four firm at 1-10 people, and a small
+// Israeli startup it has never heard of gets invented wholesale. Search results
+// are the difference between research and plausible fiction.
+//
+// callGeminiGrounded works around the API's refusal to combine the search tool
+// with forced JSON output; see its comment for how.
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini'
+import { callGeminiGrounded, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini'
 import { checkRateLimit, getIP } from './_lib/rate-limit'
 import {
   companyFillRequestSchema,
@@ -35,8 +38,10 @@ You research companies for a job-seeker's CRM. The user will give you a company 
 }
 
 Rules:
-— Answer from your own knowledge. You do NOT have live web access.
-— Never invent specifics. If you don't know a field, set it to null (where allowed) or use a generic descriptor.
+— Search the web before answering. Base every field on what the results actually say.
+— Never invent specifics. If the search results do not establish a field, set it to null (where allowed) rather than guessing.
+— Headcount especially: use the company's own or a reputable source's figure. Do not infer size from how familiar the name feels.
+— Return ONLY the JSON object — no prose before or after it, no markdown fences.
 — Keep description neutral and factual; don't editorialize.
 — For Israeli companies, location should normally include "Israel" or a city like "Tel Aviv, Israel".
 — size buckets reflect headcount — pick the closest fit, not the exact number.
@@ -77,14 +82,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     : `Company name: ${body.companyName}`
 
   try {
-    const data = await callGemini({
+    const { data, sources } = await callGeminiGrounded({
       apiKey,
       system:    SYSTEM + localeSystemSuffix(body.locale),
       user:      userMsg,
       schema:    companyFillResponseSchema,
       maxTokens: 1500,
     })
-    return res.status(200).json({ ok: true, data })
+    // sources let the UI show where each claim came from, so the user can
+    // check a number rather than trusting it.
+    return res.status(200).json({ ok: true, data, sources })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error'
     if (process.env.NODE_ENV !== 'production') console.error('[company-fill]', err)

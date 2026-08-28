@@ -69,9 +69,11 @@ export async function callGeminiRaw(opts: CallGeminiRawOptions): Promise<string>
       maxOutputTokens:  opts.maxTokens ?? 2048,
     },
   })
+  // A multimodal turn must be wrapped as a GenerateContentRequest; a bare
+  // array of Content objects is not one of the accepted overloads.
   const contents = opts.userParts
-    ? [{ role: 'user' as const, parts: opts.userParts }]
-    : opts.user ?? ''
+    ? { contents: [{ role: 'user' as const, parts: opts.userParts }] }
+    : (opts.user ?? '')
   const result = await model.generateContent(contents)
   return result.response.text()
 }
@@ -148,4 +150,64 @@ function parseJSON(text: string): unknown {
     }
     throw new Error(`Gemini response is not valid JSON: ${stripped.slice(0, 200)}`)
   }
+}
+
+// ---------------------------------------------------------------------------
+// Grounded call — answers from Google Search rather than training data.
+//
+// The Gemini API refuses responseMimeType='application/json' together with the
+// search tool, which is why the original port dropped grounding entirely and
+// left company research to the model's memory. The way through is to ask for
+// JSON in the prompt instead of enforcing it in the config, then parse it out
+// of the reply — parseJSON already copes with fences and stray prose.
+//
+// If the grounded reply will not validate, the retry runs UNGROUNDED in strict
+// JSON mode over the grounded text. That keeps the researched facts and only
+// repairs the shape, instead of throwing the research away.
+// ---------------------------------------------------------------------------
+
+export interface GroundingSource {
+  title?: string
+  uri?:   string
+}
+
+export interface GroundedResult<T> {
+  data:    T
+  sources: GroundingSource[]
+}
+
+export async function callGeminiGrounded<T>(opts: CallGeminiOptions<T>): Promise<GroundedResult<T>> {
+  const genAI = new GoogleGenerativeAI(opts.apiKey)
+  const model = genAI.getGenerativeModel({
+    model:             opts.model ?? DEFAULT_MODEL,
+    systemInstruction: opts.system,
+    // Cast: the installed SDK's Tool union predates the 2.x googleSearch tool.
+    tools:             [{ googleSearch: {} }] as unknown as Parameters<typeof genAI.getGenerativeModel>[0]['tools'],
+    generationConfig:  { maxOutputTokens: opts.maxTokens },
+  })
+
+  const result = await model.generateContent(opts.user ?? '')
+  const text   = result.response.text()
+
+  const candidate = result.response.candidates?.[0] as unknown as {
+    groundingMetadata?: { groundingChunks?: { web?: { title?: string; uri?: string } }[] }
+  } | undefined
+
+  const sources: GroundingSource[] = (candidate?.groundingMetadata?.groundingChunks ?? [])
+    .map(c => ({ title: c.web?.title, uri: c.web?.uri }))
+    .filter(sourceEntry => !!sourceEntry.uri)
+
+  const parsed = opts.schema.safeParse(parseJSON(text))
+  if (parsed.success) return { data: parsed.data, sources }
+
+  const issues = parsed.error.issues.map(i => `• ${i.path.join('.')}: ${i.message}`).join('\n')
+  const repaired = await callGemini({
+    apiKey:    opts.apiKey,
+    system:    opts.system,
+    user:      `Reformat the research below into the required JSON object. Do not add facts that are not present in it.\n\nValidation issues to fix:\n${issues}\n\nResearch:\n${text}`,
+    schema:    opts.schema,
+    maxTokens: opts.maxTokens,
+    model:     opts.model,
+  })
+  return { data: repaired, sources }
 }

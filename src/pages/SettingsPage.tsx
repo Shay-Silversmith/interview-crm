@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Edit2, User, Target, Wrench, Sparkles, Calendar, TrendingUp, AlertTriangle, Trash2, Key, Eye, EyeOff, Check, Presentation, Download, Upload, Database, LogOut } from 'lucide-react'
-import { getStoredApiKey, setStoredApiKey } from '@/services/aiClientService'
+import { getStoredGeminiKey, setStoredGeminiKey, clearStoredGeminiKey } from '@/services/aiKey'
 import { getDataMode, setDataMode, exportData, parseImportFile, importData } from '@/data/mock-store'
 import type { BackupPayload } from '@/data/mock-store'
 import { isSupabaseMode } from '@/lib/env'
@@ -119,26 +119,52 @@ function DataModeSection() {
 
 function ApiKeySection() {
   const toast = useToastActions()
-  const [value, setValue] = useState(() => getStoredApiKey())
-  const [reveal, setReveal] = useState(false)
+  const [value, setValue]         = useState(() => getStoredGeminiKey() ?? '')
+  const [reveal, setReveal]       = useState(false)
   const [justSaved, setJustSaved] = useState(false)
+  const [testing, setTesting]     = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
-  const stored = getStoredApiKey()
-  const isConnected = stored.length > 0
-  const masked = isConnected ? `${stored.slice(0, 7)}…${stored.slice(-4)}` : ''
-  const hasChanges = value.trim() !== stored
+  const stored      = getStoredGeminiKey() ?? ''
+  const isConnected = stored.trim().length > 0
+  const masked      = isConnected ? `${stored.slice(0, 6)}…${stored.slice(-4)}` : ''
+  const hasChanges  = value.trim() !== stored.trim()
 
   const handleSave = () => {
-    setStoredApiKey(value)
+    const next = value.trim()
+    if (next) setStoredGeminiKey(next)
+    else      clearStoredGeminiKey()
+    setTestResult(null)
     setJustSaved(true)
     setTimeout(() => setJustSaved(false), 1500)
-    toast.success(value.trim() ? 'API key saved to this browser' : 'API key removed')
+    toast.success(next ? 'Gemini key saved to this browser' : 'Gemini key removed')
   }
 
   const handleClear = () => {
-    setStoredApiKey('')
+    clearStoredGeminiKey()
     setValue('')
-    toast.info('API key removed')
+    setTestResult(null)
+    toast.info('Gemini key removed')
+  }
+
+  /** Cheapest possible round-trip so a bad key fails here, not mid-task. */
+  const handleTest = async () => {
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const res  = await fetch('/api/ai/_test', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-gemini-api-key': (value.trim() || stored) },
+      })
+      const json = await res.json().catch(() => null) as { ok?: boolean; error?: string } | null
+      setTestResult(res.ok && json?.ok
+        ? { ok: true,  msg: 'Key works. Live AI is on.' }
+        : { ok: false, msg: json?.error ?? `Gemini rejected the key (HTTP ${res.status}).` })
+    } catch (err) {
+      setTestResult({ ok: false, msg: (err as Error).message || 'Could not reach the AI endpoint.' })
+    } finally {
+      setTesting(false)
+    }
   }
 
   return (
@@ -149,8 +175,8 @@ function ApiKeySection() {
             <Key className="w-4 h-4 text-primary-600" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-800">Claude API key</h3>
-            <p className="text-xs text-slate-400">Connect your own Anthropic key to enable live AI features</p>
+            <h3 className="text-sm font-semibold text-slate-800">Gemini API key</h3>
+            <p className="text-xs text-slate-400">Required for live AI. Without it the tools return sample data.</p>
           </div>
         </div>
         {isConnected && (
@@ -161,6 +187,13 @@ function ApiKeySection() {
       </div>
 
       <div className="space-y-3">
+        {!isConnected && (
+          <div className="text-xs text-warning-800 bg-warning-50 border border-warning-200 rounded-lg px-3 py-2">
+            No key set. Every AI tool is returning a fixed sample response right now — including company auto-fill,
+            which describes an example company rather than the real one.
+          </div>
+        )}
+
         {isConnected && !hasChanges && (
           <div className="text-xs text-slate-500 font-mono bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
             {masked}
@@ -173,7 +206,7 @@ function ApiKeySection() {
               type={reveal ? 'text' : 'password'}
               value={value}
               onChange={e => setValue(e.target.value)}
-              placeholder="sk-ant-api03-..."
+              placeholder="AIza..."
               className="w-full text-sm font-mono bg-white border border-slate-200 rounded-lg px-3 py-2 pe-9 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               autoComplete="off"
               spellCheck={false}
@@ -190,28 +223,39 @@ function ApiKeySection() {
           <Button onClick={handleSave} disabled={!hasChanges} size="sm">
             {justSaved ? <><Check className="w-3.5 h-3.5" /> Saved</> : 'Save'}
           </Button>
-          {isConnected && (
-            <Button onClick={handleClear} variant="outline" size="sm">
-              Clear
+          {(isConnected || value.trim()) && (
+            <Button onClick={handleTest} variant="outline" size="sm" disabled={testing}>
+              {testing ? 'Testing…' : 'Test'}
             </Button>
+          )}
+          {isConnected && (
+            <Button onClick={handleClear} variant="outline" size="sm">Clear</Button>
           )}
         </div>
 
+        {testResult && (
+          <p className={testResult.ok
+            ? 'text-xs text-success-700 bg-success-50 border border-success-200 rounded-lg px-3 py-2'
+            : 'text-xs text-danger-600 bg-danger-50 border border-danger-200 rounded-lg px-3 py-2'}>
+            {testResult.msg}
+          </p>
+        )}
+
         <div className="text-xs text-slate-500 space-y-1">
           <p>
-            Get a key at{' '}
+            Get a free key at{' '}
             <a
-              href="https://console.anthropic.com/settings/keys"
+              href="https://aistudio.google.com/app/apikey"
               target="_blank"
               rel="noreferrer"
               className="text-primary-600 hover:underline font-medium"
             >
-              console.anthropic.com
+              aistudio.google.com
             </a>
-            . Each AI action will charge your Anthropic account directly.
+            . Each AI action uses your own Google quota.
           </p>
           <p className="text-slate-400">
-            🔒 Stored only in this browser's localStorage. Never sent anywhere except Anthropic's API.
+            🔒 Stored only in this browser's localStorage, and sent only to Google's Gemini API.
           </p>
         </div>
       </div>
