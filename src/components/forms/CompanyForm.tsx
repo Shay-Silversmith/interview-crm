@@ -93,8 +93,10 @@ export function CompanyForm({ initial, onSubmit, onCancel, loading, submitLabel 
       if (fromFallback) {
         setSampleNotice(
           fallbackReason === 'disabled'
-            ? 'No Gemini API key is set, so nothing was researched. Add a key in Settings to fill this from the web.'
-            : 'The research request failed, so no fields were changed. Try again in a moment.')
+            ? 'Live AI is switched off for this build (VITE_AI_ENABLED), so no request was made. This is a deployment setting, not your API key.'
+            : fallbackReason === 'no-key'
+              ? 'No Gemini API key is set, so nothing was researched. Add one in Settings.'
+              : 'The research request failed, so no fields were changed. Try again in a moment.')
         return
       }
       setSampleNotice(null)

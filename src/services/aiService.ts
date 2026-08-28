@@ -42,7 +42,7 @@ const delay = (extraMs = 0) =>
 // "fromFallback" lets the component surface the right toast without coupling
 // the service to React's toast context.
 // ---------------------------------------------------------------------------
-export type FallbackReason = 'disabled' | 'rate-limited' | 'network-error' | 'validation-error'
+export type FallbackReason = 'disabled' | 'no-key' | 'rate-limited' | 'network-error' | 'validation-error'
 
 export interface AIGeneratorResult<T> {
   data: T
@@ -52,6 +52,9 @@ export interface AIGeneratorResult<T> {
 
 function classifyError(errorMsg: string): FallbackReason {
   const msg = errorMsg.toLowerCase()
+  // A missing key is a setup step, not a network problem — classifying it as
+  // one sent users chasing connectivity instead of opening Settings.
+  if (msg.includes('no_api_key') || msg.includes('api key')) return 'no-key'
   if (msg.includes('429') || msg.includes('rate limit')) return 'rate-limited'
   if (msg.includes('unexpected') || msg.includes('validation') || msg.includes('parse'))
     return 'validation-error'
