@@ -62,10 +62,16 @@ export function CycleStats({ applications, upcomingCount }: Props) {
           <Link
             key={tile.label}
             to={tile.to}
-            className="rounded-xl border border-slate-200/80 px-3 py-3 hover:border-primary-200 hover:bg-slate-50/60 transition-colors"
+            className="group lift-on-hover rounded-xl border border-slate-200/80 bg-surface px-3.5 py-3.5 hover:border-primary-300"
           >
-            <p className="text-2xl font-bold text-slate-900 leading-none">{tile.value}</p>
-            <p className="text-xs font-medium text-slate-700 mt-1.5">{tile.label}</p>
+            {/* The number is the reason the tile exists — give it display size
+                and tabular figures so the four tiles line up as a row. */}
+            <p className="text-3xl font-extrabold text-slate-900 leading-none tracking-tight tabular-nums">
+              {tile.value}
+            </p>
+            <p className="text-xs font-semibold text-slate-700 mt-2 group-hover:text-primary-700 transition-colors">
+              {tile.label}
+            </p>
             <p className="text-2xs text-slate-400">{tile.hint}</p>
           </Link>
         ))}

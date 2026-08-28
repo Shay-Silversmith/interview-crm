@@ -22,7 +22,9 @@ export function Topbar({ onMenuToggle, onOpenAgent, className }: TopbarProps) {
   return (
     <header
       className={cn(
-        'h-14 flex items-center gap-3 px-4 bg-surface border-b border-slate-200 shrink-0',
+        // Frosted rather than solid: content scrolling underneath stays faintly
+        // visible, which is what makes the bar read as a layer above the page.
+        'h-14 flex items-center gap-3 px-4 glass border-b border-slate-200 shrink-0 z-20',
         className,
       )}
     >

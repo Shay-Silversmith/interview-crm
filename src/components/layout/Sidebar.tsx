@@ -86,12 +86,15 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
       className={cn(
         // border-e = border-inline-end: right in LTR, left in RTL
         // so the dividing line always faces the main content area.
-        'flex flex-col h-full bg-surface border-e border-slate-200',
+        // The brand wash sits behind the whole rail, strongest at the top
+        // where the logo is, so the sidebar reads as branded surface rather
+        // than a plain grey gutter.
+        'relative flex flex-col h-full bg-surface bg-brand-mesh border-e border-slate-200',
         mobile ? 'w-full' : 'w-60',
       )}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between h-14 px-4 border-b border-slate-100 shrink-0">
+      <div className="flex items-center justify-between h-14 px-4 shrink-0">
         <div className="flex items-center gap-2.5">
           <BrandMark size="sm" />
           <span className="text-sm font-bold text-slate-900 tracking-tight">
@@ -130,14 +133,23 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
                       to={item.to}
                       onClick={onClose}
                       className={cn(
-                        'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        // The ::before pseudo-element is the active rail — an
+                        // indicator that survives RTL (inset-inline-start) and
+                        // does not shift the label the way a real border would.
+                        'group relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium',
+                        'transition-all duration-150',
+                        'before:absolute before:inset-y-1.5 before:start-0 before:w-0.5 before:rounded-full',
+                        'before:bg-primary-500 before:transition-opacity before:duration-150',
                         isActive
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800',
+                          ? 'bg-primary-50 text-primary-700 shadow-sm before:opacity-100'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 before:opacity-0',
                       )}
                     >
                       <item.icon
-                        className={cn('w-4 h-4 shrink-0', isActive ? 'text-primary-600' : 'text-slate-400')}
+                        className={cn(
+                          'w-4 h-4 shrink-0 transition-colors',
+                          isActive ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-600',
+                        )}
                       />
                       {item.label}
                     </NavLink>

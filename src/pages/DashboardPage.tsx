@@ -75,12 +75,19 @@ export function DashboardPage() {
   const toggle = (id: TileId) => setOpenTile(prev => (prev === id ? null : id))
 
   return (
-    <div className="max-w-5xl mx-auto space-y-5">
-      {/* Greeting hero */}
-      <div className="dot-grid-bg bg-surface rounded-2xl border border-slate-200/80 shadow-card px-6 py-5">
-        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1 force-ltr">{today}</p>
-        <h1 className="text-2xl font-bold text-slate-900">
-          {t(getGreetingKey())}, {firstName}.
+    <div className="max-w-5xl mx-auto space-y-5 stagger-children">
+      {/* Greeting hero — the one place in the app that gets display type and a
+          full brand wash. Everything below it stays quiet by comparison. */}
+      <div className="relative overflow-hidden dot-grid-bg bg-surface bg-brand-mesh rounded-2xl border border-slate-200/80 shadow-card px-6 py-7 sm:px-8 sm:py-9">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-[0.14em] mb-2 force-ltr">
+          {today}
+        </p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+          {t(getGreetingKey())},{' '}
+          <span className="bg-gradient-to-r from-primary-600 to-violet-600 bg-clip-text text-transparent">
+            {firstName}
+          </span>
+          .
         </h1>
       </div>
 

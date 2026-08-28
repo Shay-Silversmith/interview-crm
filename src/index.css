@@ -87,8 +87,11 @@
     --c-danger-200: 254 205 211;
     --c-danger-300: 253 164 175;
     --c-danger-400: 251 113 133;
-    --c-danger-500: 244 63 94;
-    --c-danger-600: 225 29 72;
+    /* 500 doubles as a text colour for overdue dates and stock rose only
+       reaches 3.67:1 on white. Both stops are deepened to clear AA on white
+       and slate-50; as fills they are visually unchanged. */
+    --c-danger-500: 225 29 72;
+    --c-danger-600: 214 26 68;
     --c-danger-700: 190 18 60;
     --c-danger-800: 159 18 57;
 
