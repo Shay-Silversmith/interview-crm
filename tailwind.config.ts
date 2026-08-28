@@ -52,6 +52,11 @@ export default {
           50: '#fff1f2',
           100: '#ffe4e6',
           200: '#fecdd3',
+          // 300/400 are referenced by Input, Select and Toaster for error
+          // borders. Without them Tailwind emits nothing and tailwind-merge
+          // still drops the base border-slate-200, leaving no border colour.
+          300: '#fda4af',
+          400: '#fb7185',
           500: '#f43f5e',
           600: '#e11d48',
           700: '#be123c',

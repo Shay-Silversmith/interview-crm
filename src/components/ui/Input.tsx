@@ -6,10 +6,14 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
+  // Interactive trailing content (a show/hide password toggle, a clear button).
+  // Kept separate from `rightIcon` because that slot is pointer-events-none by
+  // design — decorative icons must never steal a click meant for the field.
+  rightSlot?: React.ReactNode
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, leftIcon, rightIcon, className, id, ...props }, ref) => {
+  ({ label, error, leftIcon, rightIcon, rightSlot, className, id, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
     return (
       <div className="flex flex-col gap-1.5">
@@ -25,6 +29,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error && inputId ? `${inputId}-error` : undefined}
             className={cn(
               'w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800',
               'placeholder:text-slate-400',
@@ -32,7 +38,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               'disabled:opacity-50 disabled:bg-slate-50',
               error && 'border-danger-400 focus:ring-danger-500/30 focus:border-danger-400',
               leftIcon && 'pl-9',
-              rightIcon && 'pr-9',
+              (rightIcon || rightSlot) && 'pr-9',
               className
             )}
             {...props}
@@ -40,8 +46,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           {rightIcon && (
             <span className="absolute right-3 text-slate-400 pointer-events-none">{rightIcon}</span>
           )}
+          {rightSlot && <span className="absolute right-2 flex items-center">{rightSlot}</span>}
         </div>
-        {error && <p className="text-xs text-danger-600">{error}</p>}
+        {error && (
+          <p id={inputId ? `${inputId}-error` : undefined} className="text-xs text-danger-600">
+            {error}
+          </p>
+        )}
       </div>
     )
   }
