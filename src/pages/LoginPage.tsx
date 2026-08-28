@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useUser } from '@/hooks/useUser'
+import { BrandMark } from '@/components/ui/BrandMark'
 
 type Mode = 'signin' | 'signup'
 
@@ -87,9 +88,7 @@ export function LoginPage() {
 
         {/* Brand */}
         <div className="text-center">
-          <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <span className="text-white text-lg font-bold select-none">IF</span>
-          </div>
+          <BrandMark size="md" className="mx-auto mb-3" />
           <h1 className="text-xl font-semibold text-slate-900">InterviewFlow</h1>
           <p className="text-sm text-slate-500 mt-1">
             {mode === 'signin' ? 'Sign in to your workspace' : 'Create your account'}

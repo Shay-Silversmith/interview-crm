@@ -2,9 +2,10 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Briefcase, KanbanSquare, Building2, CheckSquare,
   Calendar, Users, FileText, BookOpen, Sparkles, Settings, X,
-  ChevronRight, LogOut,
+  LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { BrandMark } from '@/components/ui/BrandMark'
 import { ROUTES } from '@/lib/constants'
 import { useI18n } from '@/hooks/useI18n'
 import { useProfile } from '@/hooks/useProfile'
@@ -92,10 +93,7 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center justify-between h-14 px-4 border-b border-slate-100 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center">
-            {/* rtl:rotate-180 flips the chevron to point left in RTL */}
-            <ChevronRight className="w-4 h-4 text-white rtl:rotate-180" strokeWidth={2.5} />
-          </div>
+          <BrandMark size="sm" />
           <span className="text-sm font-bold text-slate-900 tracking-tight">
             InterviewFlow
           </span>
