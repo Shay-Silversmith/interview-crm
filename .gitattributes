@@ -1,0 +1,12 @@
+# One line ending for everyone. The working tree drifted to CRLF on some files
+# and LF on others, which made every edit look like a whole-file rewrite.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
