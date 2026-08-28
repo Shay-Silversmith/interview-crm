@@ -131,7 +131,7 @@ const supabaseImpl = {
     if (data.deadlineAt !== undefined) row.deadline_at = data.deadlineAt
     if (data.fitScore !== undefined) row.fit_score = data.fitScore
     if (data.urgencyScore !== undefined) row.urgency_score = data.urgencyScore
-    if (data.submittedCvId   !== undefined) row.submitted_cv_version_id = data.submittedCvId   || null
+    if (data.submittedCvId   !== undefined) row.submitted_cv_id = data.submittedCvId   || null
     if (data.submittedCvName !== undefined) row.submitted_cv_name        = data.submittedCvName || null
     if (data.aiRoleSummary !== undefined) row.ai_role_summary = data.aiRoleSummary
     const { data: updated, error } = await sb.from('job_applications').update(row).eq('id', id).select().single()

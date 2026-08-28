@@ -123,7 +123,7 @@ const supabaseImpl = {
       outcome: data.outcome ?? 'Pending',
       scheduled_at: data.scheduledAt,
       completed_at: data.completedAt,
-      duration_minutes: data.duration,
+      duration: data.duration,
       interviewer: data.interviewer,
       interviewer_title: data.interviewerTitle,
       notes: data.notes,
@@ -140,7 +140,7 @@ const supabaseImpl = {
     if (data.outcome !== undefined) row.outcome = data.outcome
     if (data.scheduledAt !== undefined) row.scheduled_at = data.scheduledAt
     if (data.completedAt !== undefined) row.completed_at = data.completedAt
-    if (data.duration !== undefined) row.duration_minutes = data.duration
+    if (data.duration !== undefined) row.duration = data.duration
     if (data.interviewer !== undefined) row.interviewer = data.interviewer
     if (data.interviewerTitle !== undefined) row.interviewer_title = data.interviewerTitle
     if (data.notes !== undefined) row.notes = data.notes

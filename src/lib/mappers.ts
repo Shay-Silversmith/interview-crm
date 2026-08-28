@@ -157,7 +157,7 @@ export interface ApplicationRow {
   why_interesting: string | null
   what_to_emphasize: string | null
   notes: string | null
-  submitted_cv_version_id: string | null
+  submitted_cv_id: string | null
   submitted_cv_name: string | null
   applied_at: string | null
   deadline_at: string | null
@@ -189,7 +189,7 @@ export function mapApplication(row: ApplicationRow): JobApplication {
     currency: row.currency ?? undefined,
     fitScore: row.fit_score ?? undefined,
     urgencyScore: row.urgency_score ?? undefined,
-    submittedCvId: row.submitted_cv_version_id ?? undefined,
+    submittedCvId: row.submitted_cv_id ?? undefined,
     submittedCvName: row.submitted_cv_name ?? undefined,
     appliedAt: row.applied_at ?? undefined,
     deadlineAt: row.deadline_at ?? undefined,
@@ -219,7 +219,7 @@ export interface InterviewStageRow {
   stage_order: number
   scheduled_at: string | null
   completed_at: string | null
-  duration_minutes: number | null
+  duration: number | null
   interviewer: string | null
   interviewer_title: string | null
   outcome: string
@@ -237,7 +237,7 @@ export function mapInterviewStage(row: InterviewStageRow): InterviewStage {
     type: row.type as InterviewType,
     scheduledAt: row.scheduled_at ?? undefined,
     completedAt: row.completed_at ?? undefined,
-    duration: row.duration_minutes ?? undefined,
+    duration: row.duration ?? undefined,
     interviewer: row.interviewer ?? undefined,
     interviewerTitle: row.interviewer_title ?? undefined,
     outcome: row.outcome as InterviewOutcome,
@@ -382,7 +382,7 @@ export interface CVVersionRow {
   id: string
   user_id: string
   name: string
-  version_number: number
+  version: number
   emphasis: string | null
   skills_highlighted: string[]
   projects_highlighted: string[]
@@ -400,14 +400,14 @@ export function mapCVVersion(row: CVVersionRow): CVVersion {
     id: row.id,
     user_id: row.user_id,
     name: row.name,
-    version: row.version_number,
+    version: row.version,
     emphasis: row.emphasis ?? '',
     skillsHighlighted: row.skills_highlighted,
     projectsHighlighted: row.projects_highlighted,
     fileName: row.file_name ?? '',
     fileSize: row.file_size ?? undefined,
     storagePath: row.storage_path ?? undefined,
-    applicationIds: [], // applications reference CV via submitted_cv_version_id
+    applicationIds: [], // applications reference CV via submitted_cv_id
     notes: row.notes ?? undefined,
     isActive: row.is_active,
     createdAt: row.created_at,
@@ -490,8 +490,8 @@ export interface AISummaryRow {
   id: string
   user_id: string
   tool_type: string
-  entity_type: string
-  entity_id: string | null
+  application_id: string | null
+  company_id: string | null
   input_data: Record<string, string>
   output_data: Record<string, string>
   is_mocked: boolean
@@ -504,9 +504,8 @@ export function mapAISummary(row: AISummaryRow): AISummary {
     id: row.id,
     user_id: row.user_id,
     toolType: row.tool_type as AIToolType,
-    applicationId:
-      row.entity_type === 'application' ? (row.entity_id ?? undefined) : undefined,
-    companyId: row.entity_type === 'company' ? (row.entity_id ?? undefined) : undefined,
+    applicationId: row.application_id ?? undefined,
+    companyId: row.company_id ?? undefined,
     inputData: row.input_data,
     outputData: row.output_data,
     isMocked: row.is_mocked,
@@ -520,28 +519,25 @@ export function mapAISummary(row: AISummaryRow): AISummary {
 export interface RecentActivityRow {
   id: string
   user_id: string
-  activity_type: string
-  entity_type: string
-  entity_id: string | null
+  type: string
   title: string
   description: string | null
-  metadata: Record<string, string> | null
+  application_id: string | null
+  company_name: string | null
+  task_id: string | null
   created_at: string
-  updated_at: string
 }
 
 export function mapRecentActivity(row: RecentActivityRow): RecentActivity {
-  const metadata = row.metadata ?? {}
   return {
     id: row.id,
     user_id: row.user_id,
-    type: row.activity_type as ActivityType,
+    type: row.type as ActivityType,
     title: row.title,
     description: row.description ?? '',
-    applicationId:
-      row.entity_type === 'application' ? (row.entity_id ?? undefined) : undefined,
-    taskId: row.entity_type === 'task' ? (row.entity_id ?? undefined) : undefined,
-    companyName: metadata.company_name ?? undefined,
+    applicationId: row.application_id ?? undefined,
+    taskId: row.task_id ?? undefined,
+    companyName: row.company_name ?? undefined,
     createdAt: row.created_at,
   }
 }

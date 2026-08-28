@@ -57,7 +57,7 @@ const supabaseImpl = {
   async createCV(data: Partial<CVVersion>): Promise<CVVersion> {
     const sb = getSupabaseClient()
     const { data: inserted, error } = await sb.from('cv_versions').insert({
-      name: data.name, version_number: data.version ?? 1, emphasis: data.emphasis,
+      name: data.name, version: data.version ?? 1, emphasis: data.emphasis,
       skills_highlighted: data.skillsHighlighted ?? [], projects_highlighted: data.projectsHighlighted ?? [],
       file_name: data.fileName, file_size: data.fileSize, storage_path: data.storagePath,
       notes: data.notes, is_active: data.isActive ?? true,
@@ -69,7 +69,7 @@ const supabaseImpl = {
     const sb = getSupabaseClient()
     const row: Record<string, unknown> = {}
     if (data.name !== undefined) row.name = data.name
-    if (data.version !== undefined) row.version_number = data.version
+    if (data.version !== undefined) row.version = data.version
     if (data.emphasis !== undefined) row.emphasis = data.emphasis
     if (data.skillsHighlighted !== undefined) row.skills_highlighted = data.skillsHighlighted
     if (data.projectsHighlighted !== undefined) row.projects_highlighted = data.projectsHighlighted

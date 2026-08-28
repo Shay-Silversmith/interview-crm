@@ -132,8 +132,7 @@ const supabaseCRUD = {
     const { data, error } = await sb
       .from('ai_summaries')
       .select('*')
-      .eq('entity_type', 'application')
-      .eq('entity_id', applicationId)
+      .eq('application_id', applicationId)
       .order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
     return (data ?? []).map(mapAISummary)
@@ -145,8 +144,8 @@ const supabaseCRUD = {
       .from('ai_summaries')
       .insert({
         tool_type:   data.toolType ?? 'Prepare Me',
-        entity_type: data.applicationId ? 'application' : 'general',
-        entity_id:   data.applicationId ?? null,
+        application_id: data.applicationId ?? null,
+        company_id:     data.companyId ?? null,
         input_data:  data.inputData ?? {},
         output_data: data.outputData ?? {},
         is_mocked:   data.isMocked ?? false,
