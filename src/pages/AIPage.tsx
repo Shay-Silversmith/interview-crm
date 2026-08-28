@@ -1,14 +1,9 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Sparkles, Building2, FileSearch, Brain, MessageSquarePlus, User, Copy, Check, Bookmark, AlertCircle } from 'lucide-react'
+import { Sparkles, Building2, FileSearch, Brain, MessageSquarePlus, User } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Textarea } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
-import { useMockStore } from '@/hooks/useMockStore'
 import { useI18n } from '@/hooks/useI18n'
-import { aiService } from '@/services/aiService'
 import { cn } from '@/lib/cn'
 import type { AIToolType } from '@/lib/enums'
 import { JDParserPanel }  from '@/components/ai/JDParserPanel'
@@ -26,20 +21,6 @@ interface AITool {
   icon: React.ElementType
   color: string
   fields: { id: string; label: string; placeholder: string; multiline?: boolean }[]
-}
-
-function sectionLabel(key: string) {
-  return key.replace(/([A-Z])/g, ' $1').trim().replace(/^./, c => c.toUpperCase())
-}
-
-function renderValue(value: string) {
-  const parts = value.split(/(\*\*[^*]+\*\*)/)
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold text-slate-800">{part.slice(2, -2)}</strong>
-    }
-    return <span key={i}>{part}</span>
-  })
 }
 
 export function AIPage() {
@@ -115,26 +96,12 @@ export function AIPage() {
     },
   ]
 
-  const initialToolId = searchParams.get('tool') ?? 'company-summary'
+  const initialToolId = searchParams.get('tool') ?? 'jd-parser'
   const [activeTool, setActiveTool] = useState<string>(
-    AI_TOOLS.find(tool => tool.id === initialToolId)?.id ?? 'company-summary'
+    AI_TOOLS.find(tool => tool.id === initialToolId)?.id ?? 'jd-parser'
   )
-  const [copied, setCopied] = useState(false)
-  const { data: summaries } = useMockStore(() => aiService.list())
-
-  function copyOutput(outputData: Record<string, string>) {
-    const text = Object.entries(outputData)
-      .map(([k, v]) => `${sectionLabel(k)}\n${v}`)
-      .join('\n\n')
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
   const tool        = AI_TOOLS.find(tool => tool.id === activeTool) ?? AI_TOOLS[0]
   const isLive      = LIVE_TOOLS.has(activeTool)
-  const mockedOutput = summaries?.find(s => s.toolType === tool.type)
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -147,26 +114,29 @@ export function AIPage() {
         {/* Tool selector - left rail */}
         <div className="w-56 shrink-0 hidden md:block">
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card p-2 sticky top-4">
-            {AI_TOOLS.map(t => {
-              const live = LIVE_TOOLS.has(t.id)
+            {AI_TOOLS.map(item => {
+              const live = LIVE_TOOLS.has(item.id)
               return (
                 <button
-                  key={t.id}
-                  onClick={() => setActiveTool(t.id)}
+                  key={item.id}
+                  onClick={() => setActiveTool(item.id)}
                   className={cn(
                     'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-sm transition-colors',
-                    activeTool === t.id
+                    activeTool === item.id
                       ? 'bg-primary-50 text-primary-700 font-semibold'
                       : 'text-slate-600 hover:bg-slate-50 font-medium'
                   )}
                 >
-                  <t.icon className="w-4 h-4 shrink-0" />
-                  <span className="truncate flex-1">{t.label}</span>
-                  {live && (
-                    <span className="text-2xs font-bold text-success-600 bg-success-50 border border-success-200 px-1.5 py-0.5 rounded-full shrink-0">
-                      Live
-                    </span>
-                  )}
+                  <item.icon className="w-4 h-4 shrink-0" />
+                  <span className="truncate flex-1">{item.label}</span>
+                  <span className={cn(
+                    'text-2xs font-bold border px-1.5 py-0.5 rounded-full shrink-0',
+                    live
+                      ? 'text-success-600 bg-success-50 border-success-200'
+                      : 'text-slate-400 bg-slate-50 border-slate-200'
+                  )}>
+                    {live ? 'Live' : t('pages.ai.soon')}
+                  </span>
                 </button>
               )
             })}
@@ -176,19 +146,22 @@ export function AIPage() {
         {/* Mobile tool selector */}
         <div className="md:hidden w-full mb-4">
           <div className="grid grid-cols-2 gap-2">
-            {AI_TOOLS.map(t => (
+            {AI_TOOLS.map(item => (
               <button
-                key={t.id}
-                onClick={() => setActiveTool(t.id)}
+                key={item.id}
+                onClick={() => setActiveTool(item.id)}
                 className={cn(
                   'flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all',
-                  activeTool === t.id
+                  activeTool === item.id
                     ? 'bg-primary-600 text-white border-primary-600'
                     : 'bg-white text-slate-600 border-slate-200'
                 )}
               >
-                <t.icon className="w-3.5 h-3.5" />
-                {t.label}
+                <item.icon className="w-3.5 h-3.5" />
+                {item.label}
+                {!LIVE_TOOLS.has(item.id) && (
+                  <span className="text-2xs text-slate-400">· {t('pages.ai.soon')}</span>
+                )}
               </button>
             ))}
           </div>
@@ -201,100 +174,20 @@ export function AIPage() {
           {activeTool === 'prepare-me' && <PrepPackPanel />}
           {activeTool === 'followup'   && <FollowUpPanel />}
 
-          {/* Mocked tool panels */}
+          {/* Tools that are not built yet. Showing a stored example here would
+              look like a working feature, so say what it is instead. */}
           {!isLive && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Input form — AI surface accent */}
-              <Card variant="ai">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center border', tool.color)}>
-                    <tool.icon className="w-4.5 h-4.5" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-800">{tool.label}</h2>
-                    <p className="text-xs text-slate-500">{tool.description}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {tool.fields.map(field => (
-                    field.multiline ? (
-                      <Textarea
-                        key={field.id}
-                        label={field.label}
-                        placeholder={field.placeholder}
-                        rows={5}
-                      />
-                    ) : (
-                      <Input
-                        key={field.id}
-                        label={field.label}
-                        placeholder={field.placeholder}
-                      />
-                    )
-                  ))}
-                </div>
-
-                <div className="mt-5 pt-4 border-t border-slate-100">
-                  <Button className="w-full" disabled>
-                    <Sparkles className="w-4 h-4" />
-                    Generate with AI
-                    <span className="text-xs opacity-60 ml-1">(coming soon)</span>
-                  </Button>
-                  <p className="text-xs text-center text-slate-400 mt-2">
-                    Mocked output shown below.
-                  </p>
-                </div>
-              </Card>
-
-              {/* Output panel — AI surface accent */}
-              <Card variant="ai" className="relative flex flex-col">
-                {/* Mock banner */}
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 mb-4 shrink-0">
-                  <AlertCircle className="w-3 h-3 text-amber-500 shrink-0" />
-                  <p className="text-2xs text-amber-700 font-semibold uppercase tracking-wide">
-                    {t('pages.ai.mockBanner')}
-                  </p>
-                </div>
-
-                {mockedOutput ? (
-                  <div className="flex flex-col gap-3 flex-1">
-                    {Object.entries(mockedOutput.outputData).map(([key, value]) => (
-                      <div key={key} className="rounded-xl bg-slate-50 border border-slate-100 px-3.5 py-3">
-                        <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                          {sectionLabel(key)}
-                        </p>
-                        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                          {renderValue(value)}
-                        </p>
-                      </div>
-                    ))}
-                    <div className="flex items-center gap-2 pt-3 border-t border-slate-100 mt-auto shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyOutput(mockedOutput.outputData as Record<string, string>)}
-                      >
-                        {copied ? <Check className="w-3.5 h-3.5 text-success-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        {copied ? t('pages.ai.copied') : t('pages.ai.copy')}
-                      </Button>
-                      <Button variant="ghost" size="sm" disabled>
-                        <Bookmark className="w-3.5 h-3.5" />
-                        {t('pages.ai.saveToApp')}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center flex-1 min-h-64 text-center">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-                      <Sparkles className="w-5 h-5 text-slate-300" strokeWidth={1.5} />
-                    </div>
-                    <p className="text-sm font-medium text-slate-400">Output will appear here</p>
-                    <p className="text-xs text-slate-300 mt-1">Fill in the form and click Generate</p>
-                  </div>
-                )}
-              </Card>
-            </div>
+            <Card className="flex flex-col items-center justify-center text-center min-h-80 px-6">
+              <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center border mb-4', tool.color)}>
+                <tool.icon className="w-5 h-5" />
+              </div>
+              <h2 className="text-base font-bold text-slate-800">{tool.label}</h2>
+              <p className="text-sm text-slate-500 mt-1.5 max-w-md">{tool.description}</p>
+              <span className="mt-4 text-2xs font-bold uppercase tracking-wide text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">
+                {t('pages.ai.notBuiltYet')}
+              </span>
+              <p className="text-xs text-slate-400 mt-4 max-w-sm">{t('pages.ai.notBuiltYetHint')}</p>
+            </Card>
           )}
         </div>
       </div>

@@ -346,7 +346,9 @@ const en = {
       copied:    'Copied!',
       saveToApp: 'Save to Application',
       draftBanner: 'AI draft — review and edit before saving.',
-      mockBanner:  'Example text, not a real result — the AI request did not run. Check Settings.',
+      soon:            'Soon',
+      notBuiltYet:     'Not built yet',
+      notBuiltYetHint: 'This tool is on the roadmap. Nothing is generated here yet — the tools marked Live are the ones that call a model.',
       // Tool sidebar labels / descriptions
       tools: {
         companySummary: {

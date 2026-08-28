@@ -347,7 +347,9 @@ const he: Translations = {
       copied:    '!הועתק',
       saveToApp: 'שמור במועמדות',
       draftBanner: '.טיוטת AI — בדוק וערוך לפני שמירה',
-      mockBanner:  '.טקסט לדוגמה, לא תוצאה אמיתית — בקשת ה-AI לא רצה. בדוק בהגדרות',
+      soon:            'בקרוב',
+      notBuiltYet:     'עדיין לא נבנה',
+      notBuiltYetHint: 'הכלי הזה מתוכנן להמשך. כאן עדיין לא נוצר שום דבר — הכלים המסומנים Live הם אלה שפונים למודל.',
       // Tool sidebar labels / descriptions
       tools: {
         companySummary: {
