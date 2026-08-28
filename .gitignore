@@ -24,3 +24,6 @@ Thumbs.db
 
 .vercel
 .env*
+
+# Scratch for files staged for deletion — safe to remove.
+_to_delete/
