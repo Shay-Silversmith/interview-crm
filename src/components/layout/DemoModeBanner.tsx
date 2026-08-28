@@ -34,9 +34,9 @@ export function DemoModeBanner() {
     <div className="bg-gradient-to-r from-primary-600 to-primary-500 text-white px-4 py-2 flex items-center justify-center gap-3 text-sm">
       <Sparkles className="w-4 h-4 shrink-0" />
       <span>
-        <span className="font-semibold">Demo mode</span> — AI features return sample data.{' '}
+        <span className="font-semibold">Sample AI</span> — AI tools are returning example output, not real results.{' '}
         <Link to="/settings" className="underline font-semibold hover:text-white/90">
-          Connect your Claude API key
+          Add your Gemini API key
         </Link>{' '}
         for live AI.
       </span>
