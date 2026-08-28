@@ -94,7 +94,7 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
                 'flex-1 h-8 rounded-lg text-sm font-medium border transition-colors',
                 confidence === n
                   ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white text-slate-500 border-slate-200 hover:border-primary-300'
+                  : 'bg-surface text-slate-500 border-slate-200 hover:border-primary-300'
               )}
             >
               {n}

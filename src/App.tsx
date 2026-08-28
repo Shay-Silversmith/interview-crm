@@ -7,6 +7,7 @@ import { ToastProvider } from './hooks/useToast'
 import { Toaster } from './components/ui/Toaster'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { I18nProvider } from './i18n/I18nProvider'
+import { ThemeProvider } from './theme/ThemeProvider'
 import { BrandMark } from './components/ui/BrandMark'
 
 // ── Eagerly loaded (small, always needed immediately) ───────────────────────
@@ -52,105 +53,107 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <I18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <BrowserRouter>
-            <Routes>
-              {/* Public */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <ThemeProvider>
+      <I18nProvider>
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            <BrowserRouter>
+              <Routes>
+                {/* Public */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-              {/* Protected */}
-              <Route element={<AuthGuard />}>
-                <Route element={<AppShell />}>
-                  <Route path="/" element={
-                    <ErrorBoundary label="Dashboard">
-                      <DashboardPage />
-                    </ErrorBoundary>
-                  } />
+                {/* Protected */}
+                <Route element={<AuthGuard />}>
+                  <Route element={<AppShell />}>
+                    <Route path="/" element={
+                      <ErrorBoundary label="Dashboard">
+                        <DashboardPage />
+                      </ErrorBoundary>
+                    } />
 
-                  <Route path="/applications" element={
-                    <ErrorBoundary label="Applications">
-                      <ApplicationsPage />
-                    </ErrorBoundary>
-                  } />
-                  <Route path="/applications/new" element={
-                    <ErrorBoundary>
-                      <NewApplicationPage />
-                    </ErrorBoundary>
-                  } />
-                  <Route path="/applications/archive" element={<ApplicationsPage mode="archive" />} />
-                  <Route path="/applications/board" element={
-                    <ErrorBoundary label="Board">
-                      <ApplicationBoardPage />
-                    </ErrorBoundary>
-                  } />
-                  <Route path="/applications/:id" element={
-                    <ErrorBoundary label="Application detail">
-                      <ApplicationDetailPage />
-                    </ErrorBoundary>
-                  } />
+                    <Route path="/applications" element={
+                      <ErrorBoundary label="Applications">
+                        <ApplicationsPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/applications/new" element={
+                      <ErrorBoundary>
+                        <NewApplicationPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/applications/archive" element={<ApplicationsPage mode="archive" />} />
+                    <Route path="/applications/board" element={
+                      <ErrorBoundary label="Board">
+                        <ApplicationBoardPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/applications/:id" element={
+                      <ErrorBoundary label="Application detail">
+                        <ApplicationDetailPage />
+                      </ErrorBoundary>
+                    } />
 
-                  <Route path="/companies" element={
-                    <ErrorBoundary label="Companies">
-                      <CompaniesPage />
-                    </ErrorBoundary>
-                  } />
-                  <Route path="/companies/new" element={<NewCompanyPage />} />
-                  <Route path="/companies/:id" element={
-                    <ErrorBoundary label="Company detail">
-                      <CompanyDetailPage />
-                    </ErrorBoundary>
-                  } />
+                    <Route path="/companies" element={
+                      <ErrorBoundary label="Companies">
+                        <CompaniesPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/companies/new" element={<NewCompanyPage />} />
+                    <Route path="/companies/:id" element={
+                      <ErrorBoundary label="Company detail">
+                        <CompanyDetailPage />
+                      </ErrorBoundary>
+                    } />
 
-                  <Route path="/tasks" element={
-                    <ErrorBoundary label="Tasks">
-                      <TasksPage />
-                    </ErrorBoundary>
-                  } />
+                    <Route path="/tasks" element={
+                      <ErrorBoundary label="Tasks">
+                        <TasksPage />
+                      </ErrorBoundary>
+                    } />
 
-                  <Route path="/calendar" element={
-                    <ErrorBoundary label="Calendar">
-                      <Suspense fallback={<PageLoader />}>
-                        <CalendarPage />
-                      </Suspense>
-                    </ErrorBoundary>
-                  } />
+                    <Route path="/calendar" element={
+                      <ErrorBoundary label="Calendar">
+                        <Suspense fallback={<PageLoader />}>
+                          <CalendarPage />
+                        </Suspense>
+                      </ErrorBoundary>
+                    } />
 
-                  <Route path="/contacts" element={
-                    <ErrorBoundary label="Contacts">
-                      <ContactsPage />
-                    </ErrorBoundary>
-                  } />
-                  <Route path="/documents" element={
-                    <ErrorBoundary label="Documents">
-                      <DocumentsPage />
-                    </ErrorBoundary>
-                  } />
-                  <Route path="/prep" element={
-                    <ErrorBoundary label="Prep library">
-                      <PrepPage />
-                    </ErrorBoundary>
-                  } />
+                    <Route path="/contacts" element={
+                      <ErrorBoundary label="Contacts">
+                        <ContactsPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/documents" element={
+                      <ErrorBoundary label="Documents">
+                        <DocumentsPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/prep" element={
+                      <ErrorBoundary label="Prep library">
+                        <PrepPage />
+                      </ErrorBoundary>
+                    } />
 
-                  <Route path="/ai" element={
-                    <ErrorBoundary label="AI tools">
-                      <Suspense fallback={<PageLoader />}>
-                        <AIPage />
-                      </Suspense>
-                    </ErrorBoundary>
-                  } />
+                    <Route path="/ai" element={
+                      <ErrorBoundary label="AI tools">
+                        <Suspense fallback={<PageLoader />}>
+                          <AIPage />
+                        </Suspense>
+                      </ErrorBoundary>
+                    } />
 
-                  <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                  </Route>
                 </Route>
-              </Route>
-            </Routes>
-            <Toaster />
-          </BrowserRouter>
-        </ToastProvider>
-      </QueryClientProvider>
-    </I18nProvider>
+              </Routes>
+              <Toaster />
+            </BrowserRouter>
+          </ToastProvider>
+        </QueryClientProvider>
+      </I18nProvider>
+    </ThemeProvider>
   )
 }

@@ -18,7 +18,7 @@ export function MobileNav() {
 
   return (
     // inset-x-0 = start-0 + end-0: spans full width in both LTR and RTL.
-    <nav className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 md:hidden safe-area-inset-bottom">
+    <nav className="fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-slate-200 md:hidden safe-area-inset-bottom">
       <ul className="flex">
         {MOBILE_NAV.map(item => (
           <li key={item.to} className="flex-1">

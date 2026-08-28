@@ -197,7 +197,7 @@ export function CalendarPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Month grid */}
         <div className="xl:col-span-2">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+          <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <h2 className="text-sm font-bold text-slate-800 force-ltr">
@@ -283,7 +283,7 @@ export function CalendarPage() {
                     key={event.id}
                     onClick={() => setSelectedEvent(event)}
                     className={cn(
-                      'w-full text-start bg-white rounded-xl border border-slate-200 shadow-card p-3 hover:shadow-card-hover transition-all',
+                      'w-full text-start bg-surface rounded-xl border border-slate-200 shadow-card p-3 hover:shadow-card-hover transition-all',
                       isPast && 'opacity-60'
                     )}
                   >

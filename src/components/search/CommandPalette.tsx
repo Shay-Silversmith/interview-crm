@@ -76,7 +76,7 @@ export function CommandPalette() {
       {/* Palette shell */}
       <div
         className={cn(
-          'relative w-full bg-white shadow-2xl overflow-hidden',
+          'relative w-full bg-surface shadow-2xl overflow-hidden',
           // Mobile: full screen
           'inset-0 absolute rounded-none',
           // ≥sm: centered card

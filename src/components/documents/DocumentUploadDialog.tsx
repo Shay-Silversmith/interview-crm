@@ -70,7 +70,7 @@ export function DocumentUploadDialog({ open, onClose, applicationId }: DocumentU
         fileSlot={
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-slate-700">
-              File <span className="text-red-500">*</span>
+              File <span className="text-danger-500">*</span>
             </label>
             <FileDropzone
               value={file}
@@ -78,7 +78,7 @@ export function DocumentUploadDialog({ open, onClose, applicationId }: DocumentU
               disabled={isLoading}
             />
             {fileError && (
-              <p className="text-xs text-red-600">{fileError}</p>
+              <p className="text-xs text-danger-600">{fileError}</p>
             )}
           </div>
         }

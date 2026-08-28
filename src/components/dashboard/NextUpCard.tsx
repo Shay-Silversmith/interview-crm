@@ -32,7 +32,7 @@ function countdownLabel(startAt: string): string {
 export function NextUpCard({ event, openTasks }: Props) {
   if (!event) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card px-6 py-8 text-center">
+      <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card px-6 py-8 text-center">
         <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto mb-3" />
         <p className="text-sm font-medium text-slate-700">Nothing scheduled</p>
         <p className="text-xs text-slate-400 mt-1">
@@ -47,7 +47,7 @@ export function NextUpCard({ event, openTasks }: Props) {
   const label = countdownLabel(event.startAt)
 
   return (
-    <div className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/80 shadow-card">
+    <div className="relative overflow-hidden bg-surface rounded-2xl border border-slate-200/80 shadow-card">
       {/* A quiet accent bar rather than a full color wash — the countdown carries
           the urgency, so the surface stays calm and the text stays readable. */}
       <div className={soon ? 'h-1 bg-primary-gradient' : 'h-1 bg-slate-200'} />

@@ -77,7 +77,7 @@ export function DashboardPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       {/* Greeting hero */}
-      <div className="dot-grid-bg bg-white rounded-2xl border border-slate-200/80 shadow-card px-6 py-5">
+      <div className="dot-grid-bg bg-surface rounded-2xl border border-slate-200/80 shadow-card px-6 py-5">
         <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1 force-ltr">{today}</p>
         <h1 className="text-2xl font-bold text-slate-900">
           {t(getGreetingKey())}, {firstName}.
@@ -180,7 +180,7 @@ function DashboardTile({
     <div
       id={`dashboard-tile-${id}`}
       className={cn(
-        'bg-white rounded-2xl border shadow-card overflow-hidden transition-shadow',
+        'bg-surface rounded-2xl border shadow-card overflow-hidden transition-shadow',
         open ? 'border-primary-200 shadow-card-hover' : 'border-slate-200/80 hover:shadow-card-hover',
       )}
     >

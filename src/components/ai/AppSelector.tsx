@@ -30,7 +30,7 @@ export function AppSelector({
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
       >
         <option value="">{placeholder}</option>
         {applications.map(app => (

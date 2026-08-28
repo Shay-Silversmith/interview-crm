@@ -86,7 +86,7 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
       className={cn(
         // border-e = border-inline-end: right in LTR, left in RTL
         // so the dividing line always faces the main content area.
-        'flex flex-col h-full bg-white border-e border-slate-200',
+        'flex flex-col h-full bg-surface border-e border-slate-200',
         mobile ? 'w-full' : 'w-60',
       )}
     >

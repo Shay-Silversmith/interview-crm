@@ -145,7 +145,7 @@ export function LoginPage() {
       </div>
 
       <div className="force-ltr relative w-full max-w-sm">
-        <div className="dot-grid-bg bg-white rounded-2xl border border-slate-200/80 shadow-card p-8 space-y-6">
+        <div className="dot-grid-bg bg-surface rounded-2xl border border-slate-200/80 shadow-card p-8 space-y-6">
 
           {/* Brand */}
           <div className="text-center">

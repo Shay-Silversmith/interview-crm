@@ -83,7 +83,7 @@ export function EditableEnumChip<T extends string>({
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         className={cn(
-          'h-6 rounded-full px-2 py-0 text-xs font-medium border border-primary-400 bg-white',
+          'h-6 rounded-full px-2 py-0 text-xs font-medium border border-primary-400 bg-surface',
           'text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/40 cursor-pointer',
           className
         )}

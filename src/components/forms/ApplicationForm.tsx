@@ -157,7 +157,7 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
               if (e.key === 'Enter') { e.preventDefault(); void handleQuickCreateCompany() }
             }}
             placeholder="Or type a new company name…"
-            className="flex-1 h-8 px-3 text-xs rounded-lg border border-slate-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 bg-white"
+            className="flex-1 h-8 px-3 text-xs rounded-lg border border-slate-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 bg-surface"
           />
           <button
             type="button"

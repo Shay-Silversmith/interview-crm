@@ -201,7 +201,7 @@ export function AgentChat({ open, onClose }: AgentChatProps) {
       {/* Panel */}
       <div
         className={cn(
-          'absolute top-0 bottom-0 end-0 w-[480px] max-w-[95vw] bg-white shadow-modal flex flex-col',
+          'absolute top-0 bottom-0 end-0 w-[480px] max-w-[95vw] bg-surface shadow-modal flex flex-col',
           'transition-transform duration-300 ease-out',
           open ? 'translate-x-0' : (locale === 'he' ? '-translate-x-full' : 'translate-x-full'),
         )}
@@ -267,7 +267,7 @@ export function AgentChat({ open, onClose }: AgentChatProps) {
               placeholder={t
                 ? 'למשל: עברתי שיחה ראשונית ב-MyHeritage, יש לי ראיון פיזי ביום ראשון'
                 : 'e.g. Passed the phone screen at MyHeritage, on-site interview Sunday'}
-              className="flex-1 resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+              className="flex-1 resize-none rounded-lg border border-slate-200 bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
               disabled={thinking}
             />
             <Button
@@ -441,7 +441,7 @@ function ActionCard({
         'w-full text-start flex items-start gap-2.5 px-3 py-2 rounded-lg border transition-colors',
         status === 'success'    && 'bg-success-50 border-success-200',
         status === 'error'      && 'bg-danger-50  border-danger-200',
-        status === 'selected'   && 'bg-white      border-primary-300 hover:border-primary-400',
+        status === 'selected'   && 'bg-surface      border-primary-300 hover:border-primary-400',
         status === 'unselected' && 'bg-slate-50   border-slate-200    hover:border-slate-300 opacity-60',
         status === 'skipped'    && 'bg-slate-50   border-slate-200    opacity-50',
         !locked && 'cursor-pointer'
@@ -456,7 +456,7 @@ function ActionCard({
           </div>
         )}
         {status === 'unselected' && (
-          <div className="w-4 h-4 rounded border-2 border-slate-300 bg-white" />
+          <div className="w-4 h-4 rounded border-2 border-slate-300 bg-surface" />
         )}
         {status === 'skipped' && (
           <div className="w-4 h-4 rounded border-2 border-slate-300 bg-slate-100" />

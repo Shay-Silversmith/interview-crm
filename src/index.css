@@ -1,3 +1,8 @@
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/plus-jakarta-sans/800.css';
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/500.css';
 @import '@fontsource/inter/600.css';
@@ -7,6 +12,198 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   Theme tokens.
+
+   Every value is a bare "R G B" triplet so Tailwind can apply opacity to it
+   (see the `v()` helper in tailwind.config.ts). Adding a stop here means adding
+   it to BOTH blocks — a token defined only in :root silently keeps its light
+   value in dark mode, which is the one failure this architecture can still hide.
+
+   The dark block inverts the slate ramp rather than remapping every component:
+   the app already treats low stops as surfaces and high stops as text, so the
+   inversion carries ~860 existing colour classes into dark mode untouched.
+   The dark slates are cool navy-tinted rather than neutral grey — pure grey
+   reads cheap next to an indigo brand.
+   --------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    --c-surface: 255 255 255;
+    --c-surface-raised: 255 255 255;
+    --c-surface-sunken: 248 250 252;
+
+    --c-primary-50:  238 242 255;
+    --c-primary-100: 224 231 255;
+    --c-primary-200: 199 210 254;
+    --c-primary-300: 165 180 252;
+    --c-primary-400: 129 140 248;
+    --c-primary-500: 99 102 241;
+    --c-primary-600: 79 70 229;
+    --c-primary-700: 67 56 202;
+    --c-primary-800: 55 48 163;
+    --c-primary-900: 49 46 129;
+    --c-primary-950: 30 27 75;
+
+    --c-slate-50:  248 250 252;
+    --c-slate-100: 241 245 249;
+    --c-slate-150: 234 239 245;
+    --c-slate-200: 226 232 240;
+    --c-slate-300: 203 213 225;
+    /* Darker than stock Tailwind slate. 400 carries most secondary copy in this
+       app and the stock value only reaches 2.56:1 on white — well under AA.
+       These are held at >=4.5:1 against white, slate-50 and slate-100, the
+       three backgrounds muted text actually lands on. */
+    --c-slate-400: 95 109 130;
+    --c-slate-500: 80 94 114;
+    --c-slate-600: 66 79 98;
+    --c-slate-700: 51 65 85;
+    --c-slate-800: 30 41 59;
+    --c-slate-900: 15 23 42;
+    --c-slate-950: 2 6 23;
+
+    --c-success-50:  236 253 245;
+    --c-success-100: 209 250 229;
+    --c-success-200: 167 243 208;
+    --c-success-300: 110 231 183;
+    --c-success-400: 52 211 153;
+    --c-success-500: 16 185 129;
+    --c-success-600: 5 150 105;
+    --c-success-700: 4 120 87;
+    --c-success-800: 6 95 70;
+
+    --c-warning-50:  255 251 235;
+    --c-warning-100: 254 243 199;
+    --c-warning-200: 253 230 138;
+    --c-warning-300: 252 211 77;
+    --c-warning-400: 251 191 36;
+    --c-warning-500: 245 158 11;
+    --c-warning-600: 217 119 6;
+    --c-warning-700: 180 83 9;
+    --c-warning-800: 146 64 14;
+    --c-warning-900: 120 53 15;
+
+    --c-danger-50:  255 241 242;
+    --c-danger-100: 255 228 230;
+    --c-danger-200: 254 205 211;
+    --c-danger-300: 253 164 175;
+    --c-danger-400: 251 113 133;
+    --c-danger-500: 244 63 94;
+    --c-danger-600: 225 29 72;
+    --c-danger-700: 190 18 60;
+    --c-danger-800: 159 18 57;
+
+    --c-violet-50:  245 243 255;
+    --c-violet-100: 237 233 254;
+    --c-violet-200: 221 214 254;
+    --c-violet-300: 196 181 253;
+    --c-violet-400: 167 139 250;
+    --c-violet-500: 139 92 246;
+    --c-violet-600: 124 58 237;
+    --c-violet-700: 109 40 217;
+    --c-violet-800: 91 33 182;
+    --c-violet-900: 76 29 149;
+
+    /* Fill for solid brand buttons. Kept OUT of the inverted primary ramp:
+       those stops flip light in dark mode, and `text-white` sits on this fill
+       in both themes. Deep indigo either way, >=5.3:1 against white. */
+    --c-primary-fill-from: 79 70 229;
+    --c-primary-fill-to:   67 56 202;
+
+    /* Opacity of the dot-grid pattern — needs to lift, not darken, in dark mode. */
+    --dot-grid-color: 15 23 42;
+    --dot-grid-alpha: 0.04;
+  }
+
+  .dark {
+    /* Surfaces sit slightly above the page so cards separate without shadows. */
+    --c-surface: 21 27 44;
+    --c-surface-raised: 27 34 54;
+    --c-surface-sunken: 13 17 30;
+
+    /* Primary shifts lighter: indigo-600 on a dark field is too heavy to read. */
+    --c-primary-50:  30 27 75;
+    --c-primary-100: 49 46 129;
+    --c-primary-200: 55 48 163;
+    --c-primary-300: 67 56 202;
+    --c-primary-400: 99 102 241;
+    --c-primary-500: 129 140 248;
+    --c-primary-600: 139 149 250;
+    --c-primary-700: 165 180 252;
+    --c-primary-800: 199 210 254;
+    --c-primary-900: 224 231 255;
+    --c-primary-950: 238 242 255;
+
+    /* Inverted ramp — surfaces at the low end, text at the high end. */
+    --c-slate-50:  15 20 34;
+    --c-slate-100: 22 28 45;
+    --c-slate-150: 27 34 54;
+    --c-slate-200: 38 47 70;
+    --c-slate-300: 55 66 93;
+    /* 400 is the muted-text stop and carries most secondary copy. Held at
+       >=4.5:1 against surface-raised, the worst-case background it lands on.
+       500/600 are re-spaced above it so the ramp keeps visible separation. */
+    --c-slate-400: 130 144 171;
+    --c-slate-500: 155 167 191;
+    --c-slate-600: 184 194 213;
+    --c-slate-700: 202 211 228;
+    --c-slate-800: 224 231 243;
+    --c-slate-900: 241 245 251;
+    --c-slate-950: 255 255 255;
+
+    /* Status tints: the 50/100 stops become deep washes so a `bg-success-50`
+       badge reads as a tinted chip instead of a glaring block of colour. */
+    --c-success-50:  6 42 33;
+    --c-success-100: 6 59 45;
+    --c-success-200: 6 78 59;
+    --c-success-300: 16 133 98;
+    --c-success-400: 52 211 153;
+    --c-success-500: 52 211 153;
+    --c-success-600: 110 231 183;
+    --c-success-700: 167 243 208;
+    --c-success-800: 209 250 229;
+
+    --c-warning-50:  56 35 5;
+    --c-warning-100: 69 42 5;
+    --c-warning-200: 92 56 7;
+    --c-warning-300: 161 98 12;
+    --c-warning-400: 251 191 36;
+    --c-warning-500: 251 191 36;
+    --c-warning-600: 252 211 77;
+    --c-warning-700: 253 230 138;
+    --c-warning-800: 254 243 199;
+    --c-warning-900: 255 251 235;
+
+    --c-danger-50:  61 16 26;
+    --c-danger-100: 79 20 33;
+    --c-danger-200: 105 26 43;
+    --c-danger-300: 168 40 68;
+    --c-danger-400: 251 113 133;
+    --c-danger-500: 251 113 133;
+    --c-danger-600: 253 164 175;
+    --c-danger-700: 254 205 211;
+    --c-danger-800: 255 228 230;
+
+    --c-violet-50:  40 26 76;
+    --c-violet-100: 51 32 97;
+    --c-violet-200: 67 42 128;
+    --c-violet-300: 109 71 200;
+    --c-violet-400: 167 139 250;
+    --c-violet-500: 167 139 250;
+    --c-violet-600: 196 181 253;
+    --c-violet-700: 221 214 254;
+    --c-violet-800: 237 233 254;
+    --c-violet-900: 245 243 255;
+
+    /* Lifted slightly so the button still reads as an accent on a dark field,
+       while white label text stays at 5.3:1. */
+    --c-primary-fill-from: 91 83 240;
+    --c-primary-fill-to:   72 61 214;
+
+    --dot-grid-color: 226 232 240;
+    --dot-grid-alpha: 0.05;
+  }
+}
+
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
@@ -15,15 +212,21 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Native form controls and scrollbars follow the theme too. */
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
     @apply text-slate-800 bg-slate-50;
-    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-primary-500 ring-offset-1;
+    @apply outline-none ring-2 ring-primary-500 ring-offset-1 ring-offset-surface;
   }
 }
 
@@ -54,9 +257,65 @@
   .dot-grid-bg {
     background-image: radial-gradient(
       circle at 1px 1px,
-      rgb(0 0 0 / 0.04) 1px,
+      rgb(var(--dot-grid-color) / var(--dot-grid-alpha)) 1px,
       transparent 0
     );
     background-size: 20px 20px;
   }
+
+  /* Entrance choreography.
+     Children rise in sequence when a view mounts. Capped at 10 children so a
+     long list never leaves the last rows visibly late — beyond that everything
+     arrives together. Motion is opt-in per view via the class, not global. */
+  .stagger-children > * {
+    animation: riseIn 0.42s cubic-bezier(0.34, 1.36, 0.64, 1) both;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms }
+  .stagger-children > *:nth-child(2) { animation-delay: 45ms }
+  .stagger-children > *:nth-child(3) { animation-delay: 90ms }
+  .stagger-children > *:nth-child(4) { animation-delay: 135ms }
+  .stagger-children > *:nth-child(5) { animation-delay: 180ms }
+  .stagger-children > *:nth-child(6) { animation-delay: 225ms }
+  .stagger-children > *:nth-child(7) { animation-delay: 270ms }
+  .stagger-children > *:nth-child(8) { animation-delay: 315ms }
+  .stagger-children > *:nth-child(9) { animation-delay: 360ms }
+  .stagger-children > *:nth-child(n+10) { animation-delay: 400ms }
+
+  /* Cards that respond to the pointer. Transform only — never width/height. */
+  .lift-on-hover {
+    transition: transform 180ms cubic-bezier(0.34, 1.36, 0.64, 1), box-shadow 180ms ease-out;
+  }
+  .lift-on-hover:hover {
+    transform: translateY(-2px);
+    @apply shadow-lifted;
+  }
+
+  /* Frosted layer for elements that float over content (sticky bars, overlays).
+     Falls back to an opaque surface where backdrop-filter is unsupported. */
+  .glass {
+    background-color: rgb(var(--c-surface) / 0.72);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .glass { background-color: rgb(var(--c-surface)); }
+  }
+}
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Anyone who has asked their OS to reduce motion gets the final state
+   immediately — the choreography is decoration, never information. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .stagger-children > * { animation-delay: 0ms !important; }
+  .lift-on-hover:hover { transform: none; }
 }

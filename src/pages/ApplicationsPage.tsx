@@ -227,7 +227,7 @@ export function ApplicationsPage({ mode = 'active' }: { mode?: ApplicationsPageM
 
       {loading ? (
         view === 'table' ? (
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+          <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
             <table className="w-full"><tbody>{Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={7} />)}</tbody></table>
           </div>
         ) : (
@@ -285,7 +285,7 @@ function ApplicationTable({ apps, sortKey, sortDir, onSort, onDelete, t }: {
   apps: JobApplication[]; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void; onDelete: (a: JobApplication) => void; t: (key: string) => string
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+    <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>

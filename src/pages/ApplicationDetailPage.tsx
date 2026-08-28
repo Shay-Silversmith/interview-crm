@@ -264,7 +264,7 @@ export function ApplicationDetailPage() {
       </div>
 
       {/* Hero — dot grid adds subtle texture without changing the layout */}
-      <div className="dot-grid-bg bg-white rounded-2xl border border-slate-200/80 shadow-card p-6 mb-4">
+      <div className="dot-grid-bg bg-surface rounded-2xl border border-slate-200/80 shadow-card p-6 mb-4">
         <div className="flex items-start gap-4">
           <CompanyLogo name={app.companyName} size="lg" logoUrl={app.companyLogoUrl} />
           <div className="flex-1 min-w-0">
@@ -376,11 +376,11 @@ export function ApplicationDetailPage() {
           to="/tasks"
           className="flex items-center gap-2 px-4 py-2.5 mb-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors group"
         >
-          <CheckSquare className={cn('w-4 h-4 shrink-0', isOverdue(nextTask.dueAt!) ? 'text-rose-500' : 'text-slate-400')} />
+          <CheckSquare className={cn('w-4 h-4 shrink-0', isOverdue(nextTask.dueAt!) ? 'text-danger-500' : 'text-slate-400')} />
           <span className="text-sm text-slate-700 min-w-0 truncate">
             <span className="font-medium">Next:</span> {nextTask.title}
           </span>
-          <span className={cn('text-xs shrink-0', isOverdue(nextTask.dueAt!) ? 'text-rose-500 font-medium' : 'text-slate-400')}>
+          <span className={cn('text-xs shrink-0', isOverdue(nextTask.dueAt!) ? 'text-danger-500 font-medium' : 'text-slate-400')}>
             — {isOverdue(nextTask.dueAt!) ? 'overdue ' : ''}{formatRelative(nextTask.dueAt!)}
           </span>
           <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 shrink-0 ms-auto" />
@@ -757,7 +757,7 @@ function InterviewsTab({
                 {!isLast && <div className="w-px flex-1 bg-slate-200 my-1" />}
               </div>
 
-              <div className={cn('flex-1 mb-3 bg-white rounded-2xl border shadow-card overflow-hidden group', style.cardBorder || 'border-slate-200/80')}>
+              <div className={cn('flex-1 mb-3 bg-surface rounded-2xl border shadow-card overflow-hidden group', style.cardBorder || 'border-slate-200/80')}>
                 <div className="flex items-start">
                   <button
                     className="flex-1 flex items-start gap-3 p-4 text-left hover:bg-slate-50/60 transition-colors"
@@ -1151,7 +1151,7 @@ function AITab({ app, summaries, t }: { app: { id: string; companyName: string; 
                 <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                 <span className="font-medium">{s.toolType}</span>
                 {s.isMocked && (
-                  <span className="text-2xs text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">{t('pages.applicationDetail.mockBadge')}</span>
+                  <span className="text-2xs text-warning-600 bg-warning-50 border border-warning-200 px-1.5 py-0.5 rounded-full">{t('pages.applicationDetail.mockBadge')}</span>
                 )}
                 <span className="text-slate-400 text-xs ms-auto force-ltr">{formatDate(s.createdAt)}</span>
               </li>
@@ -1182,7 +1182,7 @@ function SavedPrepPackCard({ pack, t }: { pack: ReturnType<typeof aiService.getB
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {pack.isMocked && (
-            <span className="text-2xs text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">{t('pages.applicationDetail.mockBadge')}</span>
+            <span className="text-2xs text-warning-600 bg-warning-50 border border-warning-200 px-1.5 py-0.5 rounded-full">{t('pages.applicationDetail.mockBadge')}</span>
           )}
           <button
             onClick={() => setExpanded(e => !e)}

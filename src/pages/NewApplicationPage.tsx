@@ -52,7 +52,7 @@ export function NewApplicationPage() {
       />
 
       {companies !== null && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card p-6">
+        <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card p-6">
           <ApplicationForm
             companies={companies ?? []}
             onSubmit={handleSubmit}

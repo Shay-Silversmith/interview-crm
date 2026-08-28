@@ -44,7 +44,7 @@ export function Modal({ open, onClose, title, description, size = 'md', children
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
       <div
         className={cn(
-          'relative w-full bg-white rounded-2xl shadow-modal animate-fade-in',
+          'relative w-full bg-surface rounded-2xl shadow-modal animate-fade-in',
           sizeStyles[size]
         )}
       >

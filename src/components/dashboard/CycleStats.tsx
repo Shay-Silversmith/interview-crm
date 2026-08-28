@@ -54,7 +54,7 @@ export function CycleStats({ applications, upcomingCount }: Props) {
   ]
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card px-6 py-5">
+    <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card px-6 py-5">
       <h2 className="text-sm font-bold text-slate-900">Your cycle</h2>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">

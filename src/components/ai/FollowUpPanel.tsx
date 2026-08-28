@@ -135,7 +135,7 @@ export function FollowUpPanel() {
             <select
               value={messageType}
               onChange={e => setMessageType(e.target.value as MessageType)}
-              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
             >
               {MESSAGE_TYPES.map(m => (
                 <option key={m.value} value={m.value}>{m.label}</option>
@@ -160,7 +160,7 @@ export function FollowUpPanel() {
             <select
               value={selectedContact}
               onChange={e => setSelectedContact(e.target.value)}
-              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
               disabled={!selectedAppId}
             >
               <option value="">{t('ai.followUp.contactPlaceholder')}</option>
@@ -184,7 +184,7 @@ export function FollowUpPanel() {
                     'flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all',
                     tone === tn.value
                       ? 'bg-primary-600 text-white border-primary-600'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                      : 'bg-surface text-slate-600 border-slate-200 hover:border-slate-300'
                   )}
                 >
                   {tn.label}
@@ -202,7 +202,7 @@ export function FollowUpPanel() {
               onChange={e => setContext(e.target.value)}
               placeholder="e.g. Met at career fair, completed technical interview last Thursday, waiting on feedback…"
               rows={3}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-none"
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-none"
             />
           </div>
         </div>
@@ -234,7 +234,7 @@ export function FollowUpPanel() {
                   className={cn(
                     'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
                     activeTab === tab.id
-                      ? 'bg-white text-slate-800 shadow-sm'
+                      ? 'bg-surface text-slate-800 shadow-sm'
                       : 'text-slate-500 hover:text-slate-700'
                   )}
                 >

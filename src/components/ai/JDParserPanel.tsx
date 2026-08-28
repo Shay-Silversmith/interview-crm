@@ -131,7 +131,7 @@ export function JDParserPanel() {
               value={roleTitle}
               onChange={e => setRoleTitle(e.target.value)}
               placeholder="e.g. Data Engineer"
-              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
             />
           </div>
           <div>
@@ -143,7 +143,7 @@ export function JDParserPanel() {
               onChange={e => setUserBackground(e.target.value)}
               placeholder="e.g. 3rd-year Industrial Engineering, 1-year analytics internship, Python/SQL"
               rows={2}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-none"
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-none"
             />
           </div>
           <Textarea

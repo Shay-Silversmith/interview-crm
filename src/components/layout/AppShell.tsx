@@ -71,7 +71,7 @@ function ShellInner() {
             'transition-all duration-200',
           )}
         >
-          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-white/20">
+          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-surface/20">
             <Sparkles className="w-4 h-4" />
           </span>
           <span>{isHe ? 'עוזר חכם' : 'Ask AI'}</span>

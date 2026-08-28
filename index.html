@@ -23,6 +23,24 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title"            content="InterviewFlow" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Apply the stored theme before first paint. React mounts too late to
+         stop a white flash on a dark-theme reload, so this runs synchronously
+         in <head>. Must stay in sync with src/theme/ThemeProvider.tsx (same
+         storage key, same resolution rule). -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('interviewflow_theme')
+          var dark = stored === 'dark' ||
+            ((!stored || stored === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) document.documentElement.classList.add('dark')
+        } catch (e) {
+          /* localStorage blocked — fall through to light. */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

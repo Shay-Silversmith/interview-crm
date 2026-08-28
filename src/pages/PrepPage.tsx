@@ -108,7 +108,7 @@ export function PrepPage() {
       />
 
       {/* Overall progress */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card p-5 mb-5">
+      <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card p-5 mb-5">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-semibold text-slate-700">{t('pages.prep.readinessLabel')}</p>
           <span className="text-sm font-bold text-slate-800">{overallReady}/{overallTotal} ready</span>
@@ -123,7 +123,7 @@ export function PrepPage() {
       <div className="flex gap-4 min-h-[600px]">
         {/* Left rail - categories */}
         <div className="w-52 shrink-0 hidden md:block">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card p-2 sticky top-4">
+          <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card p-2 sticky top-4">
             {CATEGORIES.map(cat => {
               const stats = categoryStats[cat]
               const isActive = activeCategory === cat
@@ -160,7 +160,7 @@ export function PrepPage() {
           <select
             value={activeCategory}
             onChange={e => setActiveCategory(e.target.value as PrepCategory)}
-            className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
           >
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -242,7 +242,7 @@ function AnswerCard({ answer, expanded, onToggle, onEdit, onDelete, t }: {
   answer: PreparedAnswer; expanded: boolean; onToggle: () => void; onEdit: () => void; onDelete: () => void; t: (key: string) => string
 }) {
   return (
-    <div className={cn('bg-white rounded-2xl border shadow-card transition-all', answer.isReady ? 'border-success-200/80' : 'border-slate-200/80')}>
+    <div className={cn('bg-surface rounded-2xl border shadow-card transition-all', answer.isReady ? 'border-success-200/80' : 'border-slate-200/80')}>
       <button className="w-full flex items-start gap-4 p-4 text-left" onClick={onToggle}>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">

@@ -165,7 +165,7 @@ function SectionTile({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+    <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -205,7 +205,7 @@ function ApplicationRow({ app, muted }: { app: JobApplication; muted?: boolean }
     <Link
       to={`/applications/${app.id}`}
       className={cn(
-        'block bg-white rounded-xl border shadow-card hover:shadow-card-hover hover:-translate-y-px hover:border-primary-200',
+        'block bg-surface rounded-xl border shadow-card hover:shadow-card-hover hover:-translate-y-px hover:border-primary-200',
         'transition-all p-4',
         muted ? 'border-slate-200 opacity-80' : 'border-slate-200/80'
       )}

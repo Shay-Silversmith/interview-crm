@@ -204,7 +204,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
       className={cn(
         'inline-flex items-center gap-1.5 h-7 px-3 rounded-md text-xs font-medium transition-colors',
         active
-          ? 'bg-white text-slate-900 shadow-sm'
+          ? 'bg-surface text-slate-900 shadow-sm'
           : 'text-slate-500 hover:text-slate-700',
       )}
     >

@@ -170,7 +170,7 @@ export function TasksPage() {
       />
 
       {/* Quick add bar */}
-      <div className="flex items-center gap-2 mb-5 p-3 bg-white rounded-xl border border-slate-200 shadow-card">
+      <div className="flex items-center gap-2 mb-5 p-3 bg-surface rounded-xl border border-slate-200 shadow-card">
         <Plus className="w-4 h-4 text-slate-400 shrink-0" />
         <input
           placeholder={t('pages.tasks.newTask') + '…'}
@@ -211,7 +211,7 @@ export function TasksPage() {
             'h-9 px-3 text-xs rounded-lg border transition-colors',
             groupByCompany
               ? 'bg-primary-600 text-white border-primary-600'
-              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50',
+              : 'bg-surface text-slate-600 border-slate-200 hover:bg-slate-50',
           )}
         >
           {groupByCompany ? '✓ Grouped by company' : 'Group by company'}
@@ -219,7 +219,7 @@ export function TasksPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
           {Array.from({ length: 5 }).map((_, i) => <ListItemSkeleton key={i} />)}
         </div>
       ) : filtered.length === 0 ? (
@@ -328,7 +328,7 @@ function TaskGroup({
           {tasks.length}
         </span>
       </div>
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+      <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
         {tasks.map((task, i) => {
           const app = task.applicationId ? appById[task.applicationId] : undefined
           return (

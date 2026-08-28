@@ -3,6 +3,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/ui/Button'
 import { BackendIndicator } from './BackendIndicator'
 import { LanguageToggle } from './LanguageToggle'
+import { ThemeToggle } from './ThemeToggle'
 import { useSearch } from '@/contexts/SearchContext'
 import { useI18n } from '@/hooks/useI18n'
 import { getDataMode, setDataMode } from '@/data/mock-store'
@@ -21,7 +22,7 @@ export function Topbar({ onMenuToggle, onOpenAgent, className }: TopbarProps) {
   return (
     <header
       className={cn(
-        'h-14 flex items-center gap-3 px-4 bg-white border-b border-slate-200 shrink-0',
+        'h-14 flex items-center gap-3 px-4 bg-surface border-b border-slate-200 shrink-0',
         className,
       )}
     >
@@ -48,7 +49,7 @@ export function Topbar({ onMenuToggle, onOpenAgent, className }: TopbarProps) {
         >
           <Search className="absolute start-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <span className="flex-1 truncate">{t('topbar.searchPlaceholder')}</span>
-          <kbd className="hidden md:inline-flex items-center gap-0.5 text-2xs font-mono text-slate-400 bg-white border border-slate-200 rounded px-1">
+          <kbd className="hidden md:inline-flex items-center gap-0.5 text-2xs font-mono text-slate-400 bg-surface border border-slate-200 rounded px-1">
             ⌘K
           </kbd>
         </button>
@@ -96,6 +97,8 @@ export function Topbar({ onMenuToggle, onOpenAgent, className }: TopbarProps) {
           <Sparkles className="w-4 h-4 text-primary-600" />
         </Button>
       )}
+
+      <ThemeToggle />
 
       <LanguageToggle />
 

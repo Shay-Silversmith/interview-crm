@@ -9,17 +9,17 @@ import { useToast, type ToastVariant } from '@/hooks/useToast'
 
 const VARIANT_STYLES: Record<ToastVariant, { container: string; icon: string; IconComponent: typeof CheckCircle2 }> = {
   success: {
-    container: 'bg-white border-success-300 shadow-lg',
+    container: 'bg-surface border-success-300 shadow-lg',
     icon: 'text-success-500',
     IconComponent: CheckCircle2,
   },
   error: {
-    container: 'bg-white border-danger-300 shadow-lg',
+    container: 'bg-surface border-danger-300 shadow-lg',
     icon: 'text-danger-500',
     IconComponent: XCircle,
   },
   info: {
-    container: 'bg-white border-primary-200 shadow-lg',
+    container: 'bg-surface border-primary-200 shadow-lg',
     icon: 'text-primary-500',
     IconComponent: Info,
   },

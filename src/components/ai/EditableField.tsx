@@ -74,7 +74,7 @@ export function EditableField({ label, value, onSave, visible = true }: Editable
             value={draft}
             onChange={e => setDraft(e.target.value)}
             rows={Array.isArray(value) ? Math.max(3, (value as string[]).length + 1) : 4}
-            className="w-full px-3 py-2 rounded-lg border border-primary-300 bg-white text-sm text-slate-800 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            className="w-full px-3 py-2 rounded-lg border border-primary-300 bg-surface text-sm text-slate-800 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary-500/30"
           />
           <div className="flex items-center gap-2">
             <button

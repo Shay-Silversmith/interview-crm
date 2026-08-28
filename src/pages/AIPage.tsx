@@ -113,7 +113,7 @@ export function AIPage() {
       <div className="flex gap-4">
         {/* Tool selector - left rail */}
         <div className="w-56 shrink-0 hidden md:block">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card p-2 sticky top-4">
+          <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card p-2 sticky top-4">
             {AI_TOOLS.map(item => {
               const live = LIVE_TOOLS.has(item.id)
               return (
@@ -154,7 +154,7 @@ export function AIPage() {
                   'flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all',
                   activeTool === item.id
                     ? 'bg-primary-600 text-white border-primary-600'
-                    : 'bg-white text-slate-600 border-slate-200'
+                    : 'bg-surface text-slate-600 border-slate-200'
                 )}
               >
                 <item.icon className="w-3.5 h-3.5" />

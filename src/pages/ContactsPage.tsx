@@ -160,7 +160,7 @@ export function ContactsPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
           <table className="w-full"><tbody>{Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={5} />)}</tbody></table>
         </div>
       ) : filtered.length === 0 ? (
@@ -171,7 +171,7 @@ export function ContactsPage() {
           action={{ label: t('pages.contacts.newContact'), onClick: () => setAddOpen(true) }}
         />
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60">

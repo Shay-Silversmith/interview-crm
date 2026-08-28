@@ -44,7 +44,7 @@ export function Drawer({ open, onClose, title, description, side = 'right', widt
       />
       <div
         className={cn(
-          'absolute top-0 bottom-0 flex flex-col bg-white shadow-modal transition-transform duration-300 ease-out',
+          'absolute top-0 bottom-0 flex flex-col bg-surface shadow-modal transition-transform duration-300 ease-out',
           widthStyles[width],
           'max-w-[90vw]',
           side === 'right' ? 'right-0' : 'left-0',

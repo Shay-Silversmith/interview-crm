@@ -233,7 +233,7 @@ function ApiKeySection() {
               value={value}
               onChange={e => setValue(e.target.value)}
               placeholder="AIza..."
-              className="w-full text-sm font-mono bg-white border border-slate-200 rounded-lg px-3 py-2 pe-9 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="w-full text-sm font-mono bg-surface border border-slate-200 rounded-lg px-3 py-2 pe-9 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               autoComplete="off"
               spellCheck={false}
             />
@@ -584,7 +584,7 @@ export function SettingsPage() {
         <button
           type="button"
           onClick={() => { setClearOpen(true); setClearConfirm('') }}
-          className="flex items-start gap-3 p-3 w-full rounded-xl bg-white border border-danger-200 hover:border-danger-300 hover:bg-danger-50 transition-colors text-start"
+          className="flex items-start gap-3 p-3 w-full rounded-xl bg-surface border border-danger-200 hover:border-danger-300 hover:bg-danger-50 transition-colors text-start"
         >
           <Trash2 className="w-4 h-4 text-danger-600 mt-0.5 shrink-0" />
           <div>
@@ -599,7 +599,7 @@ export function SettingsPage() {
       {/* Typed-confirm dialog for Start fresh. */}
       {clearOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-card p-6 space-y-4">
+          <div className="w-full max-w-md bg-surface rounded-2xl shadow-card p-6 space-y-4">
             <h2 className="text-lg font-semibold text-slate-900">Delete all your data?</h2>
             <p className="text-sm text-slate-600 leading-relaxed">
               This is permanent. Every application, company, contact, task, calendar event, CV, document,

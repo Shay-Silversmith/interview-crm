@@ -25,7 +25,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
           // Base vs AI surface background + border
           variant === 'ai'
             ? 'bg-ai-gradient border-violet-200/50'
-            : 'bg-white border-slate-200/80',
+            : 'bg-surface border-slate-200/80',
           // Hover lift — slightly more pronounced than before (2px vs 1px)
           hover && 'transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer',
           padStyles[padding],

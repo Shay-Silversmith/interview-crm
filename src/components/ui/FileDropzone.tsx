@@ -114,7 +114,7 @@ export function FileDropzone({
           dragging
             ? 'border-violet-400 bg-violet-50'
             : error
-              ? 'border-red-300 bg-red-50'
+              ? 'border-danger-300 bg-danger-50'
               : 'border-slate-200 bg-slate-50 hover:border-violet-300 hover:bg-violet-50/40',
           disabled && 'opacity-50 cursor-not-allowed',
         )}
@@ -132,7 +132,7 @@ export function FileDropzone({
       </div>
 
       {error && (
-        <div className="flex items-center gap-1.5 text-xs text-red-600">
+        <div className="flex items-center gap-1.5 text-xs text-danger-600">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           {error}
         </div>

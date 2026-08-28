@@ -47,7 +47,7 @@ export function NewCompanyPage() {
         description="Research and track a company you're targeting"
       />
 
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card p-6">
+      <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card p-6">
         <CompanyForm
           onSubmit={handleSubmit}
           onCancel={() => navigate('/companies')}

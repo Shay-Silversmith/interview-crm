@@ -30,7 +30,7 @@ export function LanguageToggle() {
           className={cn(
             'h-6 px-2 rounded-md text-xs font-semibold transition-all duration-150 select-none',
             locale === loc
-              ? 'bg-white text-primary-700 shadow-sm'
+              ? 'bg-surface text-primary-700 shadow-sm'
               : 'text-slate-500 hover:text-slate-700',
           )}
         >
