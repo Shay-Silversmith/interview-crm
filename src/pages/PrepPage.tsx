@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { BookOpen, Sparkles, ToggleLeft, ToggleRight, Plus, Edit2, Trash2 } from 'lucide-react'
+import { BookOpen, ToggleLeft, ToggleRight, Plus, Edit2, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Drawer } from '@/components/ui/Drawer'
@@ -297,10 +297,6 @@ function AnswerCard({ answer, expanded, onToggle, onEdit, onDelete, t }: {
             <Button variant="ghost" size="sm" onClick={onDelete} className="text-danger-600 hover:bg-danger-50">
               <Trash2 className="w-3.5 h-3.5" />
               Delete
-            </Button>
-            <Button variant="ghost" size="sm" disabled>
-              <Sparkles className="w-3.5 h-3.5" />
-              Regenerate with AI
             </Button>
           </div>
         </div>

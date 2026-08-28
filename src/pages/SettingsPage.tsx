@@ -41,10 +41,12 @@ function SettingsSection({ icon: Icon, title, description, onEdit, children }: S
             {description && <p className="text-xs text-slate-400">{description}</p>}
           </div>
         </div>
-        <Button variant="outline" size="sm" disabled>
-          <Edit2 className="w-3.5 h-3.5" />
-          Edit
-        </Button>
+        {onEdit && (
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            <Edit2 className="w-3.5 h-3.5" />
+            Edit
+          </Button>
+        )}
       </div>
       <div className="space-y-3">{children}</div>
     </Card>
