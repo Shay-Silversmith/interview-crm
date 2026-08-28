@@ -7,6 +7,7 @@ import { ToastProvider } from './hooks/useToast'
 import { Toaster } from './components/ui/Toaster'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { I18nProvider } from './i18n/I18nProvider'
+import { BrandMark } from './components/ui/BrandMark'
 
 // ── Eagerly loaded (small, always needed immediately) ───────────────────────
 import { DashboardPage }       from './pages/DashboardPage'
@@ -43,8 +44,9 @@ const queryClient = new QueryClient({
 /** Thin fallback shown while a lazy chunk loads */
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-8 h-8 rounded-full border-2 border-primary-200 border-t-primary-600 animate-spin" />
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <BrandMark size="md" className="opacity-90" />
+      <div className="w-6 h-6 rounded-full border-2 border-primary-200 border-t-primary-600 animate-spin" />
     </div>
   )
 }
