@@ -80,6 +80,7 @@ export default function App() {
                       <NewApplicationPage />
                     </ErrorBoundary>
                   } />
+                  <Route path="/applications/archive" element={<ApplicationsPage mode="archive" />} />
                   <Route path="/applications/board" element={
                     <ErrorBoundary label="Board">
                       <ApplicationBoardPage />

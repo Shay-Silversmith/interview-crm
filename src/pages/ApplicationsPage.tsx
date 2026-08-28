@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, LayoutGrid, List, Search, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
+import { Plus, LayoutGrid, List, Search, ChevronUp, ChevronDown, Trash2, Archive, ArrowLeft } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -46,7 +46,17 @@ function SortHeader({ label, sortKey, currentSort, sortDir, onSort }: {
   )
 }
 
-export function ApplicationsPage() {
+/** Stages that take an application out of the live pipeline. */
+const CLOSED_STAGES: ApplicationStage[] = ['Rejected', 'Accepted', 'Withdrawn']
+
+export type ApplicationsPageMode = 'active' | 'archive'
+
+/**
+ * Renders both /applications and /applications/archive. The archive is the same
+ * screen over the closed set rather than a separate page, so search, sorting and
+ * the table/card toggle behave identically in both.
+ */
+export function ApplicationsPage({ mode = 'active' }: { mode?: ApplicationsPageMode } = {}) {
   const navigate = useNavigate()
   const { t } = useI18n()
   const { data: apps, loading } = useMockStore(() => applicationsService.list(), [], { key: QK.applications.all() })
@@ -94,9 +104,22 @@ export function ApplicationsPage() {
     else { setSortKey(key); setSortDir('desc') }
   }
 
-  const filtered = useMemo(() => {
+  const isArchive = mode === "archive"
+
+  /** Applications belonging to this view before any user filtering. */
+  const scoped = useMemo(() => {
     if (!apps) return []
-    return apps
+    const closed = (a: JobApplication) => CLOSED_STAGES.includes(a.stage as ApplicationStage)
+    return apps.filter(a => (isArchive ? closed(a) : !closed(a)))
+  }, [apps, isArchive])
+
+  const archivedCount = useMemo(
+    () => (apps ?? []).filter(a => CLOSED_STAGES.includes(a.stage as ApplicationStage)).length,
+    [apps],
+  )
+
+  const filtered = useMemo(() => {
+    return scoped
       .filter(a => {
         if (stageFilter && a.stage !== stageFilter) return false
         if (priorityFilter && a.priority !== priorityFilter) return false
@@ -111,7 +134,7 @@ export function ApplicationsPage() {
         else if (sortKey === 'company') diff = a.companyName.localeCompare(b.companyName)
         return sortDir === 'asc' ? -diff : diff
       })
-  }, [apps, stageFilter, priorityFilter, debouncedSearch, sortKey, sortDir])
+  }, [scoped, stageFilter, priorityFilter, debouncedSearch, sortKey, sortDir])
 
   const countLabel = filtered.length === 1
     ? t('pages.applications.countSingular', { count: filtered.length })
@@ -120,8 +143,8 @@ export function ApplicationsPage() {
   return (
     <div className="max-w-7xl mx-auto">
       <PageHeader
-        title={t('pages.applications.title')}
-        description={countLabel}
+        title={isArchive ? 'Archive' : t('pages.applications.title')}
+        description={isArchive ? `${countLabel} — closed, kept for reference` : countLabel}
         actions={
           <>
             <div className="flex rounded-lg border border-slate-200 overflow-hidden">
@@ -140,10 +163,33 @@ export function ApplicationsPage() {
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
-            <Button onClick={() => navigate('/applications/new')}>
-              <Plus className="w-4 h-4" />
-              {t('pages.applications.newApplication')}
-            </Button>
+            {isArchive ? (
+              <Link
+                to="/applications"
+                className="inline-flex items-center gap-2 h-9 px-3 text-sm rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to pipeline
+              </Link>
+            ) : (
+              <>
+                {archivedCount > 0 && (
+                  <Link
+                    to="/applications/archive"
+                    className="inline-flex items-center gap-2 h-9 px-3 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium"
+                    title="Applications that are closed or withdrawn"
+                  >
+                    <Archive className="w-4 h-4" />
+                    Archive
+                    <span className="text-xs text-slate-400">{archivedCount}</span>
+                  </Link>
+                )}
+                <Button onClick={() => navigate('/applications/new')}>
+                  <Plus className="w-4 h-4" />
+                  {t('pages.applications.newApplication')}
+                </Button>
+              </>
+            )}
           </>
         }
       />
@@ -190,12 +236,20 @@ export function ApplicationsPage() {
           </div>
         )
       ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={Briefcase}
-          title={t('pages.applications.noApplications')}
-          description={t('pages.applications.noApplicationsSub')}
-          action={{ label: t('pages.applications.newApplication'), onClick: () => navigate('/applications/new') }}
-        />
+        isArchive ? (
+          <EmptyState
+            icon={Archive}
+            title="Nothing archived yet"
+            description="Applications you mark as rejected, withdrawn or accepted land here, out of the way of your live pipeline."
+          />
+        ) : (
+          <EmptyState
+            icon={Briefcase}
+            title={t('pages.applications.noApplications')}
+            description={t('pages.applications.noApplicationsSub')}
+            action={{ label: t('pages.applications.newApplication'), onClick: () => navigate('/applications/new') }}
+          />
+        )
       ) : view === 'table' ? (
         <>
           {/* Table on md+, cards on mobile */}
