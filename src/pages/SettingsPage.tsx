@@ -164,14 +164,16 @@ function ApiKeySection() {
     setTesting(true)
     setTestResult(null)
     try {
-      const res  = await fetch('/api/ai/_test', {
+      const res  = await fetch('/api/ai/test-key', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-gemini-api-key': (value.trim() || stored) },
       })
       const json = await res.json().catch(() => null) as { ok?: boolean; error?: string } | null
       setTestResult(res.ok && json?.ok
         ? { ok: true,  msg: 'Key works. Live AI is on.' }
-        : { ok: false, msg: json?.error ?? `Gemini rejected the key (HTTP ${res.status}).` })
+        : { ok: false, msg: json?.error ?? (res.status === 404
+            ? 'The AI endpoint is not deployed (HTTP 404). This is not your key.'
+            : `The key check failed (HTTP ${res.status}).`) })
     } catch (err) {
       setTestResult({ ok: false, msg: (err as Error).message || 'Could not reach the AI endpoint.' })
     } finally {

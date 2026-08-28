@@ -7,13 +7,13 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGemini, localeSystemSuffix, getGeminiApiKey, type GeminiPart } from './_lib/gemini'
-import { checkRateLimit, getIP } from './_lib/rate-limit'
+import { callGemini, localeSystemSuffix, getGeminiApiKey, type GeminiPart } from './_lib/gemini.js'
+import { checkRateLimit, getIP } from './_lib/rate-limit.js'
 import {
   cvParseRequestSchema,
   cvParseResponseSchema,
   type CVParseRequest,
-} from './_lib/schemas'
+} from './_lib/schemas.js'
 
 const SYSTEM = `\
 You read resumes (CVs) and extract structured highlights for a job-search CRM. The user will attach the file. Return a single JSON object with exactly these keys:

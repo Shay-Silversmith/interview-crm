@@ -6,13 +6,13 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini'
-import { checkRateLimit, getIP } from './_lib/rate-limit'
+import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini.js'
+import { checkRateLimit, getIP } from './_lib/rate-limit.js'
 import {
   prepPackRequestSchema,
   prepPackResponseSchema,
   type PrepPackRequest,
-} from './_lib/schemas'
+} from './_lib/schemas.js'
 
 const SYSTEM = `\
 You are an elite interview coach with deep knowledge of technical and behavioural interviews at top tech companies.

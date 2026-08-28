@@ -8,13 +8,13 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGemini, getGeminiApiKey } from './_lib/gemini'
-import { checkRateLimit, getIP } from './_lib/rate-limit'
+import { callGemini, getGeminiApiKey } from './_lib/gemini.js'
+import { checkRateLimit, getIP } from './_lib/rate-limit.js'
 import {
   jdParserRequestSchema,
   jdParserResponseSchema,
   type JDParserRequest,
-} from './_lib/schemas'
+} from './_lib/schemas.js'
 
 const SYSTEM = `\
 You are a precise job search analyst helping a candidate prepare for applications.

@@ -13,13 +13,13 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini'
-import { checkRateLimit, getIP } from './_lib/rate-limit'
+import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini.js'
+import { checkRateLimit, getIP } from './_lib/rate-limit.js'
 import {
   jdSummarizeRequestSchema,
   jdSummarizeResponseSchema,
   type JDSummarizeRequest,
-} from './_lib/schemas'
+} from './_lib/schemas.js'
 
 const SYSTEM = `\
 You convert long job descriptions into a clean, scannable summary that a candidate can paste into their job-search CRM. Return a single JSON object with exactly these keys:

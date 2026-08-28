@@ -15,13 +15,13 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGeminiGrounded, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini'
-import { checkRateLimit, getIP } from './_lib/rate-limit'
+import { callGeminiGrounded, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini.js'
+import { checkRateLimit, getIP } from './_lib/rate-limit.js'
 import {
   companyFillRequestSchema,
   companyFillResponseSchema,
   type CompanyFillRequest,
-} from './_lib/schemas'
+} from './_lib/schemas.js'
 
 const SYSTEM = `\
 You research companies for a job-seeker's CRM. The user will give you a company name and you will return a single JSON object with exactly these keys:
