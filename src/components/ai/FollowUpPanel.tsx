@@ -15,6 +15,8 @@ import { applicationsService } from '@/services/applicationsService'
 import { contactsService } from '@/services/contactsService'
 import { aiService } from '@/services/aiService'
 import { AppSelector } from './AppSelector'
+import { SampleOutputNotice } from './SampleOutputNotice'
+import type { FallbackReason } from '@/services/aiService'
 import type { FollowUpResponse, MessageType, Tone } from '@/services/aiClientService'
 import { cn } from '@/lib/cn'
 
@@ -54,6 +56,8 @@ export function FollowUpPanel() {
   const [result,          setResult]          = useState<FollowUpResponse | null>(null)
   const [activeTab,       setActiveTab]       = useState<OutputTab>('short')
   const [copiedTab,       setCopiedTab]       = useState<OutputTab | null>(null)
+  // null = no notice. undefined/FallbackReason = the request did not reach a model.
+  const [aiNotice,        setAiNotice]        = useState<FallbackReason | null | undefined>(null)
 
   const selectedApp = applications?.find(a => a.id === selectedAppId)
 
@@ -77,6 +81,7 @@ export function FollowUpPanel() {
     if (!selectedApp) return
     setLoading(true)
     setResult(null)
+    setAiNotice(null)
 
     const res = await aiService.generateFollowUps({
       messageType,
@@ -89,21 +94,12 @@ export function FollowUpPanel() {
 
     setLoading(false)
 
+    // Canned drafts read exactly like generated ones. Never show them as a
+    // result — say what happened instead.
     if (res.fromFallback) {
-      switch (res.fallbackReason) {
-        case 'disabled':
-          toast.info(t('ai.toasts.disabledFollowUp'))
-          break
-        case 'rate-limited':
-          toast.error(t('ai.toasts.rateLimitedOnly'))
-          break
-        case 'validation-error':
-          toast.info(t('ai.toasts.validationFallbackGeneric'))
-          if (import.meta.env.DEV) console.warn('[FollowUp] Validation fallback:', res)
-          break
-        default:
-          toast.info(t('ai.toasts.unreachable'))
-      }
+      if (import.meta.env.DEV) console.warn('[FollowUp] Fallback:', res)
+      setAiNotice(res.fallbackReason)
+      return
     }
 
     setResult(res.data)
@@ -221,6 +217,7 @@ export function FollowUpPanel() {
 
       {/* ── Output ── */}
       <Card className="flex flex-col">
+        {aiNotice !== null && <SampleOutputNotice reason={aiNotice} className="mb-3" />}
         {!result && !loading && (
           <EmptyState emptyTitle={t('ai.followUp.emptyTitle')} emptySub={t('ai.followUp.emptySub')} />
         )}

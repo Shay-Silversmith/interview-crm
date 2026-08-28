@@ -14,6 +14,8 @@ import { useI18n } from '@/hooks/useI18n'
 import { useToastActions } from '@/hooks/useToast'
 import { aiService } from '@/services/aiService'
 import { cn } from '@/lib/cn'
+import { SampleOutputNotice } from '@/components/ai/SampleOutputNotice'
+import type { FallbackReason } from '@/services/aiService'
 
 interface CVVersionFormProps {
   initial?: Partial<CVVersion>
@@ -31,6 +33,7 @@ export function CVVersionForm({ initial, onSubmit, onCancel, loading, fileSlot, 
   const { t } = useI18n()
   const toast = useToastActions()
   const [extracting, setExtracting] = useState(false)
+  const [aiNotice, setAiNotice]     = useState<FallbackReason | null | undefined>(null)
 
   const schema = useMemo(() => makeCVVersionSchema(t), [t])
 
@@ -60,6 +63,14 @@ export function CVVersionForm({ initial, onSubmit, onCancel, loading, fileSlot, 
         base64Data,
       })
 
+      // Placeholder highlights written into these fields would be saved as if
+      // they came from the CV. Change nothing and say why instead.
+      if (fromFallback) {
+        setAiNotice(fallbackReason)
+        return
+      }
+      setAiNotice(null)
+
       // Apply each non-empty field. Don't overwrite a name the user already typed.
       const currentName = watch('name')
       if (!currentName && data.suggestedName) setValue('name', data.suggestedName, { shouldDirty: true })
@@ -69,15 +80,7 @@ export function CVVersionForm({ initial, onSubmit, onCancel, loading, fileSlot, 
       if (data.projectsHighlighted?.length)
         setValue('projectsHighlighted', data.projectsHighlighted.join(', '), { shouldDirty: true })
 
-      if (fromFallback) {
-        toast.info(
-          fallbackReason === 'disabled'
-            ? 'Demo extraction — set VITE_AI_ENABLED=true and run vercel dev for real CV parsing.'
-            : 'AI extraction failed; using fallback values.'
-        )
-      } else {
-        toast.success('Highlights extracted from your CV')
-      }
+      toast.success('Highlights extracted from your CV')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Extraction failed')
     } finally {
@@ -151,6 +154,8 @@ export function CVVersionForm({ initial, onSubmit, onCancel, loading, fileSlot, 
           <span className="text-2xs text-slate-400">Auto-fills emphasis, skills, projects.</span>
         </div>
       )}
+
+      {aiNotice !== null && <SampleOutputNotice reason={aiNotice} className="-mt-1" />}
 
       <TextareaField
         label={t('forms.fields.notes')} rows={3}

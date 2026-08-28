@@ -347,7 +347,7 @@ const he: Translations = {
       copied:    '!הועתק',
       saveToApp: 'שמור במועמדות',
       draftBanner: '.טיוטת AI — בדוק וערוך לפני שמירה',
-      mockBanner:  '.פלט הדגמה — AI מושבת או לא זמין',
+      mockBanner:  '.טקסט לדוגמה, לא תוצאה אמיתית — בקשת ה-AI לא רצה. בדוק בהגדרות',
       // Tool sidebar labels / descriptions
       tools: {
         companySummary: {
@@ -746,7 +746,7 @@ const he: Translations = {
       subtitleWarm:     '≤ 150 מילים · אימייל',
       subtitleLinkedIn: '≤ 300 תווים',
     },
-    mockBanner:  'פלט מדומה — AI מושבת או לא זמין.',
+    mockBanner:  'טקסט לדוגמה, לא תוצאה אמיתית — בקשת ה-AI לא רצה. בדוק בהגדרות.',
     draftBanner: 'טיוטת AI — בדוק וערוך לפני השמירה.',
     copyAll:     'העתק הכול',
     copied:      'הועתק!',

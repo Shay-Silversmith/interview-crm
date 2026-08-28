@@ -13,10 +13,11 @@ import { useI18n } from '@/hooks/useI18n'
 import { applicationsService } from '@/services/applicationsService'
 import { aiService } from '@/services/aiService'
 import { AppSelector } from './AppSelector'
+import { SampleOutputNotice } from './SampleOutputNotice'
+import type { FallbackReason } from '@/services/aiService'
 import { SectionedDraft } from './SectionedDraft'
 import type { FieldValue } from './EditableField'
 import type { JDParserResponse } from '@/services/aiClientService'
-import { cn } from '@/lib/cn'
 
 export function JDParserPanel() {
   const toast = useToastActions()
@@ -44,7 +45,7 @@ export function JDParserPanel() {
   const [saving,           setSaving]            = useState(false)
   const [draftData,        setDraftData]         = useState<Record<string, FieldValue> | null>(null)
   const [generateKey,      setGenerateKey]       = useState(0) // remounts SectionedDraft
-  const [fromFallback,     setFromFallback]      = useState(false)
+  const [aiNotice,         setAiNotice]          = useState<FallbackReason | null | undefined>(null)
 
   const selectedApp = applications?.find(a => a.id === selectedAppId)
 
@@ -69,24 +70,15 @@ export function JDParserPanel() {
 
     setLoading(false)
 
+    // A canned pack is indistinguishable from a real one once it is on screen,
+    // and this draft can be saved onto the application. Withhold it.
     if (result.fromFallback) {
-      switch (result.fallbackReason) {
-        case 'disabled':
-          toast.info(t('ai.toasts.disabledJD'))
-          break
-        case 'rate-limited':
-          toast.error(t('ai.toasts.rateLimited'))
-          break
-        case 'validation-error':
-          toast.info(t('ai.toasts.validationFallback'))
-          if (import.meta.env.DEV) console.warn('[JDParser] Validation fallback:', result)
-          break
-        default:
-          toast.info(t('ai.toasts.unreachable'))
-      }
+      if (import.meta.env.DEV) console.warn('[JDParser] Fallback:', result)
+      setAiNotice(result.fallbackReason)
+      return
     }
 
-    setFromFallback(result.fromFallback)
+    setAiNotice(null)
     setDraftData(result.data as unknown as Record<string, FieldValue>)
     setGenerateKey(k => k + 1)
   }
@@ -177,6 +169,7 @@ export function JDParserPanel() {
           <EmptyState emptyTitle={t('ai.jdParser.emptyTitle')} emptySub={t('ai.jdParser.emptySub')} />
         )}
 
+        {aiNotice !== null && <SampleOutputNotice reason={aiNotice} className="mb-3" />}
         {loading && (
           <LoadingState label={t('ai.jdParser.analysingState')} />
         )}
@@ -184,18 +177,9 @@ export function JDParserPanel() {
         {draftData && (
           <div className="flex flex-col gap-3">
             {/* Draft banner */}
-            <div className={cn(
-              'flex items-start gap-2 px-3 py-2 rounded-lg border text-xs',
-              fromFallback
-                ? 'bg-amber-50 border-amber-200 text-amber-700'
-                : 'bg-violet-50 border-violet-200 text-violet-700'
-            )}>
-              {fromFallback
-                ? <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                : <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
-              <span className="font-medium">
-                {fromFallback ? t('ai.mockBanner') : t('ai.draftBanner')}
-              </span>
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg border text-xs bg-violet-50 border-violet-200 text-violet-700">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span className="font-medium">{t('ai.draftBanner')}</span>
             </div>
 
             {/* Editable sections */}

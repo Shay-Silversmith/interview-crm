@@ -3,7 +3,7 @@
 // full context; generate a prep pack; edit sections; save to ai_summaries.
 // ---------------------------------------------------------------------------
 import { useState } from 'react'
-import { Sparkles, Brain, AlertCircle, Save, Info } from 'lucide-react'
+import { Sparkles, Brain, Save, Info } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { useMockStore } from '@/hooks/useMockStore'
@@ -14,10 +14,11 @@ import { applicationsService } from '@/services/applicationsService'
 import { documentsService } from '@/services/documentsService'
 import { aiService } from '@/services/aiService'
 import { AppSelector } from './AppSelector'
+import { SampleOutputNotice } from './SampleOutputNotice'
+import type { FallbackReason } from '@/services/aiService'
 import { SectionedDraft } from './SectionedDraft'
 import type { FieldValue } from './EditableField'
 import type { PrepPackResponse } from '@/services/aiClientService'
-import { cn } from '@/lib/cn'
 
 const INTERVIEW_TYPES = [
   'HR Screen',
@@ -54,7 +55,7 @@ export function PrepPackPanel() {
   const [saving,         setSaving]         = useState(false)
   const [draftData,      setDraftData]      = useState<Record<string, FieldValue> | null>(null)
   const [generateKey,    setGenerateKey]    = useState(0)
-  const [fromFallback,   setFromFallback]   = useState(false)
+  const [aiNotice,       setAiNotice]       = useState<FallbackReason | null | undefined>(null)
 
   const selectedApp = applications?.find(a => a.id === selectedAppId)
   const submittedCV = cvVersions?.find(cv => cv.id === selectedApp?.submittedCvId)
@@ -101,24 +102,15 @@ export function PrepPackPanel() {
 
     setLoading(false)
 
+    // A canned pack is indistinguishable from a real one once it is on screen,
+    // and this draft can be saved onto the application. Withhold it.
     if (result.fromFallback) {
-      switch (result.fallbackReason) {
-        case 'disabled':
-          toast.info(t('ai.toasts.disabled'))
-          break
-        case 'rate-limited':
-          toast.error(t('ai.toasts.rateLimited'))
-          break
-        case 'validation-error':
-          toast.info(t('ai.toasts.validationFallback'))
-          if (import.meta.env.DEV) console.warn('[PrepPack] Validation fallback:', result)
-          break
-        default:
-          toast.info(t('ai.toasts.unreachable'))
-      }
+      if (import.meta.env.DEV) console.warn('[PrepPack] Fallback:', result)
+      setAiNotice(result.fallbackReason)
+      return
     }
 
-    setFromFallback(result.fromFallback)
+    setAiNotice(null)
     setDraftData(result.data as unknown as Record<string, FieldValue>)
     setGenerateKey(k => k + 1)
   }
@@ -203,22 +195,14 @@ export function PrepPackPanel() {
         {!draftData && !loading && (
           <EmptyState emptyTitle={t('ai.prepPack.emptyTitle')} emptySub={t('ai.prepPack.emptySub')} />
         )}
+        {aiNotice !== null && <SampleOutputNotice reason={aiNotice} className="mb-3" />}
         {loading && <LoadingState label={t('ai.prepPack.buildingState')} />}
 
         {draftData && (
           <div className="flex flex-col gap-3">
-            <div className={cn(
-              'flex items-start gap-2 px-3 py-2 rounded-lg border text-xs',
-              fromFallback
-                ? 'bg-amber-50 border-amber-200 text-amber-700'
-                : 'bg-warning-50 border-warning-200 text-warning-700'
-            )}>
-              {fromFallback
-                ? <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                : <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
-              <span className="font-medium">
-                {fromFallback ? t('ai.mockBanner') : t('ai.draftBanner')}
-              </span>
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg border text-xs bg-warning-50 border-warning-200 text-warning-700">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span className="font-medium">{t('ai.draftBanner')}</span>
             </div>
 
             <div className="flex-1 overflow-auto">

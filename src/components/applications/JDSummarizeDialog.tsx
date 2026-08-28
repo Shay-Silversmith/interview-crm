@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/Button'
 import { useToastActions } from '@/hooks/useToast'
 import { aiService } from '@/services/aiService'
 import { cn } from '@/lib/cn'
+import { SampleOutputNotice } from '@/components/ai/SampleOutputNotice'
+import type { FallbackReason } from '@/services/aiService'
 
 interface JDSummarizeDialogProps {
   open:    boolean
@@ -32,6 +34,7 @@ export function JDSummarizeDialog({ open, onClose, onInsert, hasExisting }: JDSu
   const [headline, setHeadline] = useState('')
   const [body, setBody] = useState('')
   const [showResult, setShowResult] = useState(false)
+  const [aiNotice, setAiNotice]     = useState<FallbackReason | null | undefined>(null)
 
   function reset() {
     setUrl(''); setText(''); setHeadline(''); setBody(''); setShowResult(false); setTab('text')
@@ -60,18 +63,18 @@ export function JDSummarizeDialog({ open, onClose, onInsert, hasExisting }: JDSu
           ? { jdUrl: url.trim() }
           : { jdText: text.trim() }
       )
+      // A canned summary inserted into a job description becomes part of the
+      // record. Show the reason instead of a plausible paragraph.
+      if (fromFallback) {
+        setAiNotice(fallbackReason)
+        setShowResult(false)
+        return
+      }
+      setAiNotice(null)
       setHeadline(data.headline)
       setBody(data.bodyText)
       setShowResult(true)
-      if (fromFallback) {
-        toast.info(
-          fallbackReason === 'disabled'
-            ? 'Demo summary — set VITE_AI_ENABLED=true and run vercel dev for real summaries.'
-            : 'AI request failed; showing demo summary.'
-        )
-      } else {
-        toast.success('Summary generated — review and edit before inserting')
-      }
+      toast.success('Summary generated — review and edit before inserting')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Summarize failed')
     } finally {
@@ -88,6 +91,8 @@ export function JDSummarizeDialog({ open, onClose, onInsert, hasExisting }: JDSu
   return (
     <Modal open={open} onClose={handleClose} title="Summarize job description with AI" size="lg">
       <div className="space-y-4">
+        {aiNotice !== null && <SampleOutputNotice reason={aiNotice} className="mb-3" />}
+
         {!showResult && (
           <>
             <p className="text-xs text-slate-500 leading-relaxed">

@@ -346,7 +346,7 @@ const en = {
       copied:    'Copied!',
       saveToApp: 'Save to Application',
       draftBanner: 'AI draft — review and edit before saving.',
-      mockBanner:  'Mock output — AI is disabled or unavailable.',
+      mockBanner:  'Example text, not a real result — the AI request did not run. Check Settings.',
       // Tool sidebar labels / descriptions
       tools: {
         companySummary: {
@@ -766,7 +766,7 @@ const en = {
       subtitleLinkedIn: '≤ 300 chars',
     },
     // Shared banner + copy-all labels
-    mockBanner:  'Mock output — AI is disabled or unavailable.',
+    mockBanner:  'Example text, not a real result — the AI request did not run. Check Settings.',
     draftBanner: 'AI draft — review and edit before saving.',
     copyAll:     'Copy All',
     copied:      'Copied!',
