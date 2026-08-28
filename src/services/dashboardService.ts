@@ -58,7 +58,7 @@ const supabaseImpl = {
     const in7Days    = new Date(now.getTime() + 7 * 86_400_000)
 
     const [evRes, taskRes, appRes, actRes] = await Promise.all([
-      sb.from('calendar_events').select('*').gte('starts_at', now.toISOString()).lte('starts_at', in7Days.toISOString()).order('starts_at'),
+      sb.from('calendar_events').select('*').gte('start_at', now.toISOString()).lte('start_at', in7Days.toISOString()).order('start_at'),
       sb.from('tasks').select('*').neq('status', 'Done').neq('status', 'Cancelled').lt('due_at', now.toISOString()).order('due_at'),
       sb.from('job_applications').select('*').not('stage', 'in', '("Rejected","Withdrawn")').order('urgency_score', { ascending: false }).limit(4),
       sb.from('recent_activity').select('*').order('created_at', { ascending: false }).limit(8),

@@ -32,7 +32,7 @@ const mockImpl = {
 const supabaseImpl = {
   async list(): Promise<CalendarEvent[]> {
     const sb = getSupabaseClient()
-    const { data, error } = await sb.from('calendar_events').select('*').order('starts_at')
+    const { data, error } = await sb.from('calendar_events').select('*').order('start_at')
     if (error) throw new Error(error.message)
     return (data ?? []).map(mapCalendarEvent)
   },
@@ -44,7 +44,7 @@ const supabaseImpl = {
   },
   async getByDateRange(start: Date, end: Date): Promise<CalendarEvent[]> {
     const sb = getSupabaseClient()
-    const { data, error } = await sb.from('calendar_events').select('*').gte('starts_at', start.toISOString()).lte('starts_at', end.toISOString()).order('starts_at')
+    const { data, error } = await sb.from('calendar_events').select('*').gte('start_at', start.toISOString()).lte('start_at', end.toISOString()).order('start_at')
     if (error) throw new Error(error.message)
     return (data ?? []).map(mapCalendarEvent)
   },
@@ -58,8 +58,8 @@ const supabaseImpl = {
     const row = {
       title: data.title,
       type: data.type ?? 'Interview',
-      starts_at: data.startAt,
-      ends_at: data.endAt,
+      start_at: data.startAt,
+      end_at: data.endAt,
       all_day: data.allDay ?? false,
       application_id: data.applicationId,
       contact_id: data.contactId,
@@ -79,8 +79,8 @@ const supabaseImpl = {
     const row: Record<string, unknown> = {}
     if (data.title !== undefined) row.title = data.title
     if (data.type !== undefined) row.type = data.type
-    if (data.startAt !== undefined) row.starts_at = data.startAt
-    if (data.endAt !== undefined) row.ends_at = data.endAt
+    if (data.startAt !== undefined) row.start_at = data.startAt
+    if (data.endAt !== undefined) row.end_at = data.endAt
     if (data.allDay !== undefined) row.all_day = data.allDay
     if (data.description !== undefined) row.description = data.description
     if (data.location !== undefined) row.location = data.location

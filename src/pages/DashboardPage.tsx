@@ -9,7 +9,7 @@
 //      stay compact so the dashboard feels calm at first glance.
 // ---------------------------------------------------------------------------
 
-import { useState, type ComponentType } from 'react'
+import { useState, useMemo, type ComponentType } from 'react'
 import { Briefcase, Calendar, Activity, Sparkles, ChevronDown, ChevronRight } from 'lucide-react'
 import { CardSkeleton } from '@/components/ui/Skeleton'
 import { ActionStrip } from '@/components/dashboard/ActionStrip'
@@ -17,11 +17,16 @@ import { TopApplicationsWidget } from '@/components/dashboard/TopApplicationsWid
 import { UpcomingDeadlinesWidget } from '@/components/dashboard/UpcomingDeadlinesWidget'
 import { RecentActivityWidget } from '@/components/dashboard/RecentActivityWidget'
 import { QuickAIWidget } from '@/components/dashboard/QuickAIWidget'
+import { NextUpCard } from '@/components/dashboard/NextUpCard'
+import { CycleStats } from '@/components/dashboard/CycleStats'
 import { useMockStore } from '@/hooks/useMockStore'
 import { useProfile } from '@/hooks/useProfile'
 import { useUser } from '@/hooks/useUser'
 import { useI18n } from '@/hooks/useI18n'
 import { dashboardService } from '@/services/dashboardService'
+import { applicationsService } from '@/services/applicationsService'
+import { calendarService } from '@/services/calendarService'
+import { tasksService } from '@/services/tasksService'
 import { QK } from '@/lib/query-keys'
 import { formatDate } from '@/utils/date'
 import { cn } from '@/lib/cn'
@@ -37,6 +42,9 @@ type TileId = 'top-apps' | 'deadlines' | 'activity' | 'ai'
 
 export function DashboardPage() {
   const { data, loading } = useMockStore(() => dashboardService.getDashboardData(), [], { key: QK.dashboard.all() })
+  const { data: apps }   = useMockStore(() => applicationsService.list(), [], { key: QK.applications.all() })
+  const { data: events } = useMockStore(() => calendarService.list(), [], { key: QK.calendar.all() })
+  const { data: tasks }  = useMockStore(() => tasksService.list(), [], { key: QK.tasks.all() })
   const { profile } = useProfile()
   const { user } = useUser()
   const { t } = useI18n()
@@ -45,6 +53,22 @@ export function DashboardPage() {
     profile?.displayName?.trim() ||
     profile?.name?.trim().split(' ')[0] ||
     (user?.email ? user.email.split('@')[0] : 'there')
+
+  // The next real commitment: soonest future interview on the calendar.
+  const nextInterview = useMemo(() => {
+    const now = Date.now()
+    return (events ?? [])
+      .filter(e => e.type === 'Interview' && new Date(e.startAt).getTime() >= now)
+      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0] ?? null
+  }, [events])
+
+  // What is still open on that same application — the prep that matters now.
+  const prepTasks = useMemo(() => {
+    if (!nextInterview?.applicationId) return []
+    return (tasks ?? []).filter(t =>
+      t.applicationId === nextInterview.applicationId &&
+      t.status !== 'Done' && t.status !== 'Cancelled')
+  }, [tasks, nextInterview])
 
   // Single-expand: only one tile open at a time keeps the page calm
   const [openTile, setOpenTile] = useState<TileId | null>('top-apps')
@@ -59,6 +83,12 @@ export function DashboardPage() {
           {t(getGreetingKey())}, {firstName}.
         </h1>
       </div>
+
+      {/* What is next — the question the dashboard exists to answer */}
+      <NextUpCard event={nextInterview} openTasks={prepTasks} />
+
+      {/* Where the search stands */}
+      {apps && <CycleStats applications={apps} upcomingCount={data?.upcomingDeadlines.length ?? 0} />}
 
       {/* Action strip — kept prominent because these are time-sensitive CTAs */}
       {(loading || data) && (

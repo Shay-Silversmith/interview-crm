@@ -342,8 +342,8 @@ export interface CalendarEventRow {
   type: string
   company_name: string | null
   application_name: string | null
-  starts_at: string
-  ends_at: string | null
+  start_at: string
+  end_at: string | null
   all_day: boolean
   location: string | null
   meeting_url: string | null
@@ -359,8 +359,8 @@ export function mapCalendarEvent(row: CalendarEventRow): CalendarEvent {
     user_id: row.user_id,
     title: row.title,
     type: row.type as CalendarEventType,
-    startAt: row.starts_at,
-    endAt: row.ends_at ?? undefined,
+    startAt: row.start_at,
+    endAt: row.end_at ?? undefined,
     allDay: row.all_day,
     applicationId: row.application_id ?? undefined,
     applicationName: row.application_name ?? undefined,
