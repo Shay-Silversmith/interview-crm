@@ -55,7 +55,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error'
-    if (process.env.NODE_ENV !== 'production') console.error('[_test]', err)
+    // Log in production too: without this a 500 shows up in the Vercel logs
+    // with no reason attached, which is how the grounded-JSON failure stayed
+    // invisible. The key is never part of the error object.
+    console.error('[_test]', err)
     return res.status(502).json({ ok: false, error: message })
   }
 }

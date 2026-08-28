@@ -197,10 +197,18 @@ export async function callGeminiGrounded<T>(opts: CallGeminiOptions<T>): Promise
     .map(c => ({ title: c.web?.title, uri: c.web?.uri }))
     .filter(sourceEntry => !!sourceEntry.uri)
 
-  const parsed = opts.schema.safeParse(parseJSON(text))
-  if (parsed.success) return { data: parsed.data, sources }
-
-  const issues = parsed.error.issues.map(i => `• ${i.path.join('.')}: ${i.message}`).join('\n')
+  // parseJSON THROWS on unparseable text. Without this guard a grounded reply
+  // that arrives as prose-plus-JSON (common once responseMimeType is dropped)
+  // blew up here instead of reaching the repair pass below — which is exactly
+  // the intermittent 500 this endpoint was returning.
+  let issues = 'the reply was not a JSON object'
+  try {
+    const parsed = opts.schema.safeParse(parseJSON(text))
+    if (parsed.success) return { data: parsed.data, sources }
+    issues = parsed.error.issues.map(i => `• ${i.path.join('.')}: ${i.message}`).join('\n')
+  } catch {
+    /* fall through to the repair pass */
+  }
   const repaired = await callGemini({
     apiKey:    opts.apiKey,
     system:    opts.system,
