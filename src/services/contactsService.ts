@@ -36,7 +36,7 @@ const supabaseImpl = {
   },
   async getByApplication(appId: string): Promise<Contact[]> {
     const sb = getSupabaseClient()
-    const { data, error } = await sb.from('contacts').select('*').eq('application_id', appId)
+    const { data, error } = await sb.from('contacts').select('*').contains('application_ids', [appId])
     if (error) throw new Error(error.message)
     return (data ?? []).map(mapContact)
   },
@@ -51,13 +51,14 @@ const supabaseImpl = {
     const row = {
       name: data.name,
       type: data.type ?? 'Recruiter',
-      company_name: data.company,
+      company: data.company,
       company_id: data.companyId,
       title: data.title,
       email: data.email,
+      phone: data.phone,
       linkedin_url: data.linkedinUrl,
       notes: data.notes,
-      application_id: data.applicationIds?.[0],
+      application_ids: data.applicationIds ?? [],
     }
     const { data: inserted, error } = await sb.from('contacts').insert(row).select().single()
     if (error) throw new Error(error.message)
@@ -68,7 +69,10 @@ const supabaseImpl = {
     const row: Record<string, unknown> = {}
     if (data.name !== undefined) row.name = data.name
     if (data.type !== undefined) row.type = data.type
-    if (data.company !== undefined) row.company_name = data.company
+    if (data.company !== undefined) row.company = data.company
+    if (data.companyId !== undefined) row.company_id = data.companyId
+    if (data.phone !== undefined) row.phone = data.phone
+    if (data.applicationIds !== undefined) row.application_ids = data.applicationIds
     if (data.title !== undefined) row.title = data.title
     if (data.email !== undefined) row.email = data.email
     if (data.linkedinUrl !== undefined) row.linkedin_url = data.linkedinUrl

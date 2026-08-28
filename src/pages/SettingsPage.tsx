@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Edit2, User, Target, Wrench, Sparkles, Calendar, TrendingUp, AlertTriangle, Trash2, Key, Eye, EyeOff, Check, Presentation, Download, Upload, Database, LogOut } from 'lucide-react'
-import { getStoredGeminiKey, setStoredGeminiKey, clearStoredGeminiKey } from '@/services/aiKey'
+import { Edit2, User, Target, Wrench, Sparkles, Calendar, TrendingUp, AlertTriangle, Trash2, Key, Eye, EyeOff, Check, Presentation, Download, Upload, Database, LogOut, HelpCircle } from 'lucide-react'
+import { getStoredGeminiKey, setStoredGeminiKey, clearStoredGeminiKey, readLegacyKey, clearLegacyKey } from '@/services/aiKey'
 import { getDataMode, setDataMode, exportData, parseImportFile, importData } from '@/data/mock-store'
 import type { BackupPayload } from '@/data/mock-store'
 import { isSupabaseMode } from '@/lib/env'
@@ -124,6 +124,8 @@ function ApiKeySection() {
   const [justSaved, setJustSaved] = useState(false)
   const [testing, setTesting]     = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [showHelp, setShowHelp]     = useState(false)
+  const [legacy, setLegacy]         = useState(() => readLegacyKey())
 
   const stored      = getStoredGeminiKey() ?? ''
   const isConnected = stored.trim().length > 0
@@ -145,6 +147,16 @@ function ApiKeySection() {
     setValue('')
     setTestResult(null)
     toast.info('Gemini key removed')
+  }
+
+  const handleAdoptLegacy = () => {
+    if (!legacy) return
+    setStoredGeminiKey(legacy)
+    setValue(legacy)
+    clearLegacyKey()
+    setLegacy(null)
+    setTestResult(null)
+    toast.success('Key moved over. Press Test to confirm it works.')
   }
 
   /** Cheapest possible round-trip so a bad key fails here, not mid-task. */
@@ -187,7 +199,17 @@ function ApiKeySection() {
       </div>
 
       <div className="space-y-3">
-        {!isConnected && (
+        {!isConnected && legacy && (
+          <div className="text-xs text-warning-900 bg-warning-50 border border-warning-200 rounded-lg px-3 py-2 space-y-2">
+            <p>
+              A key is saved under the old Claude field, which nothing reads any more —
+              that is why AI still returns sample data.
+            </p>
+            <Button size="sm" onClick={handleAdoptLegacy}>Use that key for Gemini</Button>
+          </div>
+        )}
+
+        {!isConnected && !legacy && (
           <div className="text-xs text-warning-800 bg-warning-50 border border-warning-200 rounded-lg px-3 py-2">
             No key set. Every AI tool is returning a fixed sample response right now — including company auto-fill,
             which describes an example company rather than the real one.
@@ -239,6 +261,30 @@ function ApiKeySection() {
             : 'text-xs text-danger-600 bg-danger-50 border border-danger-200 rounded-lg px-3 py-2'}>
             {testResult.msg}
           </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setShowHelp(h => !h)}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:underline"
+        >
+          <HelpCircle className="w-3.5 h-3.5" />
+          How do I get a key?
+        </button>
+
+        {showHelp && (
+          <ol className="text-xs text-slate-600 space-y-1.5 list-decimal ps-5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-3">
+            <li>
+              Open{' '}
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer"
+                 className="text-primary-600 hover:underline font-medium force-ltr">
+                aistudio.google.com/app/apikey
+              </a>{' '}
+              and sign in with your Google account.
+            </li>
+            <li>Click <span className="font-medium">Create API key</span>. Free tier is enough for this app.</li>
+            <li>Copy the key, paste it above, press <span className="font-medium">Save</span>, then <span className="font-medium">Test</span>.</li>
+          </ol>
         )}
 
         <div className="text-xs text-slate-500 space-y-1">

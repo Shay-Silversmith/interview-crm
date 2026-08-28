@@ -42,3 +42,23 @@ export function aiHeaders(): HeadersInit {
     'x-gemini-api-key': apiKey.trim(),
   }
 }
+
+/**
+ * The pre-Gemini build stored the key under a different name. Anyone who typed a
+ * key into that older Settings screen has it sitting in a slot nothing reads any
+ * more, which looks exactly like "I connected a key and AI still does not work".
+ * Surfaced in Settings as a one-click adopt rather than migrated silently — the
+ * old slot could legitimately hold an Anthropic key, which is not interchangeable.
+ */
+const LEGACY_KEY_STORAGE = 'interviewflow.anthropicApiKey'
+
+export function readLegacyKey(): string | null {
+  try {
+    const v = localStorage.getItem(LEGACY_KEY_STORAGE)
+    return v && v.trim() ? v.trim() : null
+  } catch { return null }
+}
+
+export function clearLegacyKey(): void {
+  try { localStorage.removeItem(LEGACY_KEY_STORAGE) } catch { /* ignore */ }
+}

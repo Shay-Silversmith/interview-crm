@@ -294,10 +294,11 @@ export interface ContactRow {
   id: string
   user_id: string
   company_id: string | null
-  application_id: string | null
+  application_ids: string[] | null
   name: string
   title: string | null
-  company_name: string | null
+  company: string | null
+  phone: string | null
   email: string | null
   linkedin_url: string | null
   type: string
@@ -314,14 +315,13 @@ export function mapContact(row: ContactRow): Contact {
     user_id: row.user_id,
     name: row.name,
     type: row.type as ContactType,
-    company: row.company_name ?? undefined,
+    company: row.company ?? undefined,
     companyId: row.company_id ?? undefined,
     title: row.title ?? undefined,
     email: row.email ?? undefined,
-    phone: undefined, // no phone column in DB
+    phone: row.phone ?? undefined,
     linkedinUrl: row.linkedin_url ?? undefined,
-    // application_id is a single FK in DB; entity expects an array
-    applicationIds: row.application_id ? [row.application_id] : [],
+    applicationIds: row.application_ids ?? [],
     notes: row.notes ?? undefined,
     lastInteractionAt: row.last_interaction_at ?? undefined,
     followUpDueAt: row.follow_up_due_at ?? undefined,
