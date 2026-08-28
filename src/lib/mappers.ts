@@ -141,6 +141,7 @@ export interface ApplicationRow {
   user_id: string
   company_id: string
   company_name: string
+  company_logo_url: string | null
   role_name: string
   role_url: string | null
   job_description: string | null
@@ -173,8 +174,9 @@ export function mapApplication(row: ApplicationRow): JobApplication {
     user_id: row.user_id,
     companyId: row.company_id,
     companyName: row.company_name,
-    // No JOIN in the current query — CompanyLogo falls back to initials.
-    companyLogoUrl: undefined,
+    // Denormalised onto the application row so the list does not need a JOIN.
+    // CompanyLogo derives one from the company name when this is empty.
+    companyLogoUrl: row.company_logo_url ?? undefined,
     roleName: row.role_name,
     roleUrl: row.role_url ?? undefined,
     jobDescription: row.job_description ?? undefined,

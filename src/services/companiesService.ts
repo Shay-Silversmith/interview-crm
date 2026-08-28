@@ -4,6 +4,7 @@ import { MOCK_DELAY_MS } from '@/lib/constants'
 import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
 import { mapCompany } from '@/lib/mappers'
+import { resolveLogoUrl } from '@/lib/companyLogo'
 
 const delay = () => new Promise<void>(r => setTimeout(r, MOCK_DELAY_MS + Math.random() * 100))
 
@@ -41,7 +42,9 @@ const supabaseImpl = {
       notes: data.notes,
       glassdoor_rating: data.glassdoorRating,
       tech_stack: data.techStack ?? [],
-      logo_url: data.logoUrl,
+      // Fall back to a favicon derived from the website (or the name) so a new
+      // company shows a real mark instead of two grey letters.
+      logo_url: data.logoUrl || resolveLogoUrl({ website: data.website, name: data.name }),
     }
     const { data: inserted, error } = await sb.from('companies').insert(row).select().single()
     if (error) throw new Error(error.message)

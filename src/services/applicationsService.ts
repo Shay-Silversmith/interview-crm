@@ -87,6 +87,7 @@ const supabaseImpl = {
     const row = {
       company_id: data.companyId,
       company_name: data.companyName,
+      company_logo_url: data.companyLogoUrl,
       role_name: data.roleName,
       role_url: data.roleUrl,
       job_description: data.jobDescription,

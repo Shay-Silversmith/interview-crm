@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { cn } from '@/lib/cn'
+import { logoCandidates } from '@/lib/companyLogo'
 import { initials } from '@/utils/format'
 
 interface AvatarProps {
@@ -46,7 +47,9 @@ interface CompanyLogoProps {
   name: string
   size?: 'sm' | 'md' | 'lg'
   className?: string
-  /** When provided, renders a real logo image. Falls back to initials on error. */
+  /** Company website — used to derive a logo when logoUrl is not set. */
+  website?: string
+  /** Explicit override. Wins over anything derived. Falls back to initials on error. */
   logoUrl?: string
 }
 
@@ -64,14 +67,17 @@ const COMPANY_COLORS: Record<string, string> = {
   Upwind: 'bg-danger-100 text-danger-700',
 }
 
-export function CompanyLogo({ name, size = 'md', className, logoUrl }: CompanyLogoProps) {
-  const [imgError, setImgError] = useState(false)
+export function CompanyLogo({ name, size = 'md', className, logoUrl, website }: CompanyLogoProps) {
+  // Walk candidates in order; each failure advances one step, and running off
+  // the end lands on the initials square.
+  const candidates = logoCandidates({ logoUrl, website, name })
+  const [attempt, setAttempt] = useState(0)
+  const src = candidates[attempt]
   const safeName = name ?? ''
   const color = COMPANY_COLORS[safeName] ?? 'bg-slate-100 text-slate-600'
   const abbr = safeName.slice(0, 2).toUpperCase() || '?'
 
-  // Image path: logoUrl present and not yet errored → render <img>
-  if (logoUrl && !imgError) {
+  if (src) {
     return (
       <div
         className={cn(
@@ -81,10 +87,11 @@ export function CompanyLogo({ name, size = 'md', className, logoUrl }: CompanyLo
         )}
       >
         <img
-          src={logoUrl}
+          key={src}
+          src={src}
           alt={`${safeName} logo`}
           className="w-full h-full object-contain"
-          onError={() => setImgError(true)}
+          onError={() => setAttempt(a => a + 1)}
         />
       </div>
     )
