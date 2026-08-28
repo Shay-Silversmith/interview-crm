@@ -543,3 +543,35 @@ export function mapRecentActivity(row: RecentActivityRow): RecentActivity {
     createdAt: row.created_at,
   }
 }
+
+/**
+ * App -> DB direction for profile edits.
+ *
+ * mapProfile() converts snake_case rows into camelCase objects; without the
+ * inverse, an update would send keys like `targetRoles`, which are not columns
+ * and make Postgres reject the whole statement. Only keys actually present on
+ * the patch are emitted, so a partial edit stays partial.
+ */
+export function toProfileUpdate(p: Partial<UserProfile>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  const put = <K extends keyof UserProfile>(key: K, column: string) => {
+    if (p[key] !== undefined) out[column] = p[key]
+  }
+  put('name',             'name')
+  put('displayName',      'display_name')
+  put('phone',            'phone')
+  put('location',         'location')
+  put('university',       'university')
+  put('degree',           'degree')
+  put('year',             'year')
+  put('unit',             'unit')
+  put('bio',              'bio')
+  put('linkedinUrl',      'linkedin_url')
+  put('githubUrl',        'github_url')
+  put('targetRoles',      'target_roles')
+  put('targetIndustries', 'target_industries')
+  put('skills',           'skills')
+  put('languages',        'languages')
+  put('defaultPitch',     'default_pitch')
+  return out
+}

@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useProfile } from '@/hooks/useProfile'
+import { ProfileEditorDialog } from '@/components/settings/ProfileEditorDialog'
 import { useUser } from '@/hooks/useUser'
 import { useI18n } from '@/hooks/useI18n'
 import { useToastActions } from '@/hooks/useToast'
@@ -22,10 +23,12 @@ interface SettingsSectionProps {
   icon: React.ElementType
   title: string
   description?: string
+  /** Omit to keep the section read-only (demo mode, or mock mode with no backend). */
+  onEdit?: () => void
   children: React.ReactNode
 }
 
-function SettingsSection({ icon: Icon, title, description, children }: SettingsSectionProps) {
+function SettingsSection({ icon: Icon, title, description, onEdit, children }: SettingsSectionProps) {
   return (
     <Card>
       <div className="flex items-start justify-between mb-4">
@@ -329,6 +332,7 @@ export function SettingsPage() {
   const toast = useToastActions()
   const qc = useQueryClient()
   const isAdmin = useIsAdmin()
+  const [editorOpen, setEditorOpen]     = useState(false)
   const [clearOpen, setClearOpen]       = useState(false)
   const [clearConfirm, setClearConfirm] = useState('')
   const [clearBusy, setClearBusy]       = useState(false)
@@ -359,6 +363,10 @@ export function SettingsPage() {
   // In demo mode: always show the generic demo persona.
   // In real mode: prefer live profile data, fall back to auth email, then generic placeholder.
   const isDemo = dataMode === 'demo'
+  // Editing writes through profilesService, which only persists in Supabase mode.
+  // The demo persona is deliberately fixed, so it stays read-only too.
+  const canEdit = isSupabaseMode() && !isDemo
+  const openEditor = canEdit ? () => setEditorOpen(true) : undefined
   // Real (non-demo) users: prefer live profile data, fall back to empty/placeholder.
   // Never fall back to mockUser for a signed-in real user (see Prompt 4 for editor).
   const NS = '(not set)'
@@ -374,6 +382,7 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
+      <ProfileEditorDialog open={editorOpen} onClose={() => setEditorOpen(false)} profile={profile} />
       <PageHeader title={t('pages.settings.title')} description={t('pages.settings.subtitle')} />
 
       {/* Profile hero */}
@@ -389,7 +398,7 @@ export function SettingsPage() {
             )}
           </div>
           <div className="ms-auto flex gap-2">
-            <Button variant="outline" size="sm" disabled>
+            <Button variant="outline" size="sm" onClick={openEditor} disabled={!canEdit}>
               <Edit2 className="w-3.5 h-3.5" /> {t('pages.settings.editProfile')}
             </Button>
             {isSupabaseMode() && (
@@ -402,7 +411,7 @@ export function SettingsPage() {
       </Card>
 
       <div className="space-y-4">
-        <SettingsSection icon={User} title={t('pages.settings.sections.background.title')} description={t('pages.settings.sections.background.desc')}>
+        <SettingsSection icon={User} title={t('pages.settings.sections.background.title')} description={t('pages.settings.sections.background.desc')} onEdit={openEditor}>
           <Field label="University" value={`${displayUniversity} — Year ${displayYear}`} />
           <Field label="Degree" value={displayDegree} />
           <Field label="Military Service" value={displayUnit ?? '—'} />
@@ -410,12 +419,12 @@ export function SettingsPage() {
           <Field label="Bio" value={displayBio} />
         </SettingsSection>
 
-        <SettingsSection icon={Target} title={t('pages.settings.sections.preferredRoles.title')} description={t('pages.settings.sections.preferredRoles.desc')}>
+        <SettingsSection icon={Target} title={t('pages.settings.sections.preferredRoles.title')} description={t('pages.settings.sections.preferredRoles.desc')} onEdit={openEditor}>
           <Field label="Target Roles" value={isDemo ? mockUser.targetRoles : (profile?.targetRoles?.length ? profile.targetRoles : [])} />
           <Field label="Target Industries" value={isDemo ? mockUser.targetIndustries : (profile?.targetIndustries?.length ? profile.targetIndustries : [])} />
         </SettingsSection>
 
-        <SettingsSection icon={Wrench} title={t('pages.settings.sections.skills.title')} description={t('pages.settings.sections.skills.desc')}>
+        <SettingsSection icon={Wrench} title={t('pages.settings.sections.skills.title')} description={t('pages.settings.sections.skills.desc')} onEdit={openEditor}>
           <div className="flex flex-wrap gap-1.5">
             {displaySkills.map(s => (
               <span key={s} className="text-xs bg-primary-50 text-primary-700 px-2.5 py-1 rounded-full font-medium border border-primary-100 force-ltr">
@@ -425,7 +434,7 @@ export function SettingsPage() {
           </div>
         </SettingsSection>
 
-        <SettingsSection icon={User} title={t('pages.settings.sections.defaultPitch.title')} description={t('pages.settings.sections.defaultPitch.desc')}>
+        <SettingsSection icon={User} title={t('pages.settings.sections.defaultPitch.title')} description={t('pages.settings.sections.defaultPitch.desc')} onEdit={openEditor}>
           <p className="text-sm text-slate-700 leading-relaxed">{displayPitch}</p>
         </SettingsSection>
 
@@ -530,9 +539,6 @@ export function SettingsPage() {
         </div>
       )}
 
-      <p className="text-xs text-center text-slate-400 mt-8">
-        {t('pages.settings.editProfileSoon')}
-      </p>
     </div>
   )
 }

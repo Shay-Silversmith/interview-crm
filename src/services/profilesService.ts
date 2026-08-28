@@ -12,7 +12,7 @@ import type { UserProfile } from '@/types'
 import { mockUser } from '@/data/mock-user'
 import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
-import { mapProfile } from '@/lib/mappers'
+import { mapProfile, toProfileUpdate } from '@/lib/mappers'
 
 const mockImpl = {
   async getProfile(): Promise<UserProfile | null> {
@@ -78,7 +78,7 @@ const supabaseImpl = {
 
     const { data: updated, error } = await sb
       .from('profiles')
-      .update({ ...data, updated_at: new Date().toISOString() })
+      .update({ ...toProfileUpdate(data), updated_at: new Date().toISOString() })
       .eq('id', user.id)
       .select('*')
       .single()
