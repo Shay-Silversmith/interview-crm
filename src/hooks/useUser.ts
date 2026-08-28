@@ -21,6 +21,8 @@ export function useUser(): AuthState & {
   signIn:  (email: string, password: string) => Promise<void>
   signUp:  (email: string, password: string, displayName: string) => Promise<{ needsConfirmation: boolean }>
   signOut: () => Promise<void>
+  resetPassword:  (email: string) => Promise<void>
+  updatePassword: (password: string) => Promise<void>
 } {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -87,5 +89,23 @@ export function useUser(): AuthState & {
     if (error) throw error
   }
 
-  return { ...state, signIn, signUp, signOut }
+  /** Email a password-recovery link. The link lands on /reset-password. */
+  const resetPassword = async (email: string): Promise<void> => {
+    if (!isSupabaseMode()) return
+    const sb = getSupabaseClient()
+    const { error } = await sb.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    if (error) throw error
+  }
+
+  /** Set a new password using the session the recovery link established. */
+  const updatePassword = async (password: string): Promise<void> => {
+    if (!isSupabaseMode()) return
+    const sb = getSupabaseClient()
+    const { error } = await sb.auth.updateUser({ password })
+    if (error) throw error
+  }
+
+  return { ...state, signIn, signUp, signOut, resetPassword, updatePassword }
 }

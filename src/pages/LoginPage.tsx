@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useUser } from '@/hooks/useUser'
 
 type Mode = 'signin' | 'signup'
@@ -195,6 +195,15 @@ export function LoginPage() {
               ? (mode === 'signin' ? 'Signing in…' : 'Creating account…')
               : (mode === 'signin' ? 'Sign in' : 'Create account')}
           </button>
+
+          {/* Password recovery — sign-in only */}
+          {mode === 'signin' && (
+            <p className="text-center text-xs">
+              <Link to="/forgot-password" className="text-slate-500 hover:text-primary-600 hover:underline">
+                Forgot your password?
+              </Link>
+            </p>
+          )}
         </form>
 
         {/* Toggle */}

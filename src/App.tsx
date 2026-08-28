@@ -23,6 +23,8 @@ import { DocumentsPage }       from './pages/DocumentsPage'
 import { PrepPage }            from './pages/PrepPage'
 import { SettingsPage }        from './pages/SettingsPage'
 import { LoginPage }           from './pages/LoginPage'
+import { ForgotPasswordPage }  from './pages/ForgotPasswordPage'
+import { ResetPasswordPage }   from './pages/ResetPasswordPage'
 import { ThemesPreviewPage }   from './pages/ThemesPreviewPage'
 
 // ── Lazily loaded (heavy: AI SDK, calendar date-picker, cmdk panels) ────────
@@ -56,6 +58,8 @@ export default function App() {
             <Routes>
               {/* Public */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* Protected */}
               <Route element={<AuthGuard />}>
