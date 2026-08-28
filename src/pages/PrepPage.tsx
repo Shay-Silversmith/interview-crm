@@ -99,10 +99,6 @@ export function PrepPage() {
         description={t('pages.prep.subtitle')}
         actions={
           <>
-            <Button variant="outline" size="sm" disabled>
-              <Sparkles className="w-4 h-4" />
-              Generate with AI (Phase 7)
-            </Button>
             <Button onClick={() => setAddOpen(true)}>
               <Plus className="w-4 h-4" />
               {t('pages.prep.addAnswer')}

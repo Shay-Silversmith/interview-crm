@@ -84,7 +84,7 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-card p-8 space-y-6">
+      <div className="force-ltr w-full max-w-sm bg-white rounded-2xl shadow-card p-8 space-y-6">
 
         {/* Brand */}
         <div className="text-center">
