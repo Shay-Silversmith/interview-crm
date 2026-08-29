@@ -3,29 +3,28 @@
 // Where the search actually stands.
 //
 // Headline counts are stat tiles, not charts — four numbers do not need axes.
-// Below them, one single-series magnitude bar shows where the live applications
-// are sitting. One hue, light to dark along the pipeline, so depth reads as
-// progress; counts are labelled directly, so no legend is needed.
 //
-// Deliberately NOT shown: stage-to-stage conversion. A closed application only
-// stores its final stage, so how far it got before being rejected is not in this
-// payload — inventing a funnel from it would be a lie.
+// This file used to say a funnel was impossible here, because a closed
+// application stores only its final stage and reading progress off that would
+// be a lie. That objection still stands and PipelineFunnel honours it: it never
+// treats a closing stage as progress. What it uses instead is evidence the
+// original note did not account for — appliedAt, and the interviewStages rounds
+// that actually took place — so a rejected application lands at the furthest
+// milestone it can be PROVEN to have reached.
+//
+// The price is resolution: five provable milestones rather than eight stages.
+// That is the honest ceiling until applications carry a transition history.
 // ---------------------------------------------------------------------------
 
 import { Link } from 'react-router-dom'
 import { STAGE_ORDER } from '@/lib/constants'
+import { PipelineFunnel } from './PipelineFunnel'
 import type { JobApplication } from '@/types'
 import type { ApplicationStage } from '@/lib/enums'
 
 const CLOSED_STAGES: ApplicationStage[] = ['Rejected', 'Accepted', 'Withdrawn']
 /** Everything at or past this index means a human has actually engaged. */
 const ENGAGED_FROM = STAGE_ORDER.indexOf('HR Screen')
-
-/** Bar shade deepens along the pipeline — same hue, light to dark. */
-const SHADES = [
-  'bg-primary-200', 'bg-primary-300', 'bg-primary-400',
-  'bg-primary-500', 'bg-primary-600', 'bg-primary-700',
-]
 
 interface Props {
   applications: JobApplication[]
@@ -37,14 +36,6 @@ export function CycleStats({ applications, upcomingCount }: Props) {
   const active   = applications.filter(a => !isClosed(a))
   const archived = applications.filter(isClosed)
   const engaged  = active.filter(a => STAGE_ORDER.indexOf(a.stage) >= ENGAGED_FROM)
-
-  // Only stages that actually hold something — empty rows tell you nothing.
-  const pipelineStages = STAGE_ORDER
-    .filter(s => !CLOSED_STAGES.includes(s as ApplicationStage))
-    .map(stage => ({ stage, count: active.filter(a => a.stage === stage).length }))
-    .filter(row => row.count > 0)
-
-  const max = Math.max(1, ...pipelineStages.map(r => r.count))
 
   const tiles = [
     { label: 'Active',        value: active.length,   hint: 'in the pipeline',        to: '/applications' },
@@ -77,31 +68,7 @@ export function CycleStats({ applications, upcomingCount }: Props) {
         ))}
       </div>
 
-      {pipelineStages.length > 0 && (
-        <div className="mt-6">
-          <p className="text-2xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-            Where they are now
-          </p>
-          <div className="space-y-2">
-            {pipelineStages.map((row, i) => (
-              <div key={row.stage} className="flex items-center gap-3">
-                <span className="w-32 shrink-0 text-xs text-slate-600 truncate" title={row.stage}>
-                  {row.stage}
-                </span>
-                <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${SHADES[Math.min(i, SHADES.length - 1)]}`}
-                    style={{ width: `${(row.count / max) * 100}%` }}
-                  />
-                </div>
-                <span className="w-6 shrink-0 text-end text-xs font-semibold text-slate-700 tabular-nums">
-                  {row.count}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <PipelineFunnel applications={applications} />
     </div>
   )
 }
