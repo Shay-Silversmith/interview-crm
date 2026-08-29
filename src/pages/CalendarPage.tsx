@@ -31,6 +31,8 @@ interface SyntheticEvent extends CalendarEvent {
   _virtual?: VirtualSource
 }
 
+// Solid fills, used only for the small legend/list dots where the colour is
+// decorative and carries no text.
 const EVENT_TYPE_BG: Record<CalendarEventType, string> = {
   Interview: 'bg-violet-500',
   'Assignment Deadline': 'bg-danger-500',
@@ -38,6 +40,19 @@ const EVENT_TYPE_BG: Record<CalendarEventType, string> = {
   'Follow-up Reminder': 'bg-primary-400',
   'Preparation Session': 'bg-success-400',
   'General Task': 'bg-slate-400',
+}
+
+// Chips inside day cells carry a title, so they cannot use the solid fills:
+// white on amber-500 or emerald-400 lands around 2:1. A tinted background with
+// a same-hue dark label and a solid accent rail keeps the colour coding while
+// the text stays readable — and inverts correctly with the theme tokens.
+const EVENT_TYPE_CHIP: Record<CalendarEventType, string> = {
+  Interview:              'bg-violet-100  text-violet-700  border-violet-500',
+  'Assignment Deadline':  'bg-danger-100  text-danger-700  border-danger-500',
+  'Application Deadline': 'bg-warning-100 text-warning-800 border-warning-500',
+  'Follow-up Reminder':   'bg-primary-100 text-primary-700 border-primary-500',
+  'Preparation Session':  'bg-success-100 text-success-700 border-success-500',
+  'General Task':         'bg-slate-150   text-slate-700   border-slate-400',
 }
 
 // Sunday-first keys matching the dictionary
@@ -103,9 +118,37 @@ export function CalendarPage() {
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const [selectedEvent, setSelectedEvent] = useState<SyntheticEvent | null>(null)
+
+  // Drag-to-reschedule. Only real events move: the synthetic ones are
+  // projections of a Task or an interview round and have to be edited at
+  // their source, so they are never made draggable.
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dropTargetKey, setDropTargetKey] = useState<string | null>(null)
+
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [deleteEvent, setDeleteEvent] = useState<CalendarEvent | null>(null)
+
+  const handleDropOnDay = (ev: React.DragEvent, day: Date, dayKey: string) => {
+    setDropTargetKey(null)
+    setDraggingId(null)
+    // The id travels in the drag payload rather than in React state: state set
+    // during dragstart is not guaranteed to have been committed by the time
+    // drop fires, and dataTransfer is what the drag lifecycle is built on.
+    const id = ev.dataTransfer.getData('text/plain')
+    if (!id) return
+
+    const event = allEvents.find(x => x.id === id)
+    if (!event || event._virtual || !event.startAt) return
+    if (formatDate(parseISO(event.startAt), 'yyyy-MM-dd') === dayKey) return // no-op
+
+    // Move the calendar date, keep the time of day the user already set.
+    const original = parseISO(event.startAt)
+    const moved = new Date(day)
+    moved.setHours(original.getHours(), original.getMinutes(), 0, 0)
+
+    update.mutate({ id, data: { startAt: moved.toISOString() } })
+  }
 
   const days = useMemo(() => getCalendarDays(year, month), [year, month])
 
@@ -216,10 +259,19 @@ export function CalendarPage() {
               </div>
             </div>
             {/* Day headers */}
-            <div className="grid grid-cols-7 border-b border-slate-100">
-              {DAY_KEYS.map(key => (
-                <div key={key} className="py-2 text-center text-xs font-semibold text-slate-400">
-                  {t(`pages.calendar.days.${key}`)}
+            <div className="grid grid-cols-7 border-b border-slate-200 bg-surface-sunken/60">
+              {DAY_KEYS.map((key, i) => (
+                <div
+                  key={key}
+                  className={cn(
+                    'py-2.5 text-center text-2xs sm:text-xs font-semibold uppercase tracking-wider',
+                    // Weekends read one step quieter so the working week stands out.
+                    i === 0 || i === 6 ? 'text-slate-400' : 'text-slate-500',
+                  )}
+                >
+                  {/* Full name where there is room, first letter on narrow screens. */}
+                  <span className="hidden sm:inline">{t(`pages.calendar.days.${key}`)}</span>
+                  <span className="sm:hidden">{t(`pages.calendar.days.${key}`).charAt(0)}</span>
                 </div>
               ))}
             </div>
@@ -233,33 +285,65 @@ export function CalendarPage() {
                 return (
                   <div
                     key={i}
+                    onDragOver={e => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      setDropTargetKey(key)
+                    }}
+                    onDragLeave={() => setDropTargetKey(c => (c === key ? null : c))}
+                    onDrop={e => handleDropOnDay(e, day, key)}
                     className={cn(
-                      'min-h-[80px] p-1.5 border-e border-b border-slate-50',
-                      !isCurrentMonth && 'bg-slate-50/50',
-                      (i + 1) % 7 === 0 && 'border-e-0'
+                      'group/day min-h-[92px] sm:min-h-[112px] p-1.5 border-e border-b border-slate-200/70 transition-colors',
+                      (i + 1) % 7 === 0 && 'border-e-0',
+                      !isCurrentMonth && 'bg-surface-sunken/50',
+                      // Only highlight while a card is actually over this cell.
+                      dropTargetKey === key
+                        ? 'bg-primary-100/70 ring-1 ring-inset ring-primary-400'
+                        : 'hover:bg-slate-50',
                     )}
                   >
                     <div className={cn(
-                      'w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium mb-1',
-                      today ? 'bg-primary-600 text-white' : isCurrentMonth ? 'text-slate-700' : 'text-slate-300'
+                      'w-6 h-6 flex items-center justify-center rounded-full text-xs mb-1.5 transition-colors',
+                      today
+                        ? 'bg-primary-gradient text-white font-bold shadow-sm'
+                        : isCurrentMonth
+                          ? 'font-medium text-slate-700'
+                          : 'font-medium text-slate-400',
                     )}>
                       {day.getDate()}
                     </div>
-                    <div className="space-y-0.5">
-                      {dayEvents.slice(0, 2).map(e => (
-                        <button
-                          key={e.id}
-                          onClick={() => setSelectedEvent(e)}
-                          className={cn(
-                            'w-full text-start text-2xs text-white px-1.5 py-0.5 rounded-md truncate',
-                            EVENT_TYPE_BG[e.type]
-                          )}
-                        >
-                          {e.title}
-                        </button>
-                      ))}
-                      {dayEvents.length > 2 && (
-                        <p className="text-2xs text-slate-400 px-1">+{dayEvents.length - 2}</p>
+                    <div className="space-y-1">
+                      {dayEvents.slice(0, 3).map(e => {
+                        const movable = !e._virtual
+                        return (
+                          <button
+                            key={e.id}
+                            draggable={movable}
+                            onDragStart={ev => {
+                              if (!movable) return
+                              ev.dataTransfer.setData('text/plain', e.id)
+                              ev.dataTransfer.effectAllowed = 'move'
+                              setDraggingId(e.id)
+                            }}
+                            onDragEnd={() => { setDraggingId(null); setDropTargetKey(null) }}
+                            onClick={() => setSelectedEvent(e)}
+                            title={e.title}
+                            className={cn(
+                              'w-full flex text-start text-2xs font-medium px-1.5 py-1 rounded-md truncate',
+                              'border-s-2 transition-all duration-150 hover:brightness-95',
+                              EVENT_TYPE_CHIP[e.type],
+                              movable && 'cursor-grab active:cursor-grabbing',
+                              draggingId === e.id && 'opacity-40',
+                            )}
+                          >
+                            <span className="truncate">{e.title}</span>
+                          </button>
+                        )
+                      })}
+                      {dayEvents.length > 3 && (
+                        <p className="text-2xs font-medium text-slate-500 px-1.5">
+                          +{dayEvents.length - 3} more
+                        </p>
                       )}
                     </div>
                   </div>
