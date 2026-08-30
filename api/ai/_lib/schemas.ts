@@ -230,40 +230,55 @@ export const companyBriefRequestSchema = z.object({
   locale:      localeField,
 })
 
-export const companyBriefResponseSchema = z.object({
+/**
+ * The brief is split across two endpoints, and the split is load-bearing rather
+ * than cosmetic. Deployed functions get about 60 seconds; one grounded call
+ * that searches the web and then writes sixteen fields does not reliably fit.
+ * Two halves, requested in parallel, are two separate invocations — each with
+ * its own clock and half the writing to do — so wall time is the slower of the
+ * two rather than the sum, and a stall in one still leaves the other on screen.
+ *
+ * Half one: what the company is.
+ */
+export const companyProfileResponseSchema = z.object({
   /** One line a candidate could say out loud to show they did the reading. */
-  headline:        z.string(),
-  whatTheyDo:      z.string(),
-  products:        z.array(z.string()),
-  businessModel:   z.string(),
-  customers:       z.string(),
-  scale:           z.string(),
+  headline:      z.string(),
+  whatTheyDo:    z.string(),
+  products:      z.array(z.string()).default([]),
+  businessModel: z.string().default(''),
+  customers:     z.string().default(''),
+  scale:         z.string().default(''),
   /** Dated items. Undated "recent news" is how a stale fact becomes a gaffe. */
   recentNews: z.array(z.object({
-    date:    z.string(),
-    item:    z.string(),
+    date:         z.string(),
+    item:         z.string(),
     whyItMatters: z.string().default(''),
   })).default([]),
-  competitors:     z.array(z.string()).default([]),
-  culture:         z.array(z.string()).default([]),
-  /** What the hiring loop actually looks like, per public accounts. */
-  interviewProcess: z.array(z.string()).default([]),
+  competitors:   z.array(z.string()).default([]),
   /** Israeli site / team presence — the difference between HQ and the office. */
-  localPresence:   z.string().nullable().optional(),
-  techStack:       z.array(z.string()).default([]),
-  /** Lines to work into answers that prove genuine research. */
-  talkingPoints:   z.array(z.string()).default([]),
-  questionsToAsk:  z.array(z.string()).default([]),
-  /** Public criticism worth knowing about, stated neutrally. */
-  watchOuts:       z.array(z.string()).default([]),
-  /** Why this candidate specifically fits — omitted when no CV was sent. */
-  whyYouFit:       z.array(z.string()).default([]),
+  localPresence: z.string().nullable().optional(),
+  techStack:     z.array(z.string()).default([]),
   /** Set when the name was ambiguous and a guess had to be made. */
-  disambiguation:  z.string().nullable().optional(),
+  disambiguation: z.string().nullable().optional(),
 })
 
-export type CompanyBriefRequest  = z.infer<typeof companyBriefRequestSchema>
-export type CompanyBriefResponse = z.infer<typeof companyBriefResponseSchema>
+/** Half two: what to do with it in the room. */
+export const companyInterviewResponseSchema = z.object({
+  /** What the hiring loop actually looks like, per public accounts. */
+  interviewProcess: z.array(z.string()).default([]),
+  culture:          z.array(z.string()).default([]),
+  /** Lines to work into answers that prove genuine research. */
+  talkingPoints:    z.array(z.string()).default([]),
+  questionsToAsk:   z.array(z.string()).default([]),
+  /** Public criticism worth knowing about, stated neutrally. */
+  watchOuts:        z.array(z.string()).default([]),
+  /** Why this candidate specifically fits — empty when no CV was sent. */
+  whyYouFit:        z.array(z.string()).default([]),
+})
+
+export type CompanyBriefRequest     = z.infer<typeof companyBriefRequestSchema>
+export type CompanyProfileResponse  = z.infer<typeof companyProfileResponseSchema>
+export type CompanyInterviewResponse = z.infer<typeof companyInterviewResponseSchema>
 
 // ---------------------------------------------------------------------------
 // Interview debrief — unordered notes in, an organised record out.

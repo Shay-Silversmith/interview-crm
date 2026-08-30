@@ -229,24 +229,32 @@ export interface NewsItem {
   whyItMatters: string
 }
 
-export interface CompanyBriefResponse {
-  headline:         string
-  whatTheyDo:       string
-  products:         string[]
-  businessModel:    string
-  customers:        string
-  scale:            string
-  recentNews:       NewsItem[]
-  competitors:      string[]
-  culture:          string[]
+/**
+ * The brief arrives as two halves fetched in parallel — see
+ * companyProfileResponseSchema in the API for why. The merged shape below is
+ * what the panel renders; either half can be null when its request failed.
+ */
+export interface CompanyProfileResponse {
+  headline:       string
+  whatTheyDo:     string
+  products:       string[]
+  businessModel:  string
+  customers:      string
+  scale:          string
+  recentNews:     NewsItem[]
+  competitors:    string[]
+  localPresence:  string | null
+  techStack:      string[]
+  disambiguation: string | null
+}
+
+export interface CompanyInterviewResponse {
   interviewProcess: string[]
-  localPresence:    string | null
-  techStack:        string[]
+  culture:          string[]
   talkingPoints:    string[]
   questionsToAsk:   string[]
   watchOuts:        string[]
   whyYouFit:        string[]
-  disambiguation:   string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -455,9 +463,14 @@ async function post<TReq, TRes>(
 // ---------------------------------------------------------------------------
 
 export const aiClientService = {
-  // Research-backed: these search the web before writing.
-  companyBrief:   (req: CompanyBriefRequest) =>
-    post<CompanyBriefRequest, CompanyBriefResponse>('/api/ai/company-brief', req, TIMEOUT_RESEARCH_MS),
+  // Research-backed: these search the web before writing. The company briefing
+  // is two halves on purpose — each is its own function invocation with its own
+  // timeout, and they are requested in parallel.
+  companyProfile: (req: CompanyBriefRequest) =>
+    post<CompanyBriefRequest, CompanyProfileResponse>('/api/ai/company-brief', req, TIMEOUT_RESEARCH_MS),
+
+  companyInterview: (req: CompanyBriefRequest) =>
+    post<CompanyBriefRequest, CompanyInterviewResponse>('/api/ai/company-interview', req, TIMEOUT_RESEARCH_MS),
 
   prepPack:       (req: PrepPackRequest) =>
     post<PrepPackRequest, PrepPackResponse>('/api/ai/prep-pack', req, TIMEOUT_RESEARCH_MS),

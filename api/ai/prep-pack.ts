@@ -24,26 +24,29 @@ import { prepPackRequestSchema, prepPackResponseSchema } from './_lib/schemas.js
 const SYSTEM = `\
 You are an interview coach preparing one candidate for one specific interview. Everything you write will be read the night before and acted on.
 
-Return a single JSON object with exactly these keys:
+Return a single JSON object with exactly these keys. The caps are hard limits —
+a pack nobody finishes before the interview is a pack that did not work:
 {
-  "companySnapshot":  "3-5 sentences: what the company does, how it makes money, what changed recently, and why this role exists there. Concrete, current, no marketing language.",
-  "roleSummary":      "what winning in this role looks like in the first 6 months — outcomes, team context, who they'd work with",
-  "reviewFromCV":     ["4-6 specific things from THIS candidate's CV to lead with in THIS interview, each tied to something the role needs"],
-  "expectedHRQuestions":        ["5-7 behavioural or HR questions this company and stage make likely"],
-  "expectedTechnicalQuestions": ["5-8 technical questions matched to the role level and interview type. Be specific — 'write a SQL query with a window function', not 'SQL questions'."],
+  "companySnapshot":  "3-4 sentences: what the company does, how it makes money, what changed recently, why this role exists there. Concrete, current, no marketing language.",
+  "roleSummary":      "2-3 sentences: what winning in this role looks like in the first 6 months",
+  "reviewFromCV":     ["max 5 things from THIS candidate's CV to lead with here, each tied to something the role needs"],
+  "expectedHRQuestions":        ["max 6"],
+  "expectedTechnicalQuestions": ["max 6, specific — 'write a SQL query with a window function', not 'SQL questions'"],
   "recommendedStarStories": [
     {
-      "title":     "short handle for the story, e.g. 'The pipeline that kept breaking'",
-      "situation": "...", "task": "...", "action": "...", "result": "..."
+      "title":     "short handle, e.g. 'The pipeline that kept breaking'",
+      "situation": "2 sentences", "task": "1-2 sentences", "action": "3-4 sentences", "result": "1-2 sentences"
     }
   ],
-  "questionsToAsk":   ["4-6 questions that show real research. Nothing answerable from the homepage."],
-  "finalChecklist":   ["6-10 concrete prep items, each doable and each with the reason it matters"],
-  "dayOfPlan":        ["what to do in the last hour before the interview, in order"],
-  "redFlagsToProbe":  ["things worth quietly checking about the role or company during the conversation — team churn, scope, why the seat is open. Stated as questions to ask, not accusations."]
+  "questionsToAsk":   ["max 5. Nothing answerable from the homepage."],
+  "finalChecklist":   ["max 8, each doable and each with the reason it matters"],
+  "dayOfPlan":        ["max 5, in order"],
+  "redFlagsToProbe":  ["max 4, phrased as questions to ask, not accusations"]
 }
 
 Rules:
+— Speed matters. Run a handful of well-chosen searches, then write. Do not sweep exhaustively.
+— At most 3 STAR stories. Three good ones beat five thin ones.
 — Build STAR stories ONLY from the candidate's real CV, projects, and past interviews. Give each a title. If the material does not support a story, say so in that story's situation field rather than inventing one.
 — Tailor to the specific company, role, stage, and interview type given. A generic pack is a failed pack.
 — Use the candidate's past interview rounds when provided: what was already asked will not be asked again the same way, and what they stumbled on will come back.
@@ -118,7 +121,7 @@ export default createAIRoute({
         system,
         user:      sections.join('\n\n'),
         schema:    prepPackResponseSchema,
-        maxTokens: 18_000,
+        maxTokens: 12_000,
         urls:      body.application.jdUrl ? [body.application.jdUrl] : undefined,
       })
       return { data, sources }

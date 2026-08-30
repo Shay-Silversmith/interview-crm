@@ -703,6 +703,11 @@ const en = {
       loadingLabel: 'Searching the web…',
       loadingSub:   'Real research takes 20-40 seconds.',
       save:         'Save to my records',
+      savedPrefix:  'Saved research on',
+      saveFailed:   'Could not save the brief',
+      partialProfile:   'The company-profile half did not come back, so only the interview section is shown.',
+      partialInterview: 'The interview-intel half did not come back, so only the company profile is shown.',
+      retryMissing:     'Run it again',
       s: {
         whatTheyDo:       'What they do',
         products:         'Products',

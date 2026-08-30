@@ -689,6 +689,11 @@ const he: Translations = {
       loadingLabel: 'מחפש באינטרנט…',
       loadingSub:   'מחקר אמיתי לוקח 20-40 שניות.',
       save:         'שמור אצלי',
+      savedPrefix:  'נשמר מחקר על',
+      saveFailed:   'לא הצלחתי לשמור את התדריך',
+      partialProfile:   'החצי של פרופיל החברה לא חזר, אז מוצג רק החלק של הראיון.',
+      partialInterview: 'החצי של מודיעין הראיון לא חזר, אז מוצג רק פרופיל החברה.',
+      retryMissing:     'הרץ שוב',
       s: {
         whatTheyDo:       'מה הם עושים',
         products:         'מוצרים',

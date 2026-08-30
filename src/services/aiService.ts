@@ -29,7 +29,8 @@ import {
   type CompanyFillRequest,
   type CompanyFillResponse,
   type CompanyBriefRequest,
-  type CompanyBriefResponse,
+  type CompanyProfileResponse,
+  type CompanyInterviewResponse,
   type InterviewDebriefRequest,
   type InterviewDebriefResponse,
   type StarAnswersRequest,
@@ -207,6 +208,63 @@ const supabaseCRUD = {
 const crudImpl = isSupabaseMode() ? supabaseCRUD : mockCRUD
 
 // ---------------------------------------------------------------------------
+// Company briefing — two halves, in parallel
+//
+// Split because a deployed function gets about 60 seconds and one grounded call
+// that searches the web and then writes the whole brief does not reliably fit.
+// Two requests are two invocations, each with its own clock, and running them
+// together means the wait is the slower half rather than the sum.
+//
+// Either half failing is not fatal. Losing the hiring-loop section is a worse
+// brief; losing the whole brief the night before an interview is a worse
+// evening. Whatever came back gets rendered, with the gap named.
+// ---------------------------------------------------------------------------
+
+export interface CompanyBrief {
+  profile:   CompanyProfileResponse | null
+  interview: CompanyInterviewResponse | null
+  /** Names the half that failed, when exactly one did. */
+  partial?:  { half: 'profile' | 'interview'; message: string }
+}
+
+async function researchCompany(req: CompanyBriefRequest): Promise<AIRun<CompanyBrief>> {
+  const [profileRun, interviewRun] = await Promise.all([
+    run(() => aiClientService.companyProfile(req)),
+    run(() => aiClientService.companyInterview(req)),
+  ])
+
+  // Both down means the cause is shared — no key, AI off, no connection — so
+  // report that cause rather than inventing a combined one.
+  if (!profileRun.ok && !interviewRun.ok) {
+    return profileRun
+  }
+
+  const sources = [
+    ...(profileRun.ok   ? profileRun.sources   ?? [] : []),
+    ...(interviewRun.ok ? interviewRun.sources ?? [] : []),
+  ]
+  const seen = new Set<string>()
+  const merged = sources.filter(s => {
+    if (!s.uri || seen.has(s.uri)) return false
+    seen.add(s.uri)
+    return true
+  })
+
+  return {
+    ok:   true,
+    data: {
+      profile:   profileRun.ok   ? profileRun.data   : null,
+      interview: interviewRun.ok ? interviewRun.data : null,
+      partial:
+        !profileRun.ok   ? { half: 'profile',   message: profileRun.message } :
+        !interviewRun.ok ? { half: 'interview', message: interviewRun.message } :
+        undefined,
+    },
+    sources: merged,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Saving generated output
 // ---------------------------------------------------------------------------
 
@@ -257,8 +315,7 @@ export const aiService = {
   fillCompany: (req: CompanyFillRequest): Promise<AIRun<CompanyFillResponse>> =>
     run(() => aiClientService.fillCompany(req)),
 
-  companyBrief: (req: CompanyBriefRequest): Promise<AIRun<CompanyBriefResponse>> =>
-    run(() => aiClientService.companyBrief(req)),
+  companyBrief: researchCompany,
 
   interviewDebrief: (req: InterviewDebriefRequest): Promise<AIRun<InterviewDebriefResponse>> =>
     run(() => aiClientService.interviewDebrief(req)),
