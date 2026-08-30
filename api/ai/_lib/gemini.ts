@@ -291,6 +291,21 @@ function isToolRejection(err: unknown): boolean {
   )
 }
 
+/**
+ * Research first, structure second — deliberately two calls.
+ *
+ * The API forbids responseMimeType='application/json' alongside tools, so the
+ * earlier version asked a search-driven model for a strict multi-field JSON
+ * object in prose mode and hoped. It kept coming back finished-with-no-text:
+ * grounded models are dependable at writing a report and fragile at emitting a
+ * rigid schema they were only asked for in words, and no amount of adjusting
+ * the thinking budget or the token ceiling changed that.
+ *
+ * So the search step is now asked for exactly what it is good at — prose — and
+ * a second, cheap, ungrounded call turns that into the schema with JSON mode
+ * actually switched on. The second call adds no facts; it only reshapes. Two
+ * short reliable calls beat one long fragile one.
+ */
 export async function callGeminiGrounded<T>(
   opts: CallGeminiGroundedOptions<T>,
 ): Promise<GroundedResult<T>> {
@@ -300,17 +315,28 @@ export async function callGeminiGrounded<T>(
   // or careers-site job posting — instead of guessing from the URL slug.
   const wantsUrlContext = !!opts.urls && opts.urls.length > 0
 
+  // The endpoint's system prompt describes the JSON it ultimately wants. For
+  // the research pass that instruction is actively harmful, so it is overridden
+  // here: cover the same ground, but write it as notes.
+  const researchSystem =
+    `${opts.system}\n\n` +
+    'IMPORTANT OVERRIDE FOR THIS STEP: do NOT return JSON. Research the request using ' +
+    'Google Search, then write your findings as plain prose notes under short headings — ' +
+    'one heading per field named above, in the same order, using the field name as the ' +
+    'heading. Include every fact you would have put in each field, and keep the length ' +
+    'caps described above. A separate step converts your notes into JSON, so formatting ' +
+    'does not matter here; completeness and accuracy do.'
+
   const send = (tools: object[]) =>
     ai.models.generateContent({
       model:    opts.model ?? DEFAULT_MODEL,
       contents: [{ role: 'user', parts: [{ text: opts.user ?? '' }] }],
       config: {
-        systemInstruction: opts.system,
-        maxOutputTokens:   opts.maxTokens,
-        // Dynamic by default — see DYNAMIC_THINKING. A fixed budget here is
-        // what produced STOP-with-no-text on the research tools.
-        thinkingConfig:    { thinkingBudget: opts.thinkingBudget ?? DYNAMIC_THINKING },
+        systemInstruction: researchSystem,
         tools,
+        // No maxOutputTokens and no thinkingConfig here on purpose. Both were
+        // implicated in the empty responses, and the prompt's own length caps
+        // bound the output better than a token ceiling does.
       },
     })
 
@@ -331,17 +357,13 @@ export async function callGeminiGrounded<T>(
 
   let response = await attempt()
 
-  // An empty body with a clean finishReason is a transient fault in the
-  // search-and-answer loop, not a refusal — the same request usually succeeds
-  // on the next try. Retrying once here is far cheaper than handing the user a
-  // failure for a question the model was willing to answer.
   if (!(response.text ?? '').trim()) {
     const finish = response.candidates?.[0]?.finishReason
-    console.warn(`[gemini] grounded call returned no text (${finish ?? 'no candidate'}); retrying once`)
+    console.warn(`[gemini] grounded research returned no text (${finish ?? 'no candidate'}); retrying once`)
     response = await attempt()
   }
 
-  const text      = response.text ?? ''
+  const research  = response.text ?? ''
   const candidate = response.candidates?.[0]
 
   const chunks = candidate?.groundingMetadata?.groundingChunks ?? []
@@ -354,29 +376,26 @@ export async function callGeminiGrounded<T>(
       return true
     })
 
-  if (!text.trim()) {
+  if (!research.trim()) {
     throw new GeminiEmptyError(String(candidate?.finishReason ?? 'no candidates'))
   }
 
-  let issues = 'the reply was not a JSON object'
-  try {
-    const parsed = opts.schema.safeParse(parseJSON(text))
-    if (parsed.success) return { data: parsed.data, sources }
-    issues = parsed.error.issues.map(i => `• ${i.path.join('.')}: ${i.message}`).join('\n')
-  } catch {
-    /* fall through to the repair pass */
-  }
-
-  const repaired = await callGemini({
+  // Structuring pass: JSON mode on, no tools, no thinking. This is a
+  // transcription job, and treating it as one keeps it fast and reliable.
+  const data = await callGemini({
     apiKey: opts.apiKey,
     system: opts.system,
     user:
-      'Reformat the research below into the required JSON object. Do not add facts that are not present in it.\n\n' +
-      `Validation issues to fix:\n${issues}\n\nResearch:\n${text}`,
+      'Convert the research notes below into the required JSON object.\n\n' +
+      'Rules for this step: use only what the notes contain. Do not add, infer, or ' +
+      'embellish any fact. If the notes do not cover a field, use an empty list, an ' +
+      'empty string, or null as the schema allows.\n\n' +
+      `RESEARCH NOTES:\n${research}`,
     schema:         opts.schema,
     maxTokens:      opts.maxTokens,
     model:          opts.model,
     thinkingBudget: NO_THINKING,
   })
-  return { data: repaired, sources }
+
+  return { data, sources }
 }
