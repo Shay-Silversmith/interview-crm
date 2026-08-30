@@ -581,7 +581,7 @@ const he: Translations = {
       addCompany:     'הוסף חברה',
       addCvVersion:   'הוסף גרסת קו״ח',
       addDocument:    'הוסף מסמך',
-      addAnswer:      'הוסף תשובה',
+      addAnswer:      'הוסף שאלה',
     },
     options: {
       notSpecified:  'לא צוין',

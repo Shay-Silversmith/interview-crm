@@ -582,7 +582,7 @@ const en = {
       addCompany:     'Add company',
       addCvVersion:   'Add CV version',
       addDocument:    'Add document',
-      addAnswer:      'Add answer',
+      addAnswer:      'Add question',
     },
     options: {
       notSpecified:  'Not specified',
