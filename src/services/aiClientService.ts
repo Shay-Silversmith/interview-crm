@@ -146,17 +146,22 @@ export interface PrepPackRequest {
   locale?:        AILocale
 }
 
-export interface PrepPackResponse {
-  companySnapshot:            string
+/** Half one: the web's view of the company and its hiring loop. */
+export interface PrepResearchResponse {
+  companySnapshot:     string
+  expectedHRQuestions: string[]
+  questionsToAsk:      string[]
+  redFlagsToProbe:     string[]
+}
+
+/** Half two: what this candidate should say, from their own material. */
+export interface PrepPlanResponse {
   roleSummary:                string
   reviewFromCV:               string[]
-  expectedHRQuestions:        string[]
   expectedTechnicalQuestions: string[]
   recommendedStarStories:     StarStory[]
-  questionsToAsk:             string[]
   finalChecklist:             string[]
   dayOfPlan:                  string[]
-  redFlagsToProbe:            string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -472,8 +477,13 @@ export const aiClientService = {
   companyInterview: (req: CompanyBriefRequest) =>
     post<CompanyBriefRequest, CompanyInterviewResponse>('/api/ai/company-interview', req, TIMEOUT_RESEARCH_MS),
 
-  prepPack:       (req: PrepPackRequest) =>
-    post<PrepPackRequest, PrepPackResponse>('/api/ai/prep-pack', req, TIMEOUT_RESEARCH_MS),
+  // The prep pack is likewise two halves: one that searches, one that only
+  // needs the CV already in the request and so returns quickly.
+  prepResearch:   (req: PrepPackRequest) =>
+    post<PrepPackRequest, PrepResearchResponse>('/api/ai/prep-pack', req, TIMEOUT_RESEARCH_MS),
+
+  prepPlan:       (req: PrepPackRequest) =>
+    post<PrepPackRequest, PrepPlanResponse>('/api/ai/prep-plan', req, TIMEOUT_QUICK_MS),
 
   fillCompany:    (req: CompanyFillRequest) =>
     post<CompanyFillRequest, CompanyFillResponse>('/api/ai/company-fill', req, TIMEOUT_RESEARCH_MS),

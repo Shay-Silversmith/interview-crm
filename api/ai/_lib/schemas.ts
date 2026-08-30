@@ -137,23 +137,37 @@ export const prepPackRequestSchema = z.object({
   locale:         localeField,
 })
 
-export const prepPackResponseSchema = z.object({
-  companySnapshot:            z.string(),
-  roleSummary:                z.string(),
-  reviewFromCV:               z.array(z.string()),
-  expectedHRQuestions:        z.array(z.string()),
-  expectedTechnicalQuestions: z.array(z.string()),
-  recommendedStarStories:     z.array(starStorySchema),
-  questionsToAsk:             z.array(z.string()),
-  /** Concrete study items, each with a reason, so the checklist is arguable. */
-  finalChecklist:             z.array(z.string()),
-  /** What to do with the last hour before the call. */
-  dayOfPlan:                  z.array(z.string()).default([]),
-  redFlagsToProbe:            z.array(z.string()).default([]),
+/**
+ * Split for the same reason as the company briefing, along the seam that was
+ * already there: half of a prep pack needs the live web and half needs only the
+ * candidate's CV and the job description. Running them as two parallel requests
+ * gives each its own function timeout, and the CV half — which needs no
+ * searching — comes back quickly regardless of how the research half fares.
+ *
+ * Half one: what the web says about the company and its loop.
+ */
+export const prepResearchResponseSchema = z.object({
+  companySnapshot:     z.string(),
+  expectedHRQuestions: z.array(z.string()).default([]),
+  questionsToAsk:      z.array(z.string()).default([]),
+  redFlagsToProbe:     z.array(z.string()).default([]),
 })
 
-export type PrepPackRequest  = z.infer<typeof prepPackRequestSchema>
-export type PrepPackResponse = z.infer<typeof prepPackResponseSchema>
+/** Half two: what this candidate should say, from their own material. */
+export const prepPlanResponseSchema = z.object({
+  roleSummary:                z.string(),
+  reviewFromCV:               z.array(z.string()).default([]),
+  expectedTechnicalQuestions: z.array(z.string()).default([]),
+  recommendedStarStories:     z.array(starStorySchema).default([]),
+  /** Concrete study items, each with a reason, so the checklist is arguable. */
+  finalChecklist:             z.array(z.string()).default([]),
+  /** What to do with the last hour before the call. */
+  dayOfPlan:                  z.array(z.string()).default([]),
+})
+
+export type PrepPackRequest      = z.infer<typeof prepPackRequestSchema>
+export type PrepResearchResponse = z.infer<typeof prepResearchResponseSchema>
+export type PrepPlanResponse     = z.infer<typeof prepPlanResponseSchema>
 
 // ---------------------------------------------------------------------------
 // Follow-up

@@ -23,7 +23,8 @@ import {
   type JDParserRequest,
   type JDParserResponse,
   type PrepPackRequest,
-  type PrepPackResponse,
+  type PrepResearchResponse,
+  type PrepPlanResponse,
   type FollowUpRequest,
   type FollowUpResponse,
   type CompanyFillRequest,
@@ -265,6 +266,43 @@ async function researchCompany(req: CompanyBriefRequest): Promise<AIRun<CompanyB
 }
 
 // ---------------------------------------------------------------------------
+// Prep pack — two halves, in parallel, for the same reason as the briefing.
+//
+// The seam here is natural: one half needs the live web, the other needs only
+// the CV and job description already in the request. The second returns in
+// seconds no matter how the research half fares, so a slow or failed search
+// no longer costs the candidate their STAR stories and checklist.
+// ---------------------------------------------------------------------------
+
+export interface PrepPack {
+  research: PrepResearchResponse | null
+  plan:     PrepPlanResponse | null
+  partial?: { half: 'research' | 'plan'; message: string }
+}
+
+async function buildPrepPack(req: PrepPackRequest): Promise<AIRun<PrepPack>> {
+  const [researchRun, planRun] = await Promise.all([
+    run(() => aiClientService.prepResearch(req)),
+    run(() => aiClientService.prepPlan(req)),
+  ])
+
+  if (!researchRun.ok && !planRun.ok) return researchRun
+
+  return {
+    ok:   true,
+    data: {
+      research: researchRun.ok ? researchRun.data : null,
+      plan:     planRun.ok     ? planRun.data     : null,
+      partial:
+        !researchRun.ok ? { half: 'research', message: researchRun.message } :
+        !planRun.ok     ? { half: 'plan',     message: planRun.message } :
+        undefined,
+    },
+    sources: researchRun.ok ? researchRun.sources : undefined,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Saving generated output
 // ---------------------------------------------------------------------------
 
@@ -306,8 +344,7 @@ export const aiService = {
   parseJD:  (req: JDParserRequest): Promise<AIRun<JDParserResponse>> =>
     run(() => aiClientService.parseJD(req)),
 
-  generatePrepPack: (req: PrepPackRequest): Promise<AIRun<PrepPackResponse>> =>
-    run(() => aiClientService.prepPack(req)),
+  generatePrepPack: buildPrepPack,
 
   generateFollowUps: (req: FollowUpRequest): Promise<AIRun<FollowUpResponse>> =>
     run(() => aiClientService.followUp(req)),
@@ -331,6 +368,6 @@ export const aiService = {
 
   // Persistence
   saveSummary,
-  savePrepPack: (applicationId: string, data: PrepPackResponse) =>
+  savePrepPack: (applicationId: string, data: object) =>
     saveSummary('Prepare Me', data, { applicationId }),
 }

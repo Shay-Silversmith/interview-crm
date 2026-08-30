@@ -9,7 +9,7 @@
 // going in, so a thin pack has a visible cause.
 // ---------------------------------------------------------------------------
 import { useState } from 'react'
-import { Sparkles, Brain, Save, Check, X } from 'lucide-react'
+import { Sparkles, Brain, Save, Check, X, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { useMockStore } from '@/hooks/useMockStore'
@@ -19,7 +19,7 @@ import { useToastActions } from '@/hooks/useToast'
 import { useI18n } from '@/hooks/useI18n'
 import { applicationsService } from '@/services/applicationsService'
 import { companiesService } from '@/services/companiesService'
-import { aiService, type AIRun } from '@/services/aiService'
+import { aiService, type AIRun, type PrepPack } from '@/services/aiService'
 import { AppSelector } from './AppSelector'
 import { AIFailureNotice } from './AIFailureNotice'
 import {
@@ -27,7 +27,7 @@ import {
   PanelEmpty, PanelLoading, ToolIntro,
 } from './ResultBlocks'
 import { cn } from '@/lib/cn'
-import type { PrepPackResponse, GroundingSource } from '@/services/aiClientService'
+import type { GroundingSource } from '@/services/aiClientService'
 
 const INTERVIEW_TYPES = [
   'HR Screen',
@@ -43,29 +43,30 @@ const INTERVIEW_TYPES = [
 type RunState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'done';  data: PrepPackResponse; sources?: GroundingSource[] }
+  | { status: 'done';  data: PrepPack; sources?: GroundingSource[] }
   | { status: 'error'; run: Extract<AIRun<never>, { ok: false }> }
 
-function toPlainText(d: PrepPackResponse, title: string): string {
+function toPlainText(pack: PrepPack, title: string): string {
+  const { research: r, plan: p } = pack
   const block = (h: string, items?: string[]) =>
     items && items.length ? `## ${h}\n${items.map(i => `• ${i}`).join('\n')}\n` : ''
 
   return [
     `# ${title}`,
-    `## Company\n${d.companySnapshot}\n`,
-    `## The role\n${d.roleSummary}\n`,
-    block('Lead with this from your CV', d.reviewFromCV),
-    block('Expected HR questions', d.expectedHRQuestions),
-    block('Expected technical questions', d.expectedTechnicalQuestions),
-    d.recommendedStarStories?.length
-      ? `## STAR stories\n${d.recommendedStarStories.map(s =>
+    r?.companySnapshot ? `## Company\n${r.companySnapshot}\n` : '',
+    p?.roleSummary     ? `## The role\n${p.roleSummary}\n` : '',
+    block('Lead with this from your CV', p?.reviewFromCV),
+    block('Expected HR questions', r?.expectedHRQuestions),
+    block('Expected technical questions', p?.expectedTechnicalQuestions),
+    p?.recommendedStarStories?.length
+      ? `## STAR stories\n${p.recommendedStarStories.map(s =>
           `### ${s.title || 'Story'}\nS: ${s.situation}\nT: ${s.task}\nA: ${s.action}\nR: ${s.result}`,
         ).join('\n\n')}\n`
       : '',
-    block('Questions to ask', d.questionsToAsk),
-    block('Things to probe', d.redFlagsToProbe),
-    block('Checklist', d.finalChecklist),
-    block('Day of', d.dayOfPlan),
+    block('Questions to ask', r?.questionsToAsk),
+    block('Things to probe', r?.redFlagsToProbe),
+    block('Checklist', p?.finalChecklist),
+    block('Day of', p?.dayOfPlan),
   ].filter(Boolean).join('\n')
 }
 
@@ -150,7 +151,12 @@ export function PrepPackPanel() {
     if (state.status !== 'done' || !selectedAppId) return
     setSaving(true)
     try {
-      await aiService.savePrepPack(selectedAppId, state.data)
+      // Flatten the two halves back into one record — the split is a transport
+      // detail, and a saved pack should not carry it.
+      await aiService.savePrepPack(selectedAppId, {
+        ...(state.data.research ?? {}),
+        ...(state.data.plan ?? {}),
+      })
       toast.success(
         t('ai.toasts.savedPrepPack')
           .replace('{{role}}', selectedApp?.roleName ?? '')
@@ -291,22 +297,42 @@ export function PrepPackPanel() {
               />
             </div>
 
+            {state.data.partial && (
+              <div className="flex items-start gap-2 rounded-lg border border-warning-200 bg-warning-50 px-3 py-2 text-xs text-warning-900">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                <div className="space-y-1">
+                  <p>
+                    {state.data.partial.half === 'research'
+                      ? t('ai.prepPack.partialResearch')
+                      : t('ai.prepPack.partialPlan')}
+                  </p>
+                  <button onClick={handleGenerate} className="font-medium underline hover:no-underline">
+                    {t('ai.prepPack.retryMissing')}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex-1 overflow-auto space-y-4 pe-1">
-              <Section title={t('ai.prepPack.labels.companySnapshot')}>
-                <Prose>{state.data.companySnapshot}</Prose>
-              </Section>
-              <Section title={t('ai.prepPack.labels.roleSummary')}>
-                <Prose>{state.data.roleSummary}</Prose>
-              </Section>
+              {state.data.research?.companySnapshot && (
+                <Section title={t('ai.prepPack.labels.companySnapshot')}>
+                  <Prose>{state.data.research.companySnapshot}</Prose>
+                </Section>
+              )}
+              {state.data.plan?.roleSummary && (
+                <Section title={t('ai.prepPack.labels.roleSummary')}>
+                  <Prose>{state.data.plan.roleSummary}</Prose>
+                </Section>
+              )}
 
-              <BulletList title={t('ai.prepPack.labels.reviewFromCV')} items={state.data.reviewFromCV} />
-              <BulletList title={t('ai.prepPack.labels.expectedHRQuestions')} items={state.data.expectedHRQuestions} />
-              <BulletList title={t('ai.prepPack.labels.expectedTechnicalQuestions')} items={state.data.expectedTechnicalQuestions} />
+              <BulletList title={t('ai.prepPack.labels.reviewFromCV')} items={state.data.plan?.reviewFromCV} />
+              <BulletList title={t('ai.prepPack.labels.expectedHRQuestions')} items={state.data.research?.expectedHRQuestions} />
+              <BulletList title={t('ai.prepPack.labels.expectedTechnicalQuestions')} items={state.data.plan?.expectedTechnicalQuestions} />
 
-              {state.data.recommendedStarStories?.length > 0 && (
+              {(state.data.plan?.recommendedStarStories?.length ?? 0) > 0 && (
                 <Section title={t('ai.prepPack.labels.recommendedStarStories')}>
                   <div className="space-y-2">
-                    {state.data.recommendedStarStories.map((s, i) => (
+                    {state.data.plan!.recommendedStarStories.map((s, i) => (
                       <div key={i} className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2.5">
                         {s.title && (
                           <p dir="auto" className="text-xs font-semibold text-slate-800 mb-1.5">{s.title}</p>
@@ -324,10 +350,10 @@ export function PrepPackPanel() {
                 </Section>
               )}
 
-              <BulletList title={t('ai.prepPack.labels.questionsToAsk')} items={state.data.questionsToAsk} />
-              <BulletList title={t('ai.prepPack.labels.redFlags')} items={state.data.redFlagsToProbe} />
-              <BulletList title={t('ai.prepPack.labels.finalChecklist')} items={state.data.finalChecklist} />
-              <BulletList title={t('ai.prepPack.labels.dayOfPlan')} items={state.data.dayOfPlan} ordered />
+              <BulletList title={t('ai.prepPack.labels.questionsToAsk')} items={state.data.research?.questionsToAsk} />
+              <BulletList title={t('ai.prepPack.labels.redFlags')} items={state.data.research?.redFlagsToProbe} />
+              <BulletList title={t('ai.prepPack.labels.finalChecklist')} items={state.data.plan?.finalChecklist} />
+              <BulletList title={t('ai.prepPack.labels.dayOfPlan')} items={state.data.plan?.dayOfPlan} ordered />
 
               <SourceList sources={state.sources} />
             </div>

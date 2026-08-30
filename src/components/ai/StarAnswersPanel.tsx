@@ -43,10 +43,10 @@ function answerToText(a: StarAnswer): string {
 export function StarAnswersPanel() {
   const toast = useToastActions()
   const { t, locale } = useI18n()
-  const { candidate, activeCV } = useCandidate()
   const { data: applications } = useMockStore(() => applicationsService.list())
 
   const [selectedAppId, setSelectedAppId] = useState('')
+  const [cvOverride,    setCvOverride]    = useState('')
   const [role,          setRole]          = useState('')
   const [company,       setCompany]       = useState('')
   const [question,      setQuestion]      = useState('')
@@ -58,8 +58,24 @@ export function StarAnswersPanel() {
 
   const selectedApp = applications?.find(a => a.id === selectedAppId)
 
+  // Which CV the stories get built from, most specific first: an explicit
+  // choice, then the CV actually submitted with this application, then the
+  // active one. Without the middle step the tool silently wrote answers from
+  // whichever CV happened to be flagged active — a different role's CV — which
+  // is worse than no answer, because the stories look right.
+  const { candidate, activeCV, cvVersions } = useCandidate(
+    cvOverride || selectedApp?.submittedCvId,
+  )
+
+  const appCV = cvVersions.find(cv => cv.id === selectedApp?.submittedCvId)
+  const cvInUse = cvVersions.find(cv => cv.id === cvOverride) ?? appCV ?? activeCV
+
+  /** True when we fell back to the active CV because the app named none. */
+  const cvIsGuess = !cvOverride && !appCV && !!cvInUse
+
   const handleAppSelect = (appId: string) => {
     setSelectedAppId(appId)
+    setCvOverride('')
     const app = applications?.find(a => a.id === appId)
     if (app) {
       setRole(app.roleName)
@@ -131,23 +147,6 @@ export function StarAnswersPanel() {
             how={[t('ai.star.introStep1'), t('ai.star.introStep2'), t('ai.star.introStep3')]}
           />
 
-          {/* The tool is only as good as the CV behind it — say which one is in play. */}
-          <div
-            className={cn(
-              'flex items-start gap-2 rounded-lg border px-3 py-2 text-2xs',
-              activeCV
-                ? 'border-success-200 bg-success-50 text-success-800'
-                : 'border-warning-200 bg-warning-50 text-warning-900',
-            )}
-          >
-            <FileWarning className="w-3.5 h-3.5 shrink-0 mt-px" />
-            <span>
-              {activeCV
-                ? `${t('ai.star.usingCV')} ${activeCV.name}`
-                : t('ai.star.noCV')}
-            </span>
-          </div>
-
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
               {t('ai.star.appLabel')}
@@ -162,6 +161,51 @@ export function StarAnswersPanel() {
                 <option key={app.id} value={app.id}>{app.roleName} @ {app.companyName}</option>
               ))}
             </select>
+          </div>
+
+          {/* The tool is only as good as the CV behind it, and the wrong CV
+              produces answers that look right and describe someone else's
+              application. Name the one in play and let it be changed. */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              {t('ai.star.cvLabel')}
+            </label>
+            <select
+              value={cvOverride}
+              onChange={e => setCvOverride(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            >
+              <option value="">
+                {cvInUse
+                  ? `${t('ai.star.cvAuto')} — ${cvInUse.name}`
+                  : t('ai.star.cvAutoNone')}
+              </option>
+              {cvVersions.map(cv => (
+                <option key={cv.id} value={cv.id}>
+                  {cv.name}{cv.emphasis ? ` — ${cv.emphasis.slice(0, 45)}` : ''}
+                </option>
+              ))}
+            </select>
+
+            <div
+              className={cn(
+                'flex items-start gap-2 rounded-lg border px-3 py-2 text-2xs mt-1.5',
+                !cvInUse    ? 'border-warning-200 bg-warning-50 text-warning-900' :
+                cvIsGuess   ? 'border-warning-200 bg-warning-50 text-warning-900'
+                            : 'border-success-200 bg-success-50 text-success-800',
+              )}
+            >
+              <FileWarning className="w-3.5 h-3.5 shrink-0 mt-px" />
+              <span>
+                {!cvInUse
+                  ? t('ai.star.noCV')
+                  : cvOverride
+                    ? `${t('ai.star.usingCV')} ${cvInUse.name}`
+                    : appCV
+                      ? `${t('ai.star.usingAppCV')} ${cvInUse.name}`
+                      : `${t('ai.star.usingGuessCV')} ${cvInUse.name}`}
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
