@@ -86,7 +86,7 @@ export default createAIRoute({
       system:         SYSTEM + localeSystemSuffix(body.locale),
       user:           sections.join('\n\n'),
       schema:         interviewDebriefResponseSchema,
-      maxTokens:      20_000,
+      maxTokens:      12_000,
       thinkingBudget: LIGHT_THINKING,
     })
 

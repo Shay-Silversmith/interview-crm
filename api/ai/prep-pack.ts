@@ -118,7 +118,7 @@ export default createAIRoute({
         system,
         user:      sections.join('\n\n'),
         schema:    prepPackResponseSchema,
-        maxTokens: 32_000,
+        maxTokens: 14_000,
         urls:      body.application.jdUrl ? [body.application.jdUrl] : undefined,
       })
       return { data, sources }
@@ -129,7 +129,7 @@ export default createAIRoute({
       system,
       user:           sections.join('\n\n'),
       schema:         prepPackResponseSchema,
-      maxTokens:      24_000,
+      maxTokens:      12_000,
       thinkingBudget: LIGHT_THINKING,
     })
     return { data }

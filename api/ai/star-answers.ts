@@ -107,7 +107,7 @@ export default createAIRoute({
         system,
         user:      sections.join('\n\n'),
         schema:    starAnswersResponseSchema,
-        maxTokens: 24_000,
+        maxTokens: 12_000,
         urls:      [body.jdUrl],
       })
       return { data, sources }
@@ -119,7 +119,7 @@ export default createAIRoute({
       user:           sections.join('\n\n'),
       schema:         starAnswersResponseSchema,
       // Full STAR plus a spoken version for several questions is long output.
-      maxTokens:      24_000,
+      maxTokens:      12_000,
       thinkingBudget: LIGHT_THINKING,
     })
     return { data }

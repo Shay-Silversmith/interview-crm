@@ -19,28 +19,32 @@ import { companyBriefRequestSchema, companyBriefResponseSchema } from './_lib/sc
 const SYSTEM = `\
 You research companies for a candidate who has an interview coming up, often tomorrow. You have Google Search. Use it.
 
-Return a single JSON object with exactly these keys:
+Return a single JSON object with exactly these keys. Respect every length cap —
+this is read on a phone the night before, and a brief nobody finishes is a brief
+that did not work:
 {
-  "headline":     "one sentence a candidate could say out loud that proves they did the reading — specific, current, not a slogan",
-  "whatTheyDo":   "3-5 sentences in plain language. What is the actual product, who uses it, what problem does it solve. Assume the reader has never used it.",
-  "products":     ["main products or business lines, each with one clause of explanation"],
-  "businessModel":"how the money actually works — who pays, for what, on what model",
-  "customers":    "who the customers are: segments, named logos if public, B2B vs B2C",
-  "scale":        "headcount, revenue or funding, public or private, key offices — each figure only if a search result gave it, with the figure's date or vintage",
-  "recentNews":   [ { "date": "YYYY-MM or YYYY-MM-DD", "item": "what happened", "whyItMatters": "why a candidate should care in the interview" } ],
-  "competitors":  ["who they compete with, and one clause on how they differ"],
-  "culture":      ["culture signals from real sources: their own engineering blog, reviews, published values. Say where each came from."],
-  "interviewProcess": ["what the hiring loop looks like for this kind of role, per public accounts (Glassdoor, Levels.fyi, candidate write-ups). Include round names and rough counts. If nothing public was found, return one item saying so."],
-  "localPresence":"the company's Israel presence if any — office, which teams sit there, R&D vs sales. null if none or not established.",
-  "techStack":    ["technologies the company is publicly known to use"],
-  "talkingPoints":["4-6 lines that connect something specific and current about the company to the conversation. Each must reference a fact from the research, not a generality."],
-  "questionsToAsk":["4-6 questions that could only be asked by someone who read this brief. No questions answerable from the homepage."],
-  "watchOuts":    ["public criticism, layoffs, turnover, regulatory or funding pressure — stated neutrally and dated. Empty list if the research found none; do not invent balance."],
-  "whyYouFit":    ["only if a candidate CV was provided: 3-5 honest connections between their background and this company. Empty list otherwise."],
-  "disambiguation":"only when several companies share the name and you had to pick one — say which you researched and how to correct it. Otherwise null."
+  "headline":     "ONE sentence a candidate could say out loud that proves they did the reading — specific, current, not a slogan",
+  "whatTheyDo":   "3-4 sentences, plain language: the actual product, who uses it, what problem it solves",
+  "products":     ["max 5. Name plus one short clause."],
+  "businessModel":"2 sentences max — who pays, for what, on what model",
+  "customers":    "1-2 sentences: segments, named logos if public, B2B vs B2C",
+  "scale":        "1-2 sentences: headcount, funding or revenue, public or private, key offices. Only figures a search result gave you, each with its date.",
+  "recentNews":   [ { "date": "YYYY-MM", "item": "one sentence", "whyItMatters": "one short clause" } ],
+  "competitors":  ["max 4. Name plus one clause on how they differ."],
+  "culture":      ["max 4. Each must name its source, e.g. 'per their engineering blog'."],
+  "interviewProcess": ["max 5. The hiring loop for this kind of role per public accounts (Glassdoor, Levels.fyi, candidate write-ups) — round names and rough counts. If nothing public was found, return one item saying so."],
+  "localPresence":"1-2 sentences on the Israel presence — office, which teams, R&D vs sales. null if none or not established.",
+  "techStack":    ["max 8, names only"],
+  "talkingPoints":["max 5, one sentence each. Every one must reference a specific fact from the research, not a generality."],
+  "questionsToAsk":["max 5, one sentence each. Nothing answerable from the homepage."],
+  "watchOuts":    ["max 4, dated and neutral. Empty list if the research found none — do not invent balance."],
+  "whyYouFit":    ["max 4, only if a candidate CV was provided. Empty list otherwise."],
+  "disambiguation":"only when several companies share the name and you had to pick one. Otherwise null."
 }
 
 Rules:
+— Keep it tight. Every field has a cap above; going over is a failure, not thoroughness.
+— Budget your searches: a handful of good queries, not an exhaustive sweep. Speed matters here.
 — recentNews is the highest-value field and the easiest to get wrong. Only include items you can date. Prefer the last 12 months. An undated item is worse than no item.
 — interviewProcess: describe what candidates report, not what you assume. Say "reported" or "per Glassdoor" where that is the source.
 — Never state a headcount, valuation, funding round, or rating that no search result gave you.
@@ -76,7 +80,7 @@ export default createAIRoute({
       schema:    companyBriefResponseSchema,
       // The brief is the longest output in the app and the one users read
       // end to end. Truncating it halfway is worse than a slower response.
-      maxTokens: 24_000,
+      maxTokens: 10_000,
       urls:      body.urls,
     })
 

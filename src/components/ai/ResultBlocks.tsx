@@ -8,7 +8,7 @@
 // language for "here is a list of things".
 // ---------------------------------------------------------------------------
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Check, Copy, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import type { GroundingSource } from '@/services/aiClientService'
@@ -183,14 +183,28 @@ export function PanelEmpty({
   )
 }
 
+/**
+ * Shows elapsed seconds. Research calls can run past a minute, and a spinner
+ * with no counter is indistinguishable from a hung request — which is how a
+ * working-but-slow tool gets reported as broken.
+ */
 export function PanelLoading({ label, sub }: { label: string; sub?: string }) {
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    const started = Date.now()
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [])
+
   return (
     <div className="flex flex-col items-center justify-center flex-1 min-h-64 text-center px-6">
-      <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center mb-3 animate-pulse">
-        <div className="w-5 h-5 rounded-full border-2 border-primary-300 border-t-primary-600 animate-spin" />
+      <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center mb-3">
+        <div className="w-5 h-5 rounded-full border-2 border-primary-200 border-t-primary-600 animate-spin" />
       </div>
       <p className="text-sm font-medium text-slate-600">{label}</p>
       {sub && <p className="text-xs text-slate-400 mt-1 max-w-xs">{sub}</p>}
+      <p className="text-2xs text-slate-400 mt-2 tabular-nums">{elapsed}s</p>
     </div>
   )
 }

@@ -62,7 +62,7 @@ export default createAIRoute({
       schema:    cvParseResponseSchema,
       // extractedText is the bulk of this response and the reason the old
       // 1200-token ceiling truncated CVs of any real length.
-      maxTokens: 16_000,
+      maxTokens: 10_000,
     })
 
     return { data }

@@ -359,10 +359,24 @@ export interface JDSummarizeResponse {
 // Transport
 // ---------------------------------------------------------------------------
 
-/** Long research calls genuinely take a while; don't cut them off at the default. */
-const REQUEST_TIMEOUT_MS = 120_000
+/**
+ * Timeouts are per tool, because the tools are not comparable. Drafting a
+ * follow-up is one short generation; researching a company runs several search
+ * round-trips before the model writes anything. A single ceiling either cuts
+ * the research off mid-flight or lets a hung quick call sit there for minutes.
+ *
+ * Note the server side has its own ceiling: vercel.json caps functions at 60s,
+ * so in production a request dies there long before these do. These values only
+ * bound the wait in local development and against a longer-running host.
+ */
+const TIMEOUT_QUICK_MS    = 90_000
+const TIMEOUT_RESEARCH_MS = 240_000
 
-async function post<TReq, TRes>(path: string, body: TReq): Promise<AIResult<TRes>> {
+async function post<TReq, TRes>(
+  path: string,
+  body: TReq,
+  timeoutMs: number = TIMEOUT_QUICK_MS,
+): Promise<AIResult<TRes>> {
   let headers: HeadersInit
   try {
     headers = aiHeaders()
@@ -374,7 +388,7 @@ async function post<TReq, TRes>(path: string, body: TReq): Promise<AIResult<TRes
   }
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const res = await fetch(path, {
@@ -410,7 +424,7 @@ async function post<TReq, TRes>(path: string, body: TReq): Promise<AIResult<TRes
     if (err instanceof DOMException && err.name === 'AbortError') {
       return {
         ok:    false,
-        error: 'The AI request timed out after two minutes. Try again, or shorten the input.',
+        error: `The AI request timed out after ${Math.round(timeoutMs / 1000)} seconds. Try again, or shorten the input.`,
       }
     }
     return {
@@ -427,30 +441,36 @@ async function post<TReq, TRes>(path: string, body: TReq): Promise<AIResult<TRes
 // ---------------------------------------------------------------------------
 
 export const aiClientService = {
-  parseJD:        (req: JDParserRequest) =>
-    post<JDParserRequest, JDParserResponse>('/api/ai/jd-parser', req),
+  // Research-backed: these search the web before writing.
+  companyBrief:   (req: CompanyBriefRequest) =>
+    post<CompanyBriefRequest, CompanyBriefResponse>('/api/ai/company-brief', req, TIMEOUT_RESEARCH_MS),
 
   prepPack:       (req: PrepPackRequest) =>
-    post<PrepPackRequest, PrepPackResponse>('/api/ai/prep-pack', req),
-
-  followUp:       (req: FollowUpRequest) =>
-    post<FollowUpRequest, FollowUpResponse>('/api/ai/follow-up', req),
+    post<PrepPackRequest, PrepPackResponse>('/api/ai/prep-pack', req, TIMEOUT_RESEARCH_MS),
 
   fillCompany:    (req: CompanyFillRequest) =>
-    post<CompanyFillRequest, CompanyFillResponse>('/api/ai/company-fill', req),
+    post<CompanyFillRequest, CompanyFillResponse>('/api/ai/company-fill', req, TIMEOUT_RESEARCH_MS),
 
-  companyBrief:   (req: CompanyBriefRequest) =>
-    post<CompanyBriefRequest, CompanyBriefResponse>('/api/ai/company-brief', req),
+  // Reads a URL when given one, so it can also be slow.
+  parseJD:        (req: JDParserRequest) =>
+    post<JDParserRequest, JDParserResponse>(
+      '/api/ai/jd-parser', req, req.jdUrl ? TIMEOUT_RESEARCH_MS : TIMEOUT_QUICK_MS),
+
+  starAnswers:    (req: StarAnswersRequest) =>
+    post<StarAnswersRequest, StarAnswersResponse>(
+      '/api/ai/star-answers', req, req.jdUrl && !req.jdText ? TIMEOUT_RESEARCH_MS : TIMEOUT_QUICK_MS),
+
+  summarizeJD:    (req: JDSummarizeRequest) =>
+    post<JDSummarizeRequest, JDSummarizeResponse>(
+      '/api/ai/jd-summarize', req, req.jdText ? TIMEOUT_QUICK_MS : TIMEOUT_RESEARCH_MS),
+
+  // Single-generation tools.
+  followUp:       (req: FollowUpRequest) =>
+    post<FollowUpRequest, FollowUpResponse>('/api/ai/follow-up', req),
 
   interviewDebrief: (req: InterviewDebriefRequest) =>
     post<InterviewDebriefRequest, InterviewDebriefResponse>('/api/ai/interview-debrief', req),
 
-  starAnswers:    (req: StarAnswersRequest) =>
-    post<StarAnswersRequest, StarAnswersResponse>('/api/ai/star-answers', req),
-
   parseCV:        (req: CVParseRequest) =>
     post<CVParseRequest, CVParseResponse>('/api/ai/cv-parse', req),
-
-  summarizeJD:    (req: JDSummarizeRequest) =>
-    post<JDSummarizeRequest, JDSummarizeResponse>('/api/ai/jd-summarize', req),
 }
