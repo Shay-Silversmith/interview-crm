@@ -36,7 +36,9 @@ const EXPLANATIONS: Record<FailureReason, Explanation> = {
   },
   quota: {
     headline: 'Your Gemini key is out of quota.',
-    fix:      'Check your usage in Google AI Studio, or wait for the quota window to reset.',
+    // The details below carry Google's own wording, which names whether the
+    // daily or the per-minute limit was hit — the two need opposite responses.
+    fix:      'Open the details below: they say which limit was hit. The per-minute limit clears in about a minute; the daily one resets at midnight Pacific. Research-backed tools spend several requests per run, so they use the allowance quickly.',
     settings: true,
   },
   timeout: {

@@ -24,6 +24,17 @@ import type { z } from 'zod'
 export const DEFAULT_MODEL = 'gemini-2.5-flash'
 
 /**
+ * Used for the structuring pass after a grounded search.
+ *
+ * That pass is a transcription job — take these notes, emit them in this shape,
+ * add nothing — and it does not need the same model that did the reasoning. It
+ * draws on a separate, more generous quota, which halves what a research tool
+ * costs against the flash limit. On the free tier that is the difference
+ * between a handful of company briefings a day and roughly twice as many.
+ */
+export const STRUCTURING_MODEL = 'gemini-2.5-flash-lite'
+
+/**
  * Reasoning tokens allowed before the answer starts.
  *
  * 0 disables thinking — right for structured extraction, which does not benefit.
@@ -85,8 +96,24 @@ export function describeGeminiError(err: unknown): string {
       if (inner?.message) {
         if (inner.status === 'INVALID_ARGUMENT' && /api key/i.test(inner.message))
           return 'The Gemini API key was rejected. Check it in Settings.'
-        if (inner.code === 429 || inner.status === 'RESOURCE_EXHAUSTED')
-          return 'Gemini quota exceeded for this key. Wait a minute, or check your quota in Google AI Studio.'
+        if (inner.code === 429 || inner.status === 'RESOURCE_EXHAUSTED') {
+          // Google names the limit it hit in the violation details, and per-day
+          // and per-minute call for completely different responses: one means
+          // wait a minute, the other means you are done until the reset.
+          const raw429 = JSON.stringify(body)
+          const perDay = /PerDay|RequestsPerDay/i.test(raw429)
+          const perMin = /PerMinute|RequestsPerMinute/i.test(raw429)
+          const which  = perDay ? 'daily' : perMin ? 'per-minute' : 'unspecified'
+          return (
+            `Gemini quota exceeded (${which} limit). ` +
+            (perDay
+              ? 'The daily allowance for this key is spent; it resets at midnight Pacific time.'
+              : perMin
+                ? 'Wait about a minute and try again.'
+                : 'Wait a minute, then check the quota for this key in Google AI Studio.') +
+            ` Google said: ${inner.message}`
+          )
+        }
         if (inner.code === 403) return `Gemini refused the request: ${inner.message}`
         return inner.message
       }
@@ -380,8 +407,9 @@ export async function callGeminiGrounded<T>(
     throw new GeminiEmptyError(String(candidate?.finishReason ?? 'no candidates'))
   }
 
-  // Structuring pass: JSON mode on, no tools, no thinking. This is a
-  // transcription job, and treating it as one keeps it fast and reliable.
+  // Structuring pass: JSON mode on, no tools, no thinking, lighter model. This
+  // is a transcription job, and treating it as one keeps it fast, reliable, and
+  // off the quota the research step is already spending.
   const data = await callGemini({
     apiKey: opts.apiKey,
     system: opts.system,
@@ -393,7 +421,7 @@ export async function callGeminiGrounded<T>(
       `RESEARCH NOTES:\n${research}`,
     schema:         opts.schema,
     maxTokens:      opts.maxTokens,
-    model:          opts.model,
+    model:          opts.model ?? STRUCTURING_MODEL,
     thinkingBudget: NO_THINKING,
   })
 
