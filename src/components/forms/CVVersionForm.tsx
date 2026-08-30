@@ -14,8 +14,8 @@ import { useI18n } from '@/hooks/useI18n'
 import { useToastActions } from '@/hooks/useToast'
 import { aiService } from '@/services/aiService'
 import { cn } from '@/lib/cn'
-import { SampleOutputNotice } from '@/components/ai/SampleOutputNotice'
-import type { FallbackReason } from '@/services/aiService'
+import { AIFailureNotice } from '@/components/ai/AIFailureNotice'
+import type { AIRun } from '@/services/aiService'
 
 interface CVVersionFormProps {
   initial?: Partial<CVVersion>
@@ -33,7 +33,7 @@ export function CVVersionForm({ initial, onSubmit, onCancel, loading, fileSlot, 
   const { t } = useI18n()
   const toast = useToastActions()
   const [extracting, setExtracting] = useState(false)
-  const [aiNotice, setAiNotice]     = useState<FallbackReason | null | undefined>(null)
+  const [failure, setFailure]       = useState<Extract<AIRun<never>, { ok: false }> | null>(null)
 
   const schema = useMemo(() => makeCVVersionSchema(t), [t])
 
@@ -57,7 +57,7 @@ export function CVVersionForm({ initial, onSubmit, onCancel, loading, fileSlot, 
     setExtracting(true)
     try {
       const base64Data = await fileToBase64(currentFile)
-      const { data, fromFallback, fallbackReason } = await aiService.parseCV({
+      const res = await aiService.parseCV({
         fileName:   currentFile.name,
         mimeType:   currentFile.type || 'application/pdf',
         base64Data,
@@ -65,11 +65,12 @@ export function CVVersionForm({ initial, onSubmit, onCancel, loading, fileSlot, 
 
       // Placeholder highlights written into these fields would be saved as if
       // they came from the CV. Change nothing and say why instead.
-      if (fromFallback) {
-        setAiNotice(fallbackReason)
+      if (!res.ok) {
+        setFailure(res)
         return
       }
-      setAiNotice(null)
+      setFailure(null)
+      const { data } = res
 
       // Apply each non-empty field. Don't overwrite a name the user already typed.
       const currentName = watch('name')
@@ -155,7 +156,9 @@ export function CVVersionForm({ initial, onSubmit, onCancel, loading, fileSlot, 
         </div>
       )}
 
-      {aiNotice !== null && <SampleOutputNotice reason={aiNotice} className="-mt-1" />}
+      {failure && (
+        <AIFailureNotice reason={failure.reason} message={failure.message} className="-mt-1" />
+      )}
 
       <TextareaField
         label={t('forms.fields.notes')} rows={3}

@@ -1,9 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { devApiPlugin } from './vite-dev-api'
 
 export default defineConfig({
-  plugins: [react()],
+  // devApiPlugin serves api/**.ts during `npm run dev`. Vercel serves the same
+  // files in production, so the two environments run identical handler code.
+  plugins: [react(), devApiPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

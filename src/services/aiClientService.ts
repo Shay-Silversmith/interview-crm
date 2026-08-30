@@ -3,76 +3,126 @@
 // Client-side fetch wrappers for the AI serverless functions.
 // BYOK: the user's Gemini API key is read from localStorage via aiKey.ts and
 // forwarded as the `x-gemini-api-key` header. The key is never logged.
+//
+// Types here mirror api/ai/_lib/schemas.ts. They are duplicated deliberately so
+// src/ never imports from api/ — the two build under different tsconfigs.
 // ---------------------------------------------------------------------------
 
 import { aiHeaders, hasStoredGeminiKey } from './aiKey'
 
-// Mirror the response shapes from api/ai/_lib/schemas.ts
-// (We duplicate the types here so src/ stays isolated from api/)
+export type AILocale = 'en' | 'he'
 
-export interface JDParserResponse {
-  roleSummary:         string
-  responsibilities:    string[]
-  requirements:        string[]
-  niceToHaves:         string[]
-  technologies:        string[]
-  whatTheyWant:        string
-  howIMatch:           string[]
-  whatToEmphasize:     string[]
-  possibleQuestions:   string[]
-  prepChecklist:       string[]
+// ---------------------------------------------------------------------------
+// Key-state helpers used by the shell chrome and the legacy agent service.
+//
+// "Demo mode" now means exactly one thing: no Gemini key is configured. It used
+// to also swap in canned responses, which is why a fabricated company profile
+// could reach the screen looking like research. Nothing is substituted any
+// more — the tools report what went wrong instead.
+// ---------------------------------------------------------------------------
+
+export function isDemoMode(): boolean {
+  return !hasStoredGeminiKey()
 }
 
+/** Legacy Claude-era key slot, still read by the experimental agent service. */
+const LEGACY_API_KEY_STORAGE_KEY = 'interviewflow.anthropicApiKey'
+
+export function getStoredApiKey(): string {
+  try { return localStorage.getItem(LEGACY_API_KEY_STORAGE_KEY) ?? '' }
+  catch { return '' }
+}
+
+export function setStoredApiKey(key: string): void {
+  try {
+    if (key.trim().length === 0) localStorage.removeItem(LEGACY_API_KEY_STORAGE_KEY)
+    else localStorage.setItem(LEGACY_API_KEY_STORAGE_KEY, key.trim())
+  } catch { /* ignore */ }
+}
+
+export type AIResult<T> =
+  | { ok: true;  data: T; sources?: GroundingSource[] }
+  | { ok: false; error: string }
+
+export interface GroundingSource {
+  title?: string
+  uri?:   string
+}
+
+/** The shared "who is this candidate" block. Built by useCandidate(). */
+export interface CandidatePayload {
+  name?:        string
+  headline?:    string
+  background?:  string
+  skills?:      string[]
+  targetRoles?: string[]
+  cv?: {
+    emphasis:            string
+    skillsHighlighted:   string[]
+    projectsHighlighted: string[]
+  } | null
+}
+
+// ---------------------------------------------------------------------------
+// JD Parser / role analysis
+// ---------------------------------------------------------------------------
+
+export type FitLevel = 'strong' | 'partial' | 'gap'
+
+export interface FitItem {
+  requirement: string
+  level:       FitLevel
+  evidence:    string
+}
+
+export interface JDParserRequest {
+  jdText?:         string
+  jdUrl?:          string
+  roleTitle?:      string
+  companyName?:    string
+  userBackground?: string
+  candidate?:      CandidatePayload
+  locale?:         AILocale
+}
+
+export interface JDParserResponse {
+  roleSummary:       string
+  seniority:         string
+  responsibilities:  string[]
+  requirements:      string[]
+  niceToHaves:       string[]
+  technologies:      string[]
+  whatTheyWant:      string
+  fitAnalysis:       FitItem[]
+  howIMatch:         string[]
+  gapsToAddress:     string[]
+  whatToEmphasize:   string[]
+  possibleQuestions: string[]
+  prepChecklist:     string[]
+  sourceNote?:       string | null
+}
+
+// ---------------------------------------------------------------------------
+// Prep pack
+// ---------------------------------------------------------------------------
+
 export interface StarStory {
+  title?:    string
   situation: string
   task:      string
   action:    string
   result:    string
 }
 
-export interface PrepPackResponse {
-  companySnapshot:             string
-  roleSummary:                 string
-  reviewFromCV:                string[]
-  expectedHRQuestions:         string[]
-  expectedTechnicalQuestions:  string[]
-  recommendedStarStories:      StarStory[]
-  questionsToAsk:              string[]
-  finalChecklist:              string[]
-}
-
-export interface FollowUpResponse {
-  short:    string
-  warm:     string
-  linkedIn: string
-}
-
-export type AIResult<T> =
-  | { ok: true;  data: T }
-  | { ok: false; error: string }
-
-// ---------------------------------------------------------------------------
-// Request types (mirrors schemas.ts but lives in src/ for TS consumers)
-// ---------------------------------------------------------------------------
-
-export type AILocale = 'en' | 'he'
-
-export interface JDParserRequest {
-  jdText:         string
-  roleTitle?:     string
-  userBackground?: string
-  // locale is accepted by the endpoint but intentionally ignored (JD output stays English).
-  locale?:        AILocale
-}
-
 export interface PrepPackRequest {
   application: {
-    title:         string
-    company:       string
-    stage:         string
-    jdText?:       string
+    title:          string
+    company:        string
+    stage:          string
+    jdText?:        string
+    jdUrl?:         string
     aiRoleSummary?: string
-    notes?:        string
+    notes?:         string
   }
   cv: {
     emphasis:            string
@@ -80,8 +130,8 @@ export interface PrepPackRequest {
     projectsHighlighted: string[]
   } | null
   company: {
-    name:               string
-    summary?:           string
+    name:                string
+    summary?:            string
     productDescription?: string
   } | null
   pastInterviews: Array<{
@@ -92,24 +142,51 @@ export interface PrepPackRequest {
   }>
   userBackground: string
   interviewType:  string
+  research?:      boolean
   locale?:        AILocale
 }
+
+export interface PrepPackResponse {
+  companySnapshot:            string
+  roleSummary:                string
+  reviewFromCV:               string[]
+  expectedHRQuestions:        string[]
+  expectedTechnicalQuestions: string[]
+  recommendedStarStories:     StarStory[]
+  questionsToAsk:             string[]
+  finalChecklist:             string[]
+  dayOfPlan:                  string[]
+  redFlagsToProbe:            string[]
+}
+
+// ---------------------------------------------------------------------------
+// Follow-up
+// ---------------------------------------------------------------------------
 
 export type MessageType = 'post-interview' | 'ping-after-silence' | 'thank-you' | 'decline-politely'
 export type Tone        = 'professional' | 'warm' | 'casual'
 
 export interface FollowUpRequest {
-  messageType:  MessageType
-  company:      string
-  contactName:  string
-  role:         string
-  tone:         Tone
-  context:      string
-  locale?:      AILocale
+  messageType:   MessageType
+  company:       string
+  contactName:   string
+  contactTitle?: string
+  role:          string
+  tone:          Tone
+  context:       string
+  candidate?:    CandidatePayload
+  locale?:       AILocale
+}
+
+export interface FollowUpResponse {
+  short:    string
+  warm:     string
+  linkedIn: string
+  subject:  string
 }
 
 // ---------------------------------------------------------------------------
-// Company auto-fill — research a company by name, return structured fields
+// Company auto-fill (CRM columns)
 // ---------------------------------------------------------------------------
 
 export type CompanySize =
@@ -134,7 +211,117 @@ export interface CompanyFillResponse {
 }
 
 // ---------------------------------------------------------------------------
-// CV parse — extract structured highlights from an uploaded resume file
+// Company brief (the interview research report)
+// ---------------------------------------------------------------------------
+
+export interface CompanyBriefRequest {
+  companyName: string
+  roleTitle?:  string
+  hint?:       string
+  urls?:       string[]
+  candidate?:  CandidatePayload
+  locale?:     AILocale
+}
+
+export interface NewsItem {
+  date:         string
+  item:         string
+  whyItMatters: string
+}
+
+export interface CompanyBriefResponse {
+  headline:         string
+  whatTheyDo:       string
+  products:         string[]
+  businessModel:    string
+  customers:        string
+  scale:            string
+  recentNews:       NewsItem[]
+  competitors:      string[]
+  culture:          string[]
+  interviewProcess: string[]
+  localPresence:    string | null
+  techStack:        string[]
+  talkingPoints:    string[]
+  questionsToAsk:   string[]
+  watchOuts:        string[]
+  whyYouFit:        string[]
+  disambiguation:   string | null
+}
+
+// ---------------------------------------------------------------------------
+// Interview debrief
+// ---------------------------------------------------------------------------
+
+export interface InterviewDebriefRequest {
+  notes:          string
+  company?:       string
+  role?:          string
+  interviewType?: string
+  interviewer?:   string
+  interviewedAt?: string
+  candidate?:     CandidatePayload
+  locale?:        AILocale
+}
+
+export interface DebriefQuestion {
+  question:    string
+  answerGiven: string
+  assessment:  string
+}
+
+export interface InterviewDebriefResponse {
+  headline:            string
+  overview:            string
+  questionsAsked:      DebriefQuestion[]
+  topicsCovered:       string[]
+  learnedAboutRole:    string[]
+  wentWell:            string[]
+  couldImprove:        string[]
+  unansweredQuestions: string[]
+  signalsRead:         string[]
+  nextSteps:           string[]
+  followUpActions:     string[]
+  prepForNextRound:    string[]
+  markdown:            string
+}
+
+// ---------------------------------------------------------------------------
+// STAR answers
+// ---------------------------------------------------------------------------
+
+export interface StarAnswersRequest {
+  role:       string
+  company:    string
+  jdText?:    string
+  jdUrl?:     string
+  question?:  string
+  focus?:     string
+  count?:     number
+  candidate?: CandidatePayload
+  locale?:    AILocale
+}
+
+export interface StarAnswer {
+  question:     string
+  whyAsked:     string
+  basedOn:      string
+  situation:    string
+  task:         string
+  action:       string
+  result:       string
+  spokenAnswer: string
+  deliveryTips: string[]
+  followUps:    string[]
+}
+
+export interface StarAnswersResponse {
+  answers:       StarAnswer[]
+  coverageNote?: string | null
+}
+
+// ---------------------------------------------------------------------------
+// CV parse
 // ---------------------------------------------------------------------------
 
 export interface CVParseRequest {
@@ -149,10 +336,11 @@ export interface CVParseResponse {
   skillsHighlighted:   string[]
   projectsHighlighted: string[]
   suggestedName:       string
+  extractedText:       string
 }
 
 // ---------------------------------------------------------------------------
-// JD Summarize — turn a URL or pasted text into a clean bullet summary
+// JD summarize
 // ---------------------------------------------------------------------------
 
 export interface JDSummarizeRequest {
@@ -168,69 +356,70 @@ export interface JDSummarizeResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Fetch helpers
+// Transport
 // ---------------------------------------------------------------------------
 
-// Legacy storage key (Claude era). Kept as a no-op shim so the existing
-// SettingsPage BYOK input compiles until Prompt 3b replaces it with a
-// dedicated Gemini-key UI. Reads/writes the same localStorage slot but no
-// longer affects request routing.
-const LEGACY_API_KEY_STORAGE_KEY = 'interviewflow.anthropicApiKey'
-
-export function getStoredApiKey(): string {
-  try { return localStorage.getItem(LEGACY_API_KEY_STORAGE_KEY) ?? '' }
-  catch { return '' }
-}
-
-export function setStoredApiKey(key: string): void {
-  try {
-    if (key.trim().length === 0) localStorage.removeItem(LEGACY_API_KEY_STORAGE_KEY)
-    else localStorage.setItem(LEGACY_API_KEY_STORAGE_KEY, key.trim())
-  } catch { /* ignore */ }
-}
+/** Long research calls genuinely take a while; don't cut them off at the default. */
+const REQUEST_TIMEOUT_MS = 120_000
 
 async function post<TReq, TRes>(path: string, body: TReq): Promise<AIResult<TRes>> {
   let headers: HeadersInit
   try {
-    headers = aiHeaders()  // throws Error('NO_API_KEY') if no Gemini key stored
-  } catch (err) {
-    return { ok: false, error: (err as Error).message }
+    headers = aiHeaders()
+  } catch {
+    return {
+      ok:    false,
+      error: 'NO_API_KEY',
+    }
   }
 
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
   try {
-    const res = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body) })
+    const res = await fetch(path, {
+      method: 'POST',
+      headers,
+      body:   JSON.stringify(body),
+      signal: controller.signal,
+    })
+
+    // A dev server without the API middleware answers /api/* with index.html.
+    // Parsing that as JSON throws "Unexpected token '<'", which is where the
+    // "nothing works locally" reports came from — say what actually happened.
+    const contentType = res.headers.get('content-type') ?? ''
+    if (!contentType.includes('application/json')) {
+      const preview = (await res.text()).slice(0, 120)
+      return {
+        ok: false,
+        error:
+          `The AI endpoint ${path} did not return JSON (HTTP ${res.status}). ` +
+          `This usually means the API functions are not running. Response began: ${preview}`,
+      }
+    }
+
     const json = await res.json() as AIResult<TRes>
     if (!res.ok) {
       return {
         ok:    false,
-        error: (json as { ok: false; error: string }).error ?? `HTTP ${res.status}`,
+        error: (json as { ok: false; error?: string }).error ?? `HTTP ${res.status}`,
       }
     }
     return json
   } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      return {
+        ok:    false,
+        error: 'The AI request timed out after two minutes. Try again, or shorten the input.',
+      }
+    }
     return {
       ok:    false,
       error: err instanceof Error ? err.message : 'Network error',
     }
+  } finally {
+    clearTimeout(timer)
   }
-}
-
-// ---------------------------------------------------------------------------
-// Demo mode — return canned responses when no Gemini API key is configured.
-// In DEV mode we surface real errors instead of masking them with mocks, so
-// the developer sees Gemini problems clearly.
-// ---------------------------------------------------------------------------
-
-export function isDemoMode(): boolean {
-  if (hasStoredGeminiKey()) return false
-  if (import.meta.env.DEV)  return false
-  return true
-}
-
-async function demoOk<T>(data: T): Promise<AIResult<T>> {
-  const { demoDelay } = await import('@/data/ai-demo-responses')
-  await demoDelay()
-  return { ok: true, data }
 }
 
 // ---------------------------------------------------------------------------
@@ -238,46 +427,30 @@ async function demoOk<T>(data: T): Promise<AIResult<T>> {
 // ---------------------------------------------------------------------------
 
 export const aiClientService = {
-  parseJD: async (req: JDParserRequest) => {
-    if (isDemoMode()) {
-      const { demoJDParser } = await import('@/data/ai-demo-responses')
-      return demoOk<JDParserResponse>(demoJDParser)
-    }
-    return post<JDParserRequest, JDParserResponse>('/api/ai/jd-parser', req)
-  },
-  prepPack: async (req: PrepPackRequest) => {
-    if (isDemoMode()) {
-      const { demoPrepPack } = await import('@/data/ai-demo-responses')
-      return demoOk<PrepPackResponse>(demoPrepPack)
-    }
-    return post<PrepPackRequest, PrepPackResponse>('/api/ai/prep-pack', req)
-  },
-  followUp: async (req: FollowUpRequest) => {
-    if (isDemoMode()) {
-      const { demoFollowUp } = await import('@/data/ai-demo-responses')
-      return demoOk<FollowUpResponse>(demoFollowUp)
-    }
-    return post<FollowUpRequest, FollowUpResponse>('/api/ai/follow-up', req)
-  },
-  fillCompany: async (req: CompanyFillRequest) => {
-    if (isDemoMode()) {
-      const { demoCompanyFill } = await import('@/data/ai-demo-responses')
-      return demoOk<CompanyFillResponse>({ ...demoCompanyFill, description: `${req.companyName} — ${demoCompanyFill.description}` })
-    }
-    return post<CompanyFillRequest, CompanyFillResponse>('/api/ai/company-fill', req)
-  },
-  parseCV: async (req: CVParseRequest) => {
-    if (isDemoMode()) {
-      const { demoCVParse } = await import('@/data/ai-demo-responses')
-      return demoOk<CVParseResponse>(demoCVParse)
-    }
-    return post<CVParseRequest, CVParseResponse>('/api/ai/cv-parse', req)
-  },
-  summarizeJD: async (req: JDSummarizeRequest) => {
-    if (isDemoMode()) {
-      const { demoJDSummarize } = await import('@/data/ai-demo-responses')
-      return demoOk<JDSummarizeResponse>(demoJDSummarize)
-    }
-    return post<JDSummarizeRequest, JDSummarizeResponse>('/api/ai/jd-summarize', req)
-  },
+  parseJD:        (req: JDParserRequest) =>
+    post<JDParserRequest, JDParserResponse>('/api/ai/jd-parser', req),
+
+  prepPack:       (req: PrepPackRequest) =>
+    post<PrepPackRequest, PrepPackResponse>('/api/ai/prep-pack', req),
+
+  followUp:       (req: FollowUpRequest) =>
+    post<FollowUpRequest, FollowUpResponse>('/api/ai/follow-up', req),
+
+  fillCompany:    (req: CompanyFillRequest) =>
+    post<CompanyFillRequest, CompanyFillResponse>('/api/ai/company-fill', req),
+
+  companyBrief:   (req: CompanyBriefRequest) =>
+    post<CompanyBriefRequest, CompanyBriefResponse>('/api/ai/company-brief', req),
+
+  interviewDebrief: (req: InterviewDebriefRequest) =>
+    post<InterviewDebriefRequest, InterviewDebriefResponse>('/api/ai/interview-debrief', req),
+
+  starAnswers:    (req: StarAnswersRequest) =>
+    post<StarAnswersRequest, StarAnswersResponse>('/api/ai/star-answers', req),
+
+  parseCV:        (req: CVParseRequest) =>
+    post<CVParseRequest, CVParseResponse>('/api/ai/cv-parse', req),
+
+  summarizeJD:    (req: JDSummarizeRequest) =>
+    post<JDSummarizeRequest, JDSummarizeResponse>('/api/ai/jd-summarize', req),
 }

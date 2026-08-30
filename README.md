@@ -41,16 +41,23 @@ cp .env.example .env.local
 
 **To run in mock/demo mode** (no Supabase): leave `VITE_SUPABASE_URL` unset — the app works fully offline with in-memory data.
 
-**To enable AI features locally**: set `VITE_AI_ENABLED=true` in `.env.local`, start the dev server with the Vercel CLI so the serverless functions work, then paste your personal Gemini API key into Settings → AI Preferences (UI shipping in Prompt 3b; until then, set it manually via DevTools: `localStorage.setItem('interviewflow_gemini_key','<your-key>')`).
-```bash
-npm i -g vercel
-vercel dev   # starts both Vite and /api/* functions on http://localhost:3000
-```
-Generate a Gemini key at https://aistudio.google.com/app/apikey. The key
-lives only in your browser's localStorage; it is sent as the
-`x-gemini-api-key` header on each `/api/ai/*` request and forwarded only to
-Google's API. Without a key the AI tools fall back to mock responses
-(non-DEV) or surface a clear error toast (DEV).
+**To enable AI features locally**: set `VITE_AI_ENABLED=true` in `.env.local`,
+then paste your personal Gemini API key into **Settings → Gemini API key**.
+
+`npm run dev` serves the `/api/ai/*` functions itself — see `vite-dev-api.ts`,
+which mounts the same handler files Vercel runs in production. The Vercel CLI is
+not needed for local development, and `vercel dev` is no longer the documented
+path. (Before this existed, Vite answered `/api/*` with `index.html`, so every
+AI call failed while looking like a network fault.)
+
+Generate a Gemini key at https://aistudio.google.com/app/apikey. The key lives
+only in your browser's localStorage; it is sent as the `x-gemini-api-key` header
+on each `/api/ai/*` request and forwarded only to Google's API.
+
+Nothing is ever substituted for a failed AI call. When a request cannot run, the
+panel says why — no key, AI disabled for the build, rate limit, quota, timeout,
+or the raw server error — rather than showing canned content that reads like a
+real result.
 
 ### 3 — Start
 

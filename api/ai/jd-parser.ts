@@ -2,98 +2,108 @@
 // InterviewFlow — api/ai/jd-parser.ts
 // POST /api/ai/jd-parser
 //
-// Parses a job description into structured insights using Gemini.
-// Input:  { jdText, roleTitle?, userBackground? }
-// Output: { ok: true, data: JDParserResponse } | { ok: false, error: string }
+// Turns a job posting into a role analysis read against this candidate's CV.
+//
+// Two changes from the original: the posting can arrive as a URL (LinkedIn or
+// a careers page) rather than pasted text, and the fit read is per-requirement
+// instead of a paragraph. A vague "you're a good match" is not something you
+// can prepare against; "requirement 3 is a gap, here is the honest framing" is.
 // ---------------------------------------------------------------------------
 
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGemini, getGeminiApiKey } from './_lib/gemini.js'
-import { checkRateLimit, getIP } from './_lib/rate-limit.js'
 import {
-  jdParserRequestSchema,
-  jdParserResponseSchema,
-  type JDParserRequest,
-} from './_lib/schemas.js'
+  callGemini,
+  callGeminiGrounded,
+  localeSystemSuffix,
+  LIGHT_THINKING,
+} from './_lib/gemini.js'
+import { createAIRoute } from './_lib/handler.js'
+import { candidateBlock, GROUNDING_RULES } from './_lib/prompt.js'
+import { jdParserRequestSchema, jdParserResponseSchema } from './_lib/schemas.js'
 
 const SYSTEM = `\
-You are a precise job search analyst helping a candidate prepare for applications.
+You are a precise job-search analyst helping one specific candidate decide how to approach one specific role.
 
-Analyze the provided job description and return a single JSON object with exactly these keys:
+Return a single JSON object with exactly these keys:
 {
-  "roleSummary":       "2-3 sentence overview of the role and its context",
-  "responsibilities":  ["5-8 specific key responsibilities"],
-  "requirements":      ["5-8 must-have skills or qualifications"],
-  "niceToHaves":       ["3-5 preferred but not required"],
-  "technologies":      ["specific tools, languages, platforms mentioned"],
-  "whatTheyWant":      "1-2 sentences on the ideal candidate profile",
-  "howIMatch":         ["3-5 ways the candidate's background aligns — use userBackground if provided, otherwise draw from JD language"],
-  "whatToEmphasize":   ["3-5 specific talking points to highlight in interviews"],
-  "possibleQuestions": ["5-7 likely interview questions for this role"],
-  "prepChecklist":     ["5-8 concrete, actionable prep steps"]
+  "roleSummary":       "2-3 sentences: what the role actually is, which team, what it exists to do",
+  "seniority":         "the real level implied by the posting, e.g. 'Student / internship', 'Junior (0-2 yrs)', 'Mid-level'. Say when the title and the requirements disagree.",
+  "responsibilities":  ["5-8 specific duties, in the posting's own terms"],
+  "requirements":      ["5-8 must-haves, each as its own testable item"],
+  "niceToHaves":       ["preferred but not required"],
+  "technologies":      ["tools, languages, platforms named in the posting"],
+  "whatTheyWant":      "1-2 sentences on the profile they are really hiring for, including what the wording implies but does not say",
+  "fitAnalysis": [
+    {
+      "requirement": "one requirement, quoted or closely paraphrased",
+      "level":       "strong" | "partial" | "gap",
+      "evidence":    "the specific thing in the candidate's CV or background that supports this rating — or, for a gap, what is missing and the honest way to address it in the room"
+    }
+  ],
+  "howIMatch":         ["3-5 genuine points of alignment, each tied to something real in the candidate's history"],
+  "gapsToAddress":     ["every gap worth preparing an answer for, with the framing to use — never advise hiding it"],
+  "whatToEmphasize":   ["3-5 talking points, specific to this posting"],
+  "possibleQuestions": ["5-7 questions this posting makes likely"],
+  "prepChecklist":     ["5-8 concrete prep actions, each doable in an evening"],
+  "sourceNote":        "only when the posting was read from a URL and something was wrong with it (paywalled, expired, redirected to a listings page) — otherwise null"
 }
 
 Rules:
-— Ground every claim in the JD text. Do not invent technologies or requirements not mentioned.
-— Keep individual list items to 1 clear sentence or phrase.
-— If userBackground is provided, tailor howIMatch and whatToEmphasize specifically to that candidate.
-— Be direct and specific, not generic.`
+— Ground every claim in the posting text. Do not invent technologies or requirements it does not mention.
+— fitAnalysis must cover the requirements that matter most, not all of them. Rate honestly: "gap" is a useful answer and a candidate who is told everything is "strong" walks in unprepared.
+— If no candidate background was provided, base fitAnalysis on the posting alone and set every evidence field to say that no CV was supplied.
+— Keep each list item to one clear sentence.
+${GROUNDING_RULES}`
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setCORSHeaders(res)
-  if (req.method === 'OPTIONS') return res.status(200).end()
-  if (req.method !== 'POST')   return res.status(405).json({ ok: false, error: 'Method not allowed' })
+export default createAIRoute({
+  name:   'jd-parser',
+  schema: jdParserRequestSchema,
 
-  const headers = req.headers as Record<string, string | string[] | undefined>
-  const apiKey = getGeminiApiKey(headers)
-  if (!apiKey) {
-    return res.status(401).json({ ok: false, error: 'Gemini API key required. Set it in Settings → AI Preferences.' })
-  }
+  async run({ body, apiKey }) {
+    const sections: string[] = []
 
-  const ip = getIP(headers)
-  const rl = checkRateLimit(ip)
-  if (!rl.allowed) {
-    return res.status(429).json({
-      ok: false,
-      error: `Rate limit reached. Try again in ${Math.ceil(rl.resetInMs / 1000)} seconds.`,
-    })
-  }
+    if (body.roleTitle)   sections.push(`Role title: ${body.roleTitle}`)
+    if (body.companyName) sections.push(`Company: ${body.companyName}`)
 
-  const parsed = jdParserRequestSchema.safeParse(req.body)
-  if (!parsed.success) {
-    return res.status(400).json({
-      ok: false,
-      error: parsed.error.issues.map(i => i.message).join('; '),
-    })
-  }
+    const candidate = candidateBlock(body.candidate, body.userBackground)
+    if (candidate) sections.push(candidate)
 
-  const body: JDParserRequest = parsed.data
-  const userParts: string[] = []
-  if (body.roleTitle)      userParts.push(`Role title: ${body.roleTitle}`)
-  if (body.userBackground) userParts.push(`Candidate background: ${body.userBackground}`)
-  userParts.push(`\nJob description:\n${body.jdText}`)
+    const system = SYSTEM + localeSystemSuffix(body.locale)
 
-  try {
+    // A URL means the posting has to be fetched, which needs the tool-enabled
+    // path. Pasted text is the cheaper, more reliable route — prefer it, and
+    // use both when the user supplied both.
+    if (body.jdUrl) {
+      sections.push(`JOB POSTING URL (read this page): ${body.jdUrl}`)
+      if (body.jdText?.trim()) {
+        sections.push(`The user also pasted this text from the posting:\n${body.jdText.trim()}`)
+      }
+      sections.push(
+        'Read the posting at the URL. If the page cannot be read, is expired, or is a generic listings page rather than one job, ' +
+        'set sourceNote to say exactly that and analyse whatever text was pasted instead. Do not fabricate a posting.',
+      )
+
+      const { data, sources } = await callGeminiGrounded({
+        apiKey,
+        system,
+        user:           sections.join('\n\n'),
+        schema:         jdParserResponseSchema,
+        maxTokens:      16_000,
+        thinkingBudget: LIGHT_THINKING,
+        urls:           [body.jdUrl],
+      })
+      return { data, sources }
+    }
+
+    sections.push(`JOB DESCRIPTION:\n${body.jdText?.trim() ?? ''}`)
+
     const data = await callGemini({
       apiKey,
-      system:    SYSTEM,
-      user:      userParts.join('\n\n'),
-      schema:    jdParserResponseSchema,
-      maxTokens: 1500,
+      system,
+      user:           sections.join('\n\n'),
+      schema:         jdParserResponseSchema,
+      maxTokens:      12_000,
+      thinkingBudget: LIGHT_THINKING,
     })
-    return res.status(200).json({ ok: true, data })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected error'
-    // Log in production too: without this a 500 shows up in the Vercel logs
-    // with no reason attached, which is how the grounded-JSON failure stayed
-    // invisible. The key is never part of the error object.
-    console.error('[jd-parser]', err)
-    return res.status(500).json({ ok: false, error: message })
-  }
-}
-
-function setCORSHeaders(res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin',  '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-gemini-api-key')
-}
+    return { data }
+  },
+})

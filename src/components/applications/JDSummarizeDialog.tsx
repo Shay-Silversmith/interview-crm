@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/Button'
 import { useToastActions } from '@/hooks/useToast'
 import { aiService } from '@/services/aiService'
 import { cn } from '@/lib/cn'
-import { SampleOutputNotice } from '@/components/ai/SampleOutputNotice'
-import type { FallbackReason } from '@/services/aiService'
+import { AIFailureNotice } from '@/components/ai/AIFailureNotice'
+import type { AIRun } from '@/services/aiService'
 
 interface JDSummarizeDialogProps {
   open:    boolean
@@ -34,7 +34,7 @@ export function JDSummarizeDialog({ open, onClose, onInsert, hasExisting }: JDSu
   const [headline, setHeadline] = useState('')
   const [body, setBody] = useState('')
   const [showResult, setShowResult] = useState(false)
-  const [aiNotice, setAiNotice]     = useState<FallbackReason | null | undefined>(null)
+  const [failure, setFailure]       = useState<Extract<AIRun<never>, { ok: false }> | null>(null)
 
   function reset() {
     setUrl(''); setText(''); setHeadline(''); setBody(''); setShowResult(false); setTab('text')
@@ -58,21 +58,21 @@ export function JDSummarizeDialog({ open, onClose, onInsert, hasExisting }: JDSu
     }
     setBusy(true)
     try {
-      const { data, fromFallback, fallbackReason } = await aiService.summarizeJD(
+      const res = await aiService.summarizeJD(
         tab === 'url'
           ? { jdUrl: url.trim() }
           : { jdText: text.trim() }
       )
       // A canned summary inserted into a job description becomes part of the
       // record. Show the reason instead of a plausible paragraph.
-      if (fromFallback) {
-        setAiNotice(fallbackReason)
+      if (!res.ok) {
+        setFailure(res)
         setShowResult(false)
         return
       }
-      setAiNotice(null)
-      setHeadline(data.headline)
-      setBody(data.bodyText)
+      setFailure(null)
+      setHeadline(res.data.headline)
+      setBody(res.data.bodyText)
       setShowResult(true)
       toast.success('Summary generated — review and edit before inserting')
     } catch (err) {
@@ -91,7 +91,9 @@ export function JDSummarizeDialog({ open, onClose, onInsert, hasExisting }: JDSu
   return (
     <Modal open={open} onClose={handleClose} title="Summarize job description with AI" size="lg">
       <div className="space-y-4">
-        {aiNotice !== null && <SampleOutputNotice reason={aiNotice} className="mb-3" />}
+        {failure && (
+          <AIFailureNotice reason={failure.reason} message={failure.message} className="mb-3" />
+        )}
 
         {!showResult && (
           <>

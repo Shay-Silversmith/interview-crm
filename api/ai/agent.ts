@@ -102,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       system:    SYSTEM + localeSystemSuffix(body.context.locale),
       user:      userMessage,
       schema:    agentResponseSchema,
-      maxTokens: 2000,
+      maxTokens: 12_000,
     })
     return res.status(200).json({ ok: true, data })
   } catch (err) {

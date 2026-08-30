@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // something back without throwing.
       system:    'You are a connectivity probe. Reply with a single short JSON object.',
       user:      'Return JSON: {"status":"ok"}',
-      maxTokens: 32,
+      maxTokens: 256,
       model:     MODEL,
     })
     return res.status(200).json({

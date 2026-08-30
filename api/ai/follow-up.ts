@@ -2,103 +2,81 @@
 // InterviewFlow — api/ai/follow-up.ts
 // POST /api/ai/follow-up
 //
-// Drafts three variants of a professional follow-up message using Gemini.
+// Three drafts of the same follow-up message: a short email, a warmer email,
+// and a LinkedIn message that fits the character limit.
 // ---------------------------------------------------------------------------
 
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini.js'
-import { checkRateLimit, getIP } from './_lib/rate-limit.js'
-import {
-  followUpRequestSchema,
-  followUpResponseSchema,
-  type FollowUpRequest,
-} from './_lib/schemas.js'
+import { callGemini, localeSystemSuffix, LIGHT_THINKING } from './_lib/gemini.js'
+import { createAIRoute } from './_lib/handler.js'
+import { candidateBlock, GROUNDING_RULES } from './_lib/prompt.js'
+import { followUpRequestSchema, followUpResponseSchema } from './_lib/schemas.js'
 
 const SYSTEM = `\
-You are an expert professional communications writer. Draft follow-up messages that are genuine, specific, and effective.
+You write follow-up messages for a candidate in a hiring process. The messages get sent as-is, so they must be ready to send.
 
 Return a single JSON object with exactly these keys:
 {
-  "short":    "Concise version — maximum 80 words. Direct and punchy.",
-  "warm":     "Personal version — 4-6 sentences, maximum 150 words. Warmer tone, still professional.",
-  "linkedIn": "LinkedIn DM version — maximum 300 characters, casual but professional."
+  "subject":  "email subject line for the short and warm variants — specific, under 60 characters, no 'Following up' alone",
+  "short":    "a tight email. 3-5 sentences. Greeting, the point, one specific reference to the conversation, a clear ask, sign-off.",
+  "warm":     "the same message with more warmth and one extra beat of genuine specificity. Still under 150 words.",
+  "linkedIn": "a LinkedIn message under 280 characters. No subject line, no formal sign-off — LinkedIn is a chat window."
 }
 
-Hard rules:
-— Reference specific details from the context. Never write a template-sounding message.
-— Never open with: "I hope this finds you well", "I wanted to reach out", "Just checking in", or similar openers.
-— Never close with: "Please don't hesitate to reach out" or "Looking forward to hearing from you" as a standalone line.
-— post-interview: reference something concrete from the conversation or topic discussed.
-— ping-after-silence: be politely direct; do not be apologetic for following up.
-— thank-you: mention something specific about what was said or done that you're grateful for.
-— decline-politely: be gracious, specific, and leave the relationship door open.
-— Match the tone requested (professional = crisp and formal; warm = genuine and personal; casual = conversational).
-— All three variants should feel written by the same authentic person, just pitched differently.`
+Rules:
+— Reference something specific from the context given. A follow-up with nothing specific in it reads as a template, which is worse than sending nothing.
+— Never invent details about the conversation. If the context is thin, keep the message short and general rather than inventing a moment that did not happen.
+— No flattery, no "I am writing to express my enthusiasm", no "I hope this email finds you well".
+— Match the requested tone, but never let casual become unprofessional.
+— Address the contact by name when one is given. When the name is a placeholder like "Hiring Team", write a greeting that works without a name.
+— Leave no bracketed placeholders in the output. The candidate should be able to send it without editing.
+— The candidate signs off with their own name; end with a sign-off line and their name if one was provided.
+${GROUNDING_RULES}`
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setCORSHeaders(res)
-  if (req.method === 'OPTIONS') return res.status(200).end()
-  if (req.method !== 'POST')   return res.status(405).json({ ok: false, error: 'Method not allowed' })
+const TYPE_GUIDANCE: Record<string, string> = {
+  'post-interview':
+    'This is a post-interview follow-up. Thank them for the specific conversation, reinforce one point of fit, and ask about next steps and timing.',
+  'ping-after-silence':
+    'This is a nudge after silence. Be gracious, do not imply they were rude, restate continued interest in one clause, and ask for a status update with an easy out for them.',
+  'thank-you':
+    'This is a thank-you note. Gratitude first, one specific thing that stood out from the conversation, brief reinforcement of interest. No hard ask.',
+  'decline-politely':
+    'The candidate is withdrawing or declining. Be warm, brief, and final. Give a reason only in the most general terms, thank them genuinely, and leave the relationship open for the future. Do not ask for anything.',
+}
 
-  const headers = req.headers as Record<string, string | string[] | undefined>
-  const apiKey = getGeminiApiKey(headers)
-  if (!apiKey) {
-    return res.status(401).json({ ok: false, error: 'Gemini API key required. Set it in Settings → AI Preferences.' })
-  }
+export default createAIRoute({
+  name:   'follow-up',
+  schema: followUpRequestSchema,
 
-  const ip = getIP(headers)
-  const rl = checkRateLimit(ip)
-  if (!rl.allowed) {
-    return res.status(429).json({
-      ok: false,
-      error: `Rate limit reached. Try again in ${Math.ceil(rl.resetInMs / 1000)} seconds.`,
-    })
-  }
+  async run({ body, apiKey }) {
+    const sections: string[] = [
+      TYPE_GUIDANCE[body.messageType] ?? `Message type: ${body.messageType}`,
+      `Company: ${body.company}`,
+      `Role: ${body.role}`,
+      `Recipient: ${body.contactName}${body.contactTitle ? ` (${body.contactTitle})` : ''}`,
+      `Tone: ${body.tone}`,
+    ]
 
-  const parsed = followUpRequestSchema.safeParse(req.body)
-  if (!parsed.success) {
-    return res.status(400).json({
-      ok: false,
-      error: parsed.error.issues.map(i => i.message).join('; '),
-    })
-  }
+    const candidate = candidateBlock(body.candidate)
+    if (candidate) sections.push(candidate)
 
-  const body: FollowUpRequest = parsed.data
-  const messageTypeLabels: Record<FollowUpRequest['messageType'], string> = {
-    'post-interview':      'Post-interview follow-up',
-    'ping-after-silence':  'Follow-up after no response',
-    'thank-you':           'Thank-you message',
-    'decline-politely':    'Polite decline',
-  }
-  const userMessage = [
-    `Message type: ${messageTypeLabels[body.messageType]}`,
-    `Recipient: ${body.contactName} at ${body.company}`,
-    `Role being discussed: ${body.role}`,
-    `Requested tone: ${body.tone}`,
-    `Context:\n${body.context}`,
-  ].join('\n\n')
+    if (body.context.trim()) {
+      sections.push(`WHAT HAPPENED (use this for the specific reference):\n${body.context.trim()}`)
+    } else {
+      sections.push(
+        'No context about the conversation was provided. Keep all three messages short and general ' +
+        'rather than inventing a specific moment to reference.',
+      )
+    }
 
-  try {
     const data = await callGemini({
       apiKey,
-      system:    SYSTEM + localeSystemSuffix(body.locale),
-      user:      userMessage,
-      schema:    followUpResponseSchema,
-      maxTokens: 1200,
+      system:         SYSTEM + localeSystemSuffix(body.locale),
+      user:           sections.join('\n\n'),
+      schema:         followUpResponseSchema,
+      maxTokens:      8_000,
+      thinkingBudget: LIGHT_THINKING,
     })
-    return res.status(200).json({ ok: true, data })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected error'
-    // Log in production too: without this a 500 shows up in the Vercel logs
-    // with no reason attached, which is how the grounded-JSON failure stayed
-    // invisible. The key is never part of the error object.
-    console.error('[follow-up]', err)
-    return res.status(500).json({ ok: false, error: message })
-  }
-}
 
-function setCORSHeaders(res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin',  '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-gemini-api-key')
-}
+    return { data }
+  },
+})

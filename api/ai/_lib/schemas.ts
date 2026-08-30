@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // InterviewFlow — api/ai/_lib/schemas.ts
 // Zod schemas for every AI function's request body and response data.
-// Shared between the handler files and the claude wrapper.
+// Shared between the handler files and the gemini wrapper.
 // ---------------------------------------------------------------------------
 
 import { z } from 'zod'
@@ -14,38 +14,79 @@ const nonEmptyStr = z.string().min(1).max(30_000)
 
 /**
  * Optional output-language hint sent by the frontend.
- * 'en'  → English output (default for all tools).
- * 'he'  → Hebrew output for content-heavy tools (prep-pack, follow-up).
+ * 'en' → English. 'he' → Hebrew.
  *
- * JD Parser intentionally ignores this field — job descriptions are written
- * in English and structured output (responsibilities, requirements, …) reads
- * better in its source language. See docs/ai-functions.md for rationale.
+ * Every tool honours this now. The old carve-out for the JD parser assumed the
+ * user reads the analysis in the JD's own language; in practice the analysis is
+ * the part they read closely, and reading it in Hebrew is the whole point of
+ * the language toggle.
  */
 const localeField = z.enum(['en', 'he']).default('en').optional()
 
-// ---------------------------------------------------------------------------
-// JD Parser
-// ---------------------------------------------------------------------------
-
-export const jdParserRequestSchema = z.object({
-  jdText:          nonEmptyStr,
-  roleTitle:       z.string().max(200).optional(),
-  userBackground:  z.string().max(2000).optional(),
-  // Accepted for API consistency but NOT used — JD output stays English.
-  locale:          localeField,
+/** Shared "who is this candidate" block, sent by every personalised tool. */
+export const candidateSchema = z.object({
+  name:        z.string().max(120).optional(),
+  headline:    z.string().max(400).optional(),
+  background:  z.string().max(4000).optional(),
+  skills:      z.array(z.string()).max(60).optional(),
+  targetRoles: z.array(z.string()).max(20).optional(),
+  cv: z.object({
+    emphasis:            z.string().max(2000),
+    skillsHighlighted:   z.array(z.string()).max(80),
+    projectsHighlighted: z.array(z.string()).max(60),
+  }).nullable().optional(),
 })
 
+export type Candidate = z.infer<typeof candidateSchema>
+
+/** A web source the model actually consulted, surfaced so claims are checkable. */
+export const sourceSchema = z.object({
+  title: z.string().optional(),
+  uri:   z.string().optional(),
+})
+
+// ---------------------------------------------------------------------------
+// JD Parser / Role analysis
+// ---------------------------------------------------------------------------
+
+export const jdParserRequestSchema = z
+  .object({
+    jdText:         z.string().max(30_000).optional(),
+    /** Link to the posting on LinkedIn or the company careers site. */
+    jdUrl:          z.string().url().max(2000).optional(),
+    roleTitle:      z.string().max(200).optional(),
+    companyName:    z.string().max(200).optional(),
+    userBackground: z.string().max(4000).optional(),
+    candidate:      candidateSchema.optional(),
+    locale:         localeField,
+  })
+  .refine(d => (d.jdText && d.jdText.trim().length > 20) || d.jdUrl, {
+    message: 'Paste the job description, or give a link to the posting.',
+  })
+
+const fitLevel = z.enum(['strong', 'partial', 'gap'])
+
 export const jdParserResponseSchema = z.object({
-  roleSummary:         z.string(),
-  responsibilities:    z.array(z.string()).min(1),
-  requirements:        z.array(z.string()).min(1),
-  niceToHaves:         z.array(z.string()),
-  technologies:        z.array(z.string()),
-  whatTheyWant:        z.string(),
-  howIMatch:           z.array(z.string()),
-  whatToEmphasize:     z.array(z.string()),
-  possibleQuestions:   z.array(z.string()),
-  prepChecklist:       z.array(z.string()),
+  roleSummary:        z.string(),
+  seniority:          z.string(),
+  responsibilities:   z.array(z.string()).min(1),
+  requirements:       z.array(z.string()).min(1),
+  niceToHaves:        z.array(z.string()),
+  technologies:       z.array(z.string()),
+  whatTheyWant:       z.string(),
+  /** Requirement-by-requirement read on the candidate, not a vague blurb. */
+  fitAnalysis: z.array(z.object({
+    requirement: z.string(),
+    level:       fitLevel,
+    evidence:    z.string(),
+  })).default([]),
+  howIMatch:          z.array(z.string()),
+  gapsToAddress:      z.array(z.string()).default([]),
+  whatToEmphasize:    z.array(z.string()),
+  possibleQuestions:  z.array(z.string()),
+  prepChecklist:      z.array(z.string()),
+  /** Present only when the posting was read from a URL and something was off. */
+  sourceNote:         z.string().nullable().optional(),
 })
 
 export type JDParserRequest  = z.infer<typeof jdParserRequestSchema>
@@ -56,6 +97,7 @@ export type JDParserResponse = z.infer<typeof jdParserResponseSchema>
 // ---------------------------------------------------------------------------
 
 const starStorySchema = z.object({
+  title:     z.string().default(''),
   situation: z.string(),
   task:      z.string(),
   action:    z.string(),
@@ -64,21 +106,22 @@ const starStorySchema = z.object({
 
 export const prepPackRequestSchema = z.object({
   application: z.object({
-    title:          z.string().max(200),
-    company:        z.string().max(200),
-    stage:          z.string().max(100),
-    jdText:         z.string().max(20_000).optional(),
-    aiRoleSummary:  z.string().max(2000).optional(),
-    notes:          z.string().max(3000).optional(),
+    title:         z.string().max(200),
+    company:       z.string().max(200),
+    stage:         z.string().max(100),
+    jdText:        z.string().max(20_000).optional(),
+    jdUrl:         z.string().max(2000).optional(),
+    aiRoleSummary: z.string().max(6000).optional(),
+    notes:         z.string().max(3000).optional(),
   }),
   cv: z.object({
-    emphasis:            z.string().max(1000),
+    emphasis:            z.string().max(2000),
     skillsHighlighted:   z.array(z.string()),
     projectsHighlighted: z.array(z.string()),
   }).nullable(),
   company: z.object({
     name:               z.string().max(200),
-    summary:            z.string().max(2000).optional(),
+    summary:            z.string().max(4000).optional(),
     productDescription: z.string().max(2000).optional(),
   }).nullable(),
   pastInterviews: z.array(z.object({
@@ -87,20 +130,26 @@ export const prepPackRequestSchema = z.object({
     roughAnswers: z.array(z.string()),
     takeaways:    z.string(),
   })),
-  userBackground: z.string().max(3000),
+  userBackground: z.string().max(4000),
   interviewType:  z.string().max(200),
+  /** When true the pack is researched against the live web, not memory. */
+  research:       z.boolean().default(true).optional(),
   locale:         localeField,
 })
 
 export const prepPackResponseSchema = z.object({
-  companySnapshot:             z.string(),
-  roleSummary:                 z.string(),
-  reviewFromCV:                z.array(z.string()),
-  expectedHRQuestions:         z.array(z.string()),
-  expectedTechnicalQuestions:  z.array(z.string()),
-  recommendedStarStories:      z.array(starStorySchema),
-  questionsToAsk:              z.array(z.string()),
-  finalChecklist:              z.array(z.string()),
+  companySnapshot:            z.string(),
+  roleSummary:                z.string(),
+  reviewFromCV:               z.array(z.string()),
+  expectedHRQuestions:        z.array(z.string()),
+  expectedTechnicalQuestions: z.array(z.string()),
+  recommendedStarStories:     z.array(starStorySchema),
+  questionsToAsk:             z.array(z.string()),
+  /** Concrete study items, each with a reason, so the checklist is arguable. */
+  finalChecklist:             z.array(z.string()),
+  /** What to do with the last hour before the call. */
+  dayOfPlan:                  z.array(z.string()).default([]),
+  redFlagsToProbe:            z.array(z.string()).default([]),
 })
 
 export type PrepPackRequest  = z.infer<typeof prepPackRequestSchema>
@@ -111,26 +160,30 @@ export type PrepPackResponse = z.infer<typeof prepPackResponseSchema>
 // ---------------------------------------------------------------------------
 
 export const followUpRequestSchema = z.object({
-  messageType:  z.enum(['post-interview', 'ping-after-silence', 'thank-you', 'decline-politely']),
-  company:      z.string().max(200),
-  contactName:  z.string().max(200),
-  role:         z.string().max(200),
-  tone:         z.enum(['professional', 'warm', 'casual']),
-  context:      z.string().max(2000),
-  locale:       localeField,
+  messageType: z.enum(['post-interview', 'ping-after-silence', 'thank-you', 'decline-politely']),
+  company:     z.string().max(200),
+  contactName: z.string().max(200),
+  contactTitle: z.string().max(200).optional(),
+  role:        z.string().max(200),
+  tone:        z.enum(['professional', 'warm', 'casual']),
+  context:     z.string().max(4000),
+  candidate:   candidateSchema.optional(),
+  locale:      localeField,
 })
 
 export const followUpResponseSchema = z.object({
   short:    z.string(),
   warm:     z.string(),
   linkedIn: z.string(),
+  /** Subject line for the two email variants. */
+  subject:  z.string().default(''),
 })
 
 export type FollowUpRequest  = z.infer<typeof followUpRequestSchema>
 export type FollowUpResponse = z.infer<typeof followUpResponseSchema>
 
 // ---------------------------------------------------------------------------
-// Company auto-fill
+// Company auto-fill (used by the Company form)
 // ---------------------------------------------------------------------------
 
 const companySize = z.enum([
@@ -139,7 +192,7 @@ const companySize = z.enum([
 
 export const companyFillRequestSchema = z.object({
   companyName: z.string().min(1).max(200),
-  hint:        z.string().max(500).optional(),  // optional disambiguator e.g. "the Israeli AI startup"
+  hint:        z.string().max(500).optional(),
   locale:      localeField,
 })
 
@@ -152,12 +205,149 @@ export const companyFillResponseSchema = z.object({
   linkedinUrl:     z.string().nullable().optional(),
   glassdoorRating: z.number().min(0).max(5).nullable().optional(),
   techStack:       z.array(z.string()),
-  /** Optional disambiguation note when multiple matching companies exist. */
   disambiguation:  z.string().nullable().optional(),
 })
 
 export type CompanyFillRequest  = z.infer<typeof companyFillRequestSchema>
 export type CompanyFillResponse = z.infer<typeof companyFillResponseSchema>
+
+// ---------------------------------------------------------------------------
+// Company brief — the interview-facing research report.
+//
+// Distinct from company-fill, which fills CRM columns. This one answers
+// "what do I need to know about this company before I walk into the room",
+// and every claim is grounded in search results the UI can link to.
+// ---------------------------------------------------------------------------
+
+export const companyBriefRequestSchema = z.object({
+  companyName: z.string().min(1).max(200),
+  roleTitle:   z.string().max(200).optional(),
+  /** Disambiguator, e.g. "the Israeli cloud-security startup". */
+  hint:        z.string().max(500).optional(),
+  /** Company site / LinkedIn / careers page the model should read directly. */
+  urls:        z.array(z.string().url()).max(5).optional(),
+  candidate:   candidateSchema.optional(),
+  locale:      localeField,
+})
+
+export const companyBriefResponseSchema = z.object({
+  /** One line a candidate could say out loud to show they did the reading. */
+  headline:        z.string(),
+  whatTheyDo:      z.string(),
+  products:        z.array(z.string()),
+  businessModel:   z.string(),
+  customers:       z.string(),
+  scale:           z.string(),
+  /** Dated items. Undated "recent news" is how a stale fact becomes a gaffe. */
+  recentNews: z.array(z.object({
+    date:    z.string(),
+    item:    z.string(),
+    whyItMatters: z.string().default(''),
+  })).default([]),
+  competitors:     z.array(z.string()).default([]),
+  culture:         z.array(z.string()).default([]),
+  /** What the hiring loop actually looks like, per public accounts. */
+  interviewProcess: z.array(z.string()).default([]),
+  /** Israeli site / team presence — the difference between HQ and the office. */
+  localPresence:   z.string().nullable().optional(),
+  techStack:       z.array(z.string()).default([]),
+  /** Lines to work into answers that prove genuine research. */
+  talkingPoints:   z.array(z.string()).default([]),
+  questionsToAsk:  z.array(z.string()).default([]),
+  /** Public criticism worth knowing about, stated neutrally. */
+  watchOuts:       z.array(z.string()).default([]),
+  /** Why this candidate specifically fits — omitted when no CV was sent. */
+  whyYouFit:       z.array(z.string()).default([]),
+  /** Set when the name was ambiguous and a guess had to be made. */
+  disambiguation:  z.string().nullable().optional(),
+})
+
+export type CompanyBriefRequest  = z.infer<typeof companyBriefRequestSchema>
+export type CompanyBriefResponse = z.infer<typeof companyBriefResponseSchema>
+
+// ---------------------------------------------------------------------------
+// Interview debrief — unordered notes in, an organised record out.
+// ---------------------------------------------------------------------------
+
+export const interviewDebriefRequestSchema = z.object({
+  notes:         z.string().min(10).max(30_000),
+  company:       z.string().max(200).optional(),
+  role:          z.string().max(200).optional(),
+  interviewType: z.string().max(120).optional(),
+  interviewer:   z.string().max(200).optional(),
+  interviewedAt: z.string().max(60).optional(),
+  candidate:     candidateSchema.optional(),
+  locale:        localeField,
+})
+
+export const interviewDebriefResponseSchema = z.object({
+  headline:  z.string(),
+  overview:  z.string(),
+  /** Reconstructed Q&A. answerGiven stays faithful to the notes. */
+  questionsAsked: z.array(z.object({
+    question:    z.string(),
+    answerGiven: z.string().default(''),
+    assessment:  z.string().default(''),
+  })).default([]),
+  topicsCovered:      z.array(z.string()).default([]),
+  /** Facts about the role, team, or company that came out of the conversation. */
+  learnedAboutRole:   z.array(z.string()).default([]),
+  wentWell:           z.array(z.string()).default([]),
+  couldImprove:       z.array(z.string()).default([]),
+  /** Things asked that went unanswered — the actual study list. */
+  unansweredQuestions: z.array(z.string()).default([]),
+  /** Signals of how it landed, hedged honestly rather than reassuringly. */
+  signalsRead:        z.array(z.string()).default([]),
+  nextSteps:          z.array(z.string()).default([]),
+  followUpActions:    z.array(z.string()).default([]),
+  prepForNextRound:   z.array(z.string()).default([]),
+  /** The whole debrief as clean markdown, for copying into notes. */
+  markdown:           z.string(),
+})
+
+export type InterviewDebriefRequest  = z.infer<typeof interviewDebriefRequestSchema>
+export type InterviewDebriefResponse = z.infer<typeof interviewDebriefResponseSchema>
+
+// ---------------------------------------------------------------------------
+// STAR answers — questions and model answers built from the CV and the JD.
+// ---------------------------------------------------------------------------
+
+export const starAnswersRequestSchema = z.object({
+  role:        z.string().max(200),
+  company:     z.string().max(200),
+  jdText:      z.string().max(20_000).optional(),
+  jdUrl:       z.string().url().max(2000).optional(),
+  /** Ask for answers to a specific question instead of generated ones. */
+  question:    z.string().max(1000).optional(),
+  /** Behavioural themes to bias toward, e.g. Amazon leadership principles. */
+  focus:       z.string().max(500).optional(),
+  count:       z.number().int().min(1).max(8).default(4).optional(),
+  candidate:   candidateSchema.optional(),
+  locale:      localeField,
+})
+
+export const starAnswersResponseSchema = z.object({
+  answers: z.array(z.object({
+    question:      z.string(),
+    /** Why this question shows up for this role — makes the list arguable. */
+    whyAsked:      z.string().default(''),
+    /** Which CV item the story is built on, so invention is visible. */
+    basedOn:       z.string().default(''),
+    situation:     z.string(),
+    task:          z.string(),
+    action:        z.string(),
+    result:        z.string(),
+    /** 60-90 second version to actually say out loud. */
+    spokenAnswer:  z.string().default(''),
+    deliveryTips:  z.array(z.string()).default([]),
+    followUps:     z.array(z.string()).default([]),
+  })).min(1),
+  /** Flagged when the CV was too thin to ground a story honestly. */
+  coverageNote: z.string().nullable().optional(),
+})
+
+export type StarAnswersRequest  = z.infer<typeof starAnswersRequestSchema>
+export type StarAnswersResponse = z.infer<typeof starAnswersResponseSchema>
 
 // ---------------------------------------------------------------------------
 // CV parse — extract structured highlights from an uploaded resume
@@ -176,6 +366,8 @@ export const cvParseResponseSchema = z.object({
   skillsHighlighted:   z.array(z.string()),
   projectsHighlighted: z.array(z.string()),
   suggestedName:       z.string(),
+  /** Raw-ish text of the CV, reused as candidate context by the other tools. */
+  extractedText:       z.string().default(''),
 })
 
 export type CVParseRequest  = z.infer<typeof cvParseRequestSchema>
@@ -194,11 +386,8 @@ export const jdSummarizeRequestSchema = z
   .refine(d => !!d.jdUrl || !!d.jdText, { message: 'Either jdUrl or jdText is required' })
 
 export const jdSummarizeResponseSchema = z.object({
-  /** Short headline summarising the role in 1 sentence. */
   headline: z.string(),
-  /** 6-10 bullet points covering responsibilities, requirements, perks, etc. */
   bullets:  z.array(z.string()).min(1),
-  /** Plain-text body ready to drop straight into the JD textarea. */
   bodyText: z.string(),
 })
 

@@ -85,21 +85,16 @@ export function CompanyForm({ initial, onSubmit, onCancel, loading, submitLabel 
     setAutoFilling(true)
     setDisambiguation(null)
     try {
-      const { data, fromFallback, fallbackReason } = await aiService.fillCompany({ companyName: name })
+      const res = await aiService.fillCompany({ companyName: name })
 
-      // A fallback answer describes an example company, not this one. Writing it
-      // into the form would turn placeholder text into saved company facts, so
-      // say what happened and leave the fields untouched.
-      if (fromFallback) {
-        setSampleNotice(
-          fallbackReason === 'disabled'
-            ? 'Live AI is switched off for this build (VITE_AI_ENABLED), so no request was made. This is a deployment setting, not your API key.'
-            : fallbackReason === 'no-key'
-              ? 'No Gemini API key is set, so nothing was researched. Add one in Settings.'
-              : 'The research request failed, so no fields were changed. Try again in a moment.')
+      // A failed lookup must not touch the form: writing a guess into these
+      // fields turns it into a saved company fact. Report and leave it alone.
+      if (!res.ok) {
+        setSampleNotice(`${res.message} No fields were changed.`)
         return
       }
       setSampleNotice(null)
+      const { data } = res
 
       // Apply each non-empty field. Don't overwrite name (user typed it).
       if (data.industry)            setValue('industry',        data.industry,          { shouldDirty: true })
