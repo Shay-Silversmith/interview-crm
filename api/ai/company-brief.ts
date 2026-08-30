@@ -80,7 +80,7 @@ export default createAIRoute({
       schema:    companyBriefResponseSchema,
       // The brief is the longest output in the app and the one users read
       // end to end. Truncating it halfway is worse than a slower response.
-      maxTokens: 10_000,
+      maxTokens: 14_000,
       urls:      body.urls,
     })
 

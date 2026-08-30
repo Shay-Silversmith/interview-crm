@@ -398,12 +398,26 @@ async function post<TReq, TRes>(
       signal: controller.signal,
     })
 
+    // A host that kills a long function answers with its own error page, not
+    // ours. Vercel caps functions at 60s on Hobby, and a research call that
+    // runs past it arrives here as a 504 full of HTML — which read as a
+    // generic server fault until it was named.
+    if (res.status === 504 || res.status === 502) {
+      return {
+        ok: false,
+        error:
+          `The server cut the request off after about a minute (HTTP ${res.status}). ` +
+          'Deployed functions have a hard time limit that research-backed tools can exceed. ' +
+          'Running locally has no such limit.',
+      }
+    }
+
     // A dev server without the API middleware answers /api/* with index.html.
     // Parsing that as JSON throws "Unexpected token '<'", which is where the
     // "nothing works locally" reports came from — say what actually happened.
     const contentType = res.headers.get('content-type') ?? ''
     if (!contentType.includes('application/json')) {
-      const preview = (await res.text()).slice(0, 120)
+      const preview = (await res.text()).slice(0, 200)
       return {
         ok: false,
         error:

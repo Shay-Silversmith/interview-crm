@@ -23,10 +23,19 @@ import type { z } from 'zod'
 
 export const DEFAULT_MODEL = 'gemini-2.5-flash'
 
-/** Reasoning tokens allowed before the answer starts. 0 disables thinking.
- *  Structured extraction does not benefit from it; coaching output does. */
-export const NO_THINKING    = 0
-export const LIGHT_THINKING = 2048
+/**
+ * Reasoning tokens allowed before the answer starts.
+ *
+ * 0 disables thinking — right for structured extraction, which does not benefit.
+ * -1 hands the budget to the model, which is the only safe setting for a call
+ * that also runs tools: a fixed small budget can be consumed entirely by the
+ * search-and-reason loop, and the model then finishes with finishReason STOP
+ * and no text at all. That empty-but-successful response is the same failure as
+ * the original 1500-token ceiling, reached by a different road.
+ */
+export const NO_THINKING      = 0
+export const LIGHT_THINKING   = 2048
+export const DYNAMIC_THINKING = -1
 
 // ---------------------------------------------------------------------------
 // Hebrew output instruction
@@ -127,7 +136,10 @@ export class GeminiTruncatedError extends Error {
 /** Thrown when the model returned no text at all. */
 export class GeminiEmptyError extends Error {
   constructor(public readonly reason: string) {
-    super(`Gemini returned an empty response (${reason}).`)
+    super(
+      `Gemini finished without writing anything (${reason}). ` +
+      'This is usually transient — try again.',
+    )
     this.name = 'GeminiEmptyError'
   }
 }
@@ -178,7 +190,17 @@ export interface CallGeminiOptions<T> {
 }
 
 export async function callGemini<T>(opts: CallGeminiOptions<T>): Promise<T> {
-  const firstText   = await callGeminiRaw(opts)
+  let firstText: string
+  try {
+    firstText = await callGeminiRaw(opts)
+  } catch (err) {
+    // An empty body with a clean finishReason is transient. One retry costs a
+    // few seconds; surfacing it costs the user the whole result.
+    if (!(err instanceof GeminiEmptyError)) throw err
+    console.warn(`[gemini] empty response (${err.reason}); retrying once`)
+    firstText = await callGeminiRaw(opts)
+  }
+
   const firstResult = opts.schema.safeParse(parseJSON(firstText))
   if (firstResult.success) return firstResult.data
 
@@ -285,15 +307,17 @@ export async function callGeminiGrounded<T>(
       config: {
         systemInstruction: opts.system,
         maxOutputTokens:   opts.maxTokens,
-        thinkingConfig:    { thinkingBudget: opts.thinkingBudget ?? LIGHT_THINKING },
+        // Dynamic by default — see DYNAMIC_THINKING. A fixed budget here is
+        // what produced STOP-with-no-text on the research tools.
+        thinkingConfig:    { thinkingBudget: opts.thinkingBudget ?? DYNAMIC_THINKING },
         tools,
       },
     })
 
-  let response
-  if (wantsUrlContext) {
+  const attempt = async () => {
+    if (!wantsUrlContext) return send([{ googleSearch: {} }])
     try {
-      response = await send([{ googleSearch: {} }, { urlContext: {} }])
+      return await send([{ googleSearch: {} }, { urlContext: {} }])
     } catch (err) {
       // Which tools may be combined has changed more than once across model
       // versions, and the API rejects an unsupported pairing outright. Search
@@ -301,10 +325,20 @@ export async function callGeminiGrounded<T>(
       // model finds the posting instead of being handed it.
       if (!isToolRejection(err)) throw err
       console.warn('[gemini] urlContext rejected, retrying with search only')
-      response = await send([{ googleSearch: {} }])
+      return send([{ googleSearch: {} }])
     }
-  } else {
-    response = await send([{ googleSearch: {} }])
+  }
+
+  let response = await attempt()
+
+  // An empty body with a clean finishReason is a transient fault in the
+  // search-and-answer loop, not a refusal — the same request usually succeeds
+  // on the next try. Retrying once here is far cheaper than handing the user a
+  // failure for a question the model was willing to answer.
+  if (!(response.text ?? '').trim()) {
+    const finish = response.candidates?.[0]?.finishReason
+    console.warn(`[gemini] grounded call returned no text (${finish ?? 'no candidate'}); retrying once`)
+    response = await attempt()
   }
 
   const text      = response.text ?? ''

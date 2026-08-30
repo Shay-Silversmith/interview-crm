@@ -107,7 +107,7 @@ export default createAIRoute({
         system,
         user:      sections.join('\n\n'),
         schema:    starAnswersResponseSchema,
-        maxTokens: 12_000,
+        maxTokens: 14_000,
         urls:      [body.jdUrl],
       })
       return { data, sources }

@@ -87,7 +87,7 @@ export default createAIRoute({
         system,
         user:           sections.join('\n\n'),
         schema:         jdParserResponseSchema,
-        maxTokens:      10_000,
+        maxTokens:      12_000,
         thinkingBudget: LIGHT_THINKING,
         urls:           [body.jdUrl],
       })
