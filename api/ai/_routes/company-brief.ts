@@ -10,10 +10,10 @@
 // interview brief nobody can check is a liability.
 // ---------------------------------------------------------------------------
 
-import { callGeminiGrounded, localeSystemSuffix } from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { RESEARCH_RULES } from './_lib/prompt.js'
-import { companyBriefRequestSchema, companyProfileResponseSchema } from './_lib/schemas.js'
+import { callGeminiGrounded, localeSystemSuffix } from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { RESEARCH_RULES } from '../_lib/prompt.js'
+import { companyBriefRequestSchema, companyProfileResponseSchema } from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You research a company for a candidate who has an interview coming up, often tomorrow. You have Google Search. Use it, then answer fast.

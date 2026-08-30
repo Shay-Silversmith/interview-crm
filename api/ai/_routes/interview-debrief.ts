@@ -12,13 +12,13 @@
 // round against a conversation that did not happen.
 // ---------------------------------------------------------------------------
 
-import { callGemini, localeSystemSuffix, LIGHT_THINKING } from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { candidateBlock } from './_lib/prompt.js'
+import { callGemini, localeSystemSuffix, LIGHT_THINKING } from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { candidateBlock } from '../_lib/prompt.js'
 import {
   interviewDebriefRequestSchema,
   interviewDebriefResponseSchema,
-} from './_lib/schemas.js'
+} from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You turn a candidate's raw, unordered notes from an interview they just finished into a clean written record.

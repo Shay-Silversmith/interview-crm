@@ -12,8 +12,8 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGeminiRaw, getGeminiApiKey } from './_lib/gemini.js'
-import { checkRateLimit, getIP } from './_lib/rate-limit.js'
+import { callGeminiRaw, getGeminiApiKey } from '../_lib/gemini.js'
+import { checkRateLimit, getIP } from '../_lib/rate-limit.js'
 
 const MODEL = 'gemini-2.5-flash'
 

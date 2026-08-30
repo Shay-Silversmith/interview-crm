@@ -21,23 +21,44 @@ import type { Plugin } from 'vite'
 /** Bodies carry base64 CV uploads, so the cap is well above Vercel's 4.5 MB. */
 const MAX_BODY_BYTES = 12 * 1024 * 1024
 
-function resolveHandlerFile(root: string, pathname: string): string | null {
+export interface ResolvedHandler {
+  file: string
+  /** Values captured by a [param] segment, mirroring Vercel's req.query. */
+  params: Record<string, string>
+}
+
+function resolveHandlerFile(root: string, pathname: string): ResolvedHandler | null {
   const rel = pathname.replace(/^\/api\/?/, '').replace(/\/+$/, '')
   if (!rel) return null
 
   // Reject traversal before touching the filesystem.
-  if (rel.split('/').some(seg => seg === '..' || seg === '')) return null
+  const segments = rel.split('/')
+  if (segments.some(seg => seg === '..' || seg === '')) return null
 
-  const candidates = [
-    `api/${rel}.ts`,
-    `api/${rel}/index.ts`,
-    `api/${rel}.js`,
-    `api/${rel}/index.js`,
-  ]
-  for (const c of candidates) {
+  const inApi = (abs: string) => abs.startsWith(path.resolve(root, 'api'))
+
+  // Exact file first, the way Vercel prefers a static route over a dynamic one.
+  for (const c of [`api/${rel}.ts`, `api/${rel}/index.ts`, `api/${rel}.js`, `api/${rel}/index.js`]) {
     const abs = path.resolve(root, c)
-    if (abs.startsWith(path.resolve(root, 'api')) && fs.existsSync(abs)) return abs
+    if (inApi(abs) && fs.existsSync(abs)) return { file: abs, params: {} }
   }
+
+  // Then a [param] file in the parent directory — api/ai/[tool].ts serving
+  // /api/ai/company-brief. Without this the dev server 404s on every AI route
+  // while production serves them all, which is exactly the kind of divergence
+  // this plugin exists to prevent.
+  const leaf   = segments[segments.length - 1]
+  const parent = segments.slice(0, -1).join('/')
+  const dir    = path.resolve(root, parent ? `api/${parent}` : 'api')
+
+  if (inApi(dir) && fs.existsSync(dir)) {
+    const dynamic = fs.readdirSync(dir).find(name => /^\[[^\]]+\]\.(ts|js)$/.test(name))
+    if (dynamic) {
+      const paramName = dynamic.slice(1, dynamic.lastIndexOf(']'))
+      return { file: path.join(dir, dynamic), params: { [paramName]: leaf } }
+    }
+  }
+
   return null
 }
 
@@ -89,10 +110,10 @@ export function devApiPlugin(): Plugin {
         if (!rawUrl.startsWith('/api/')) return next()
 
         const [pathname, search = ''] = rawUrl.split('?')
-        const file = resolveHandlerFile(root, pathname)
-        const out  = decorateResponse(res)
+        const resolved = resolveHandlerFile(root, pathname)
+        const out      = decorateResponse(res)
 
-        if (!file) {
+        if (!resolved) {
           out.status(404).json({ ok: false, error: `No API route matches ${pathname}` })
           return
         }
@@ -116,21 +137,21 @@ export function devApiPlugin(): Plugin {
 
           // ssrLoadModule transpiles the TS handler and keeps it in Vite's
           // module graph, so saving a file in api/ takes effect immediately.
-          const mod = await server.ssrLoadModule(file) as {
+          const mod = await server.ssrLoadModule(resolved.file) as {
             default?: (rq: unknown, rs: unknown) => unknown | Promise<unknown>
           }
           const handler = mod.default
           if (typeof handler !== 'function') {
             out.status(500).json({
               ok: false,
-              error: `${path.relative(root, file)} has no default export handler`,
+              error: `${path.relative(root, resolved.file)} has no default export handler`,
             })
             return
           }
 
           const vercelReq = Object.assign(req, {
             body,
-            query: Object.fromEntries(new URLSearchParams(search)),
+            query: { ...Object.fromEntries(new URLSearchParams(search)), ...resolved.params },
             cookies: {} as Record<string, string>,
           })
 

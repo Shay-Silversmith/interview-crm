@@ -6,10 +6,10 @@
 // and a LinkedIn message that fits the character limit.
 // ---------------------------------------------------------------------------
 
-import { callGemini, localeSystemSuffix, LIGHT_THINKING } from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { candidateBlock, GROUNDING_RULES } from './_lib/prompt.js'
-import { followUpRequestSchema, followUpResponseSchema } from './_lib/schemas.js'
+import { callGemini, localeSystemSuffix, LIGHT_THINKING } from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { candidateBlock, GROUNDING_RULES } from '../_lib/prompt.js'
+import { followUpRequestSchema, followUpResponseSchema } from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You write follow-up messages for a candidate in a hiring process. The messages get sent as-is, so they must be ready to send.

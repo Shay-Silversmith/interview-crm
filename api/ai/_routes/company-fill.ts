@@ -14,10 +14,10 @@
 // fills the CRM's columns.
 // ---------------------------------------------------------------------------
 
-import { callGeminiGrounded, localeSystemSuffix } from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { RESEARCH_RULES } from './_lib/prompt.js'
-import { companyFillRequestSchema, companyFillResponseSchema } from './_lib/schemas.js'
+import { callGeminiGrounded, localeSystemSuffix } from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { RESEARCH_RULES } from '../_lib/prompt.js'
+import { companyFillRequestSchema, companyFillResponseSchema } from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You research companies for a job-seeker's CRM. The user gives you a company name; you return a single JSON object with exactly these keys:

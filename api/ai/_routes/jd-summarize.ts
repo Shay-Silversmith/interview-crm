@@ -11,9 +11,9 @@
 // be fetched the summary says so instead of inventing one.
 // ---------------------------------------------------------------------------
 
-import { callGemini, callGeminiGrounded, localeSystemSuffix } from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { jdSummarizeRequestSchema, jdSummarizeResponseSchema } from './_lib/schemas.js'
+import { callGemini, callGeminiGrounded, localeSystemSuffix } from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { jdSummarizeRequestSchema, jdSummarizeResponseSchema } from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You convert long job descriptions into a clean, scannable summary a candidate can paste into their job-search CRM. Return a single JSON object with exactly these keys:

@@ -11,9 +11,9 @@
 // me about a time you...". The other tools read extractedText instead.
 // ---------------------------------------------------------------------------
 
-import { callGemini, localeSystemSuffix, type GeminiPart } from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { cvParseRequestSchema, cvParseResponseSchema } from './_lib/schemas.js'
+import { callGemini, localeSystemSuffix, type GeminiPart } from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { cvParseRequestSchema, cvParseResponseSchema } from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You read resumes (CVs) and extract structured content for a job-search CRM. The user attaches the file. Return a single JSON object with exactly these keys:

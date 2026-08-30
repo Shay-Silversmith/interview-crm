@@ -11,13 +11,13 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGemini, localeSystemSuffix, getGeminiApiKey } from './_lib/gemini.js'
-import { checkRateLimit, getIP } from './_lib/rate-limit.js'
+import { callGemini, localeSystemSuffix, getGeminiApiKey } from '../_lib/gemini.js'
+import { checkRateLimit, getIP } from '../_lib/rate-limit.js'
 import {
   agentRequestSchema,
   agentResponseSchema,
   type AgentRequest,
-} from './_lib/agent-schemas.js'
+} from '../_lib/agent-schemas.js'
 
 const SYSTEM = `\
 You are an assistant inside InterviewFlow, a personal job-search CRM. The user describes things that happened (or will happen) in their job search and you propose precise CRM updates.

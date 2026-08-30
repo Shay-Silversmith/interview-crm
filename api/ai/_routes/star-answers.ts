@@ -17,10 +17,10 @@ import {
   callGeminiGrounded,
   localeSystemSuffix,
   LIGHT_THINKING,
-} from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { candidateBlock, GROUNDING_RULES } from './_lib/prompt.js'
-import { starAnswersRequestSchema, starAnswersResponseSchema } from './_lib/schemas.js'
+} from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { candidateBlock, GROUNDING_RULES } from '../_lib/prompt.js'
+import { starAnswersRequestSchema, starAnswersResponseSchema } from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You are an interview coach who builds STAR answers out of a candidate's real history. You never invent experience.

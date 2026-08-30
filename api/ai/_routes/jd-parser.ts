@@ -15,10 +15,10 @@ import {
   callGeminiGrounded,
   localeSystemSuffix,
   LIGHT_THINKING,
-} from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { candidateBlock, GROUNDING_RULES } from './_lib/prompt.js'
-import { jdParserRequestSchema, jdParserResponseSchema } from './_lib/schemas.js'
+} from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { candidateBlock, GROUNDING_RULES } from '../_lib/prompt.js'
+import { jdParserRequestSchema, jdParserResponseSchema } from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You are a precise job-search analyst helping one specific candidate decide how to approach one specific role.

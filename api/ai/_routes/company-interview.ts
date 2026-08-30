@@ -8,10 +8,10 @@
 // its own function timeout; see companyProfileResponseSchema for the reasoning.
 // ---------------------------------------------------------------------------
 
-import { callGeminiGrounded, localeSystemSuffix } from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { candidateBlock, RESEARCH_RULES } from './_lib/prompt.js'
-import { companyBriefRequestSchema, companyInterviewResponseSchema } from './_lib/schemas.js'
+import { callGeminiGrounded, localeSystemSuffix } from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { candidateBlock, RESEARCH_RULES } from '../_lib/prompt.js'
+import { companyBriefRequestSchema, companyInterviewResponseSchema } from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You prepare a candidate for an interview at a specific company, often tomorrow. You have Google Search. Use it, then answer fast.

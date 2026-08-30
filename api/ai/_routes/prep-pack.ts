@@ -17,10 +17,10 @@ import {
   callGeminiGrounded,
   localeSystemSuffix,
   LIGHT_THINKING,
-} from './_lib/gemini.js'
-import { createAIRoute } from './_lib/handler.js'
-import { GROUNDING_RULES, RESEARCH_RULES } from './_lib/prompt.js'
-import { prepPackRequestSchema, prepResearchResponseSchema } from './_lib/schemas.js'
+} from '../_lib/gemini.js'
+import { createAIRoute } from '../_lib/handler.js'
+import { GROUNDING_RULES, RESEARCH_RULES } from '../_lib/prompt.js'
+import { prepPackRequestSchema, prepResearchResponseSchema } from '../_lib/schemas.js'
 
 const SYSTEM = `\
 You are an interview coach preparing one candidate for one specific interview. Everything you write is read the night before and acted on.
