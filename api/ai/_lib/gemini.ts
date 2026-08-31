@@ -333,9 +333,74 @@ function isToolRejection(err: unknown): boolean {
  * actually switched on. The second call adds no facts; it only reshapes. Two
  * short reliable calls beat one long fragile one.
  */
+/**
+ * Stage one on its own: search the web and write prose notes.
+ *
+ * Exposed separately because research and structuring together can exceed the
+ * host's 60-second function limit even after the tools were split in half. They
+ * are two Gemini calls either way, so running them as two HTTP requests costs
+ * no extra quota and gives each stage its own clock.
+ */
+export async function researchGrounded(
+  opts: Omit<CallGeminiGroundedOptions<unknown>, 'schema'>,
+): Promise<{ research: string; sources: GroundingSource[] }> {
+  const { research, sources } = await runResearch(opts)
+  if (!research.trim()) throw new GeminiEmptyError('no text after retry')
+  return { research, sources }
+}
+
+/** Stage two on its own: reshape existing notes into the schema. Adds no facts. */
+export async function structureResearch<T>(opts: {
+  apiKey:    string
+  system:    string
+  research:  string
+  schema:    z.ZodType<T>
+  maxTokens: number
+  model?:    string
+}): Promise<T> {
+  return callGemini({
+    apiKey: opts.apiKey,
+    system: opts.system,
+    user:   structuringPrompt(opts.research),
+    schema: opts.schema,
+    maxTokens:      opts.maxTokens,
+    model:          opts.model ?? STRUCTURING_MODEL,
+    thinkingBudget: NO_THINKING,
+  })
+}
+
+function structuringPrompt(research: string): string {
+  return (
+    'Convert the research notes below into the required JSON object.\n\n' +
+    'Rules for this step: use only what the notes contain. Do not add, infer, or ' +
+    'embellish any fact. If the notes do not cover a field, use an empty list, an ' +
+    'empty string, or null as the schema allows.\n\n' +
+    `RESEARCH NOTES:\n${research}`
+  )
+}
+
 export async function callGeminiGrounded<T>(
   opts: CallGeminiGroundedOptions<T>,
 ): Promise<GroundedResult<T>> {
+  const { research, sources } = await runResearch(opts)
+
+  if (!research.trim()) throw new GeminiEmptyError('no text after retry')
+
+  const data = await structureResearch({
+    apiKey:    opts.apiKey,
+    system:    opts.system,
+    research,
+    schema:    opts.schema,
+    maxTokens: opts.maxTokens,
+    model:     opts.model,
+  })
+
+  return { data, sources }
+}
+
+async function runResearch(
+  opts: Omit<CallGeminiGroundedOptions<unknown>, 'schema'>,
+): Promise<{ research: string; sources: GroundingSource[] }> {
   const ai = new GoogleGenAI({ apiKey: opts.apiKey })
 
   // urlContext lets Gemini fetch the exact page the user pasted — a LinkedIn
@@ -403,27 +468,5 @@ export async function callGeminiGrounded<T>(
       return true
     })
 
-  if (!research.trim()) {
-    throw new GeminiEmptyError(String(candidate?.finishReason ?? 'no candidates'))
-  }
-
-  // Structuring pass: JSON mode on, no tools, no thinking, lighter model. This
-  // is a transcription job, and treating it as one keeps it fast, reliable, and
-  // off the quota the research step is already spending.
-  const data = await callGemini({
-    apiKey: opts.apiKey,
-    system: opts.system,
-    user:
-      'Convert the research notes below into the required JSON object.\n\n' +
-      'Rules for this step: use only what the notes contain. Do not add, infer, or ' +
-      'embellish any fact. If the notes do not cover a field, use an empty list, an ' +
-      'empty string, or null as the schema allows.\n\n' +
-      `RESEARCH NOTES:\n${research}`,
-    schema:         opts.schema,
-    maxTokens:      opts.maxTokens,
-    model:          opts.model ?? STRUCTURING_MODEL,
-    thinkingBudget: NO_THINKING,
-  })
-
-  return { data, sources }
+  return { research, sources }
 }

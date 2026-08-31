@@ -144,6 +144,9 @@ export interface PrepPackRequest {
   interviewType:  string
   research?:      boolean
   locale?:        AILocale
+  stage?:         'research' | 'structure'
+  /** Stage-two input. Distinct from `research`, which is the on/off flag. */
+  researchNotes?: string
 }
 
 /** Half one: the web's view of the company and its hiring loop. */
@@ -226,6 +229,15 @@ export interface CompanyBriefRequest {
   urls?:       string[]
   candidate?:  CandidatePayload
   locale?:     AILocale
+  /** Omit to run both stages in one request; see runInTwoStages. */
+  stage?:      'research' | 'structure'
+  /** Stage-two input: the notes stage one returned. */
+  research?:   string
+}
+
+/** Stage-one reply: prose notes plus the sources consulted. */
+export interface ResearchStageResponse {
+  research: string
 }
 
 export interface NewsItem {
@@ -467,20 +479,56 @@ async function post<TReq, TRes>(
 // Public API
 // ---------------------------------------------------------------------------
 
+/**
+ * Runs a research-backed route as two requests instead of one.
+ *
+ * Searching the web and then reshaping the findings are two Gemini calls
+ * either way. Run inside a single request they can together exceed the host's
+ * 60-second function limit; run as two, each gets its own clock for the same
+ * quota. The sources come from stage one, which is where the searching happened.
+ */
+async function runInTwoStages<TReq extends object, TRes>(
+  path: string,
+  req: TReq,
+  notesKey: 'research' | 'researchNotes',
+): Promise<AIResult<TRes>> {
+  const stageOne = await post<TReq, unknown>(
+    path, { ...req, stage: 'research' } as TReq, TIMEOUT_RESEARCH_MS,
+  )
+  if (!stageOne.ok) return stageOne
+
+  const notes = (stageOne as unknown as { research?: string }).research ?? ''
+  if (!notes.trim()) {
+    return { ok: false, error: 'The research step returned nothing. Try again.' }
+  }
+
+  const stageTwo = await post<TReq, TRes>(
+    path,
+    { ...req, stage: 'structure', [notesKey]: notes } as TReq,
+    TIMEOUT_QUICK_MS,
+  )
+  if (!stageTwo.ok) return stageTwo
+
+  // Sources belong to the search, so they are carried over from stage one.
+  return { ...stageTwo, sources: stageOne.sources }
+}
+
 export const aiClientService = {
   // Research-backed: these search the web before writing. The company briefing
   // is two halves on purpose — each is its own function invocation with its own
   // timeout, and they are requested in parallel.
   companyProfile: (req: CompanyBriefRequest) =>
-    post<CompanyBriefRequest, CompanyProfileResponse>('/api/ai/company-brief', req, TIMEOUT_RESEARCH_MS),
+    runInTwoStages<CompanyBriefRequest, CompanyProfileResponse>('/api/ai/company-brief', req, 'research'),
 
   companyInterview: (req: CompanyBriefRequest) =>
-    post<CompanyBriefRequest, CompanyInterviewResponse>('/api/ai/company-interview', req, TIMEOUT_RESEARCH_MS),
+    runInTwoStages<CompanyBriefRequest, CompanyInterviewResponse>('/api/ai/company-interview', req, 'research'),
 
   // The prep pack is likewise two halves: one that searches, one that only
   // needs the CV already in the request and so returns quickly.
   prepResearch:   (req: PrepPackRequest) =>
-    post<PrepPackRequest, PrepResearchResponse>('/api/ai/prep-pack', req, TIMEOUT_RESEARCH_MS),
+    req.research === false
+      ? post<PrepPackRequest, PrepResearchResponse>('/api/ai/prep-pack', req, TIMEOUT_QUICK_MS)
+      : runInTwoStages<PrepPackRequest, PrepResearchResponse>('/api/ai/prep-pack', req, 'researchNotes'),
 
   prepPlan:       (req: PrepPackRequest) =>
     post<PrepPackRequest, PrepPlanResponse>('/api/ai/prep-plan', req, TIMEOUT_QUICK_MS),

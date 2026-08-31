@@ -39,6 +39,18 @@ export const candidateSchema = z.object({
 
 export type Candidate = z.infer<typeof candidateSchema>
 
+
+/**
+ * Research-backed tools run in two stages, and the client may ask for one at a
+ * time. Together they can exceed the host's 60-second function limit; as two
+ * requests each gets its own clock, for the same two Gemini calls and the same
+ * quota. Omitting the field runs both, which is right for the fast routes.
+ */
+const stageField = z.enum(['research', 'structure']).optional()
+
+/** Stage-two input: notes produced by stage one, to be reshaped. */
+const researchField = z.string().max(60_000).optional()
+
 /** A web source the model actually consulted, surfaced so claims are checkable. */
 export const sourceSchema = z.object({
   title: z.string().optional(),
@@ -135,6 +147,9 @@ export const prepPackRequestSchema = z.object({
   /** When true the pack is researched against the live web, not memory. */
   research:       z.boolean().default(true).optional(),
   locale:         localeField,
+  stage:          stageField,
+  /** Stage-two input. Named separately because the flag above is also "research". */
+  researchNotes:  researchField,
 })
 
 /**
@@ -242,6 +257,8 @@ export const companyBriefRequestSchema = z.object({
   urls:        z.array(z.string().url()).max(5).optional(),
   candidate:   candidateSchema.optional(),
   locale:      localeField,
+  stage:       stageField,
+  research:    researchField,
 })
 
 /**

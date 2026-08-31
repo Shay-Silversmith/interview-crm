@@ -8,7 +8,7 @@
 // its own function timeout; see companyProfileResponseSchema for the reasoning.
 // ---------------------------------------------------------------------------
 
-import { callGeminiGrounded, localeSystemSuffix } from '../_lib/gemini.js'
+import { researchGrounded, structureResearch, localeSystemSuffix } from '../_lib/gemini.js'
 import { createAIRoute } from '../_lib/handler.js'
 import { candidateBlock, RESEARCH_RULES } from '../_lib/prompt.js'
 import { companyBriefRequestSchema, companyInterviewResponseSchema } from '../_lib/schemas.js'
@@ -51,14 +51,31 @@ export default createAIRoute({
     if (candidate) sections.push(candidate)
     else sections.push('No candidate CV was provided — return whyYouFit as an empty list.')
 
-    const { data, sources } = await callGeminiGrounded({
+    const system = SYSTEM + localeSystemSuffix(body.locale)
+
+    if (body.stage === 'structure') {
+      const data = await structureResearch({
+        apiKey,
+        system,
+        research:  body.research ?? '',
+        schema:    companyInterviewResponseSchema,
+        maxTokens: 9_000,
+      })
+      return { data }
+    }
+
+    const { research, sources } = await researchGrounded({
       apiKey,
-      system:    SYSTEM + localeSystemSuffix(body.locale),
+      system,
       user:      sections.join('\n\n'),
-      schema:    companyInterviewResponseSchema,
       maxTokens: 9_000,
     })
 
+    if (body.stage === 'research') return { data: null, research, sources }
+
+    const data = await structureResearch({
+      apiKey, system, research, schema: companyInterviewResponseSchema, maxTokens: 9_000,
+    })
     return { data, sources }
   },
 })

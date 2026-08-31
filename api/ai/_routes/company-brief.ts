@@ -10,7 +10,7 @@
 // interview brief nobody can check is a liability.
 // ---------------------------------------------------------------------------
 
-import { callGeminiGrounded, localeSystemSuffix } from '../_lib/gemini.js'
+import { researchGrounded, structureResearch, localeSystemSuffix } from '../_lib/gemini.js'
 import { createAIRoute } from '../_lib/handler.js'
 import { RESEARCH_RULES } from '../_lib/prompt.js'
 import { companyBriefRequestSchema, companyProfileResponseSchema } from '../_lib/schemas.js'
@@ -53,17 +53,35 @@ export default createAIRoute({
       sections.push(`Read these pages directly as well:\n${body.urls.join('\n')}`)
     }
 
-    const { data, sources } = await callGeminiGrounded({
+    const system = SYSTEM + localeSystemSuffix(body.locale)
+
+    // Stage two: the caller already has the notes and only wants them shaped.
+    if (body.stage === 'structure') {
+      const data = await structureResearch({
+        apiKey,
+        system,
+        research:  body.research ?? '',
+        schema:    companyProfileResponseSchema,
+        maxTokens: 9_000,
+      })
+      return { data }
+    }
+
+    const { research, sources } = await researchGrounded({
       apiKey,
-      system:    SYSTEM + localeSystemSuffix(body.locale),
+      system,
       user:      sections.join('\n\n'),
-      schema:    companyProfileResponseSchema,
-      // Half the fields of the original single call, so this fits the host's
-      // function timeout with room to spare.
       maxTokens: 9_000,
       urls:      body.urls,
     })
 
+    // Stage one: hand the notes back so the shaping runs as its own request,
+    // with its own slice of the host's function timeout.
+    if (body.stage === 'research') return { data: null, research, sources }
+
+    const data = await structureResearch({
+      apiKey, system, research, schema: companyProfileResponseSchema, maxTokens: 9_000,
+    })
     return { data, sources }
   },
 })

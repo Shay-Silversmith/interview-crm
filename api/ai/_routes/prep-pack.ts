@@ -14,7 +14,8 @@
 
 import {
   callGemini,
-  callGeminiGrounded,
+  researchGrounded,
+  structureResearch,
   localeSystemSuffix,
   LIGHT_THINKING,
 } from '../_lib/gemini.js'
@@ -67,18 +68,34 @@ export default createAIRoute({
     const research = body.research !== false
     const system   = SYSTEM + (research ? `\n${RESEARCH_RULES}` : '') + localeSystemSuffix(body.locale)
 
+    if (body.stage === 'structure') {
+      const data = await structureResearch({
+        apiKey,
+        system,
+        research:  body.researchNotes ?? '',
+        schema:    prepResearchResponseSchema,
+        maxTokens: 8_000,
+      })
+      return { data }
+    }
+
     if (research) {
       sections.push(
         `Search the web for ${body.application.company}: what it does now, what changed in the ` +
         'last year, and what candidates publicly report about its interview loop for this kind of role.',
       )
 
-      const { data, sources } = await callGeminiGrounded({
+      const { research: notes, sources } = await researchGrounded({
         apiKey,
         system,
         user:      sections.join('\n\n'),
-        schema:    prepResearchResponseSchema,
         maxTokens: 8_000,
+      })
+
+      if (body.stage === 'research') return { data: null, research: notes, sources }
+
+      const data = await structureResearch({
+        apiKey, system, research: notes, schema: prepResearchResponseSchema, maxTokens: 8_000,
       })
       return { data, sources }
     }
