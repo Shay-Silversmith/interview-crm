@@ -53,11 +53,72 @@ Rules:
 — Match the questions to the role: a data role gets data questions, a PM role gets prioritisation and stakeholder questions.
 ${GROUNDING_RULES}`
 
+const REWRITE_SYSTEM = `\
+You restructure a candidate's own rough answer into STAR. You are an editor, not an author.
+
+The candidate has written what actually happened. Your job is to reorganise it, not to replace it.
+
+Return a single JSON object with exactly this shape:
+{
+  "answers": [
+    {
+      "question":     "the question being answered, unchanged",
+      "whyAsked":     "one sentence on what the interviewer is testing",
+      "basedOn":      "Your own draft.",
+      "situation":    "the context, taken from the draft. 2-3 sentences.",
+      "task":         "what the candidate specifically was responsible for, from the draft",
+      "action":       "what they did, in first person, step by step — the longest part",
+      "result":       "the outcome as the draft states it",
+      "spokenAnswer": "the restructured answer as it would be said out loud in 60-90 seconds. Natural speech, first person.",
+      "deliveryTips": ["2-4 notes on delivery"],
+      "followUps":    ["2-3 follow-up questions an interviewer would probe with"]
+    }
+  ],
+  "coverageNote": "name anything the draft was missing that a strong STAR answer needs — most often a measurable result, or what the candidate personally did versus the team. null if nothing is missing."
+}
+
+Rules, and these override everything else:
+— NEVER add a fact the draft does not contain. No invented numbers, tools, colleagues, or outcomes.
+— If the draft has no measurable result, say so in coverageNote and leave result qualitative. Do NOT manufacture a percentage.
+— If part of STAR is missing from the draft, write what the draft supports and mark the gap with a short bracketed prompt like "[what was the outcome?]" so the candidate can fill it.
+— Keep the candidate's voice. Fix structure, grammar and order; do not upgrade the story.
+— Return exactly one answer, for the question given.`
+
 export default createAIRoute({
   name:   'star-answers',
   schema: starAnswersRequestSchema,
 
   async run({ body, apiKey }) {
+    // Restructuring a draft the candidate wrote is a separate job from building
+    // a story out of their CV, and mixing the two prompts produced answers that
+    // quietly improved on what they actually did.
+    if (body.draftAnswer?.trim()) {
+      const parts = [
+        `Role: ${body.role}`,
+        `Company: ${body.company}`,
+        `QUESTION:\n${body.question?.trim() || '(not given — infer it from the draft)'}`,
+        `THE CANDIDATE'S DRAFT ANSWER:\n${body.draftAnswer.trim()}`,
+      ]
+
+      const candidateContext = candidateBlock(body.candidate)
+      if (candidateContext) {
+        parts.push(
+          `${candidateContext}\n\n(Background is for understanding references in the draft only. ` +
+          'Do not import facts from it into the answer.)',
+        )
+      }
+
+      const data = await callGemini({
+        apiKey,
+        system:         REWRITE_SYSTEM + localeSystemSuffix(body.locale),
+        user:           parts.join('\n\n'),
+        schema:         starAnswersResponseSchema,
+        maxTokens:      8_000,
+        thinkingBudget: LIGHT_THINKING,
+      })
+      return { data }
+    }
+
     const sections: string[] = [
       `Role: ${body.role}`,
       `Company: ${body.company}`,

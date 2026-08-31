@@ -321,6 +321,8 @@ export interface StarAnswersRequest {
   jdText?:    string
   jdUrl?:     string
   question?:  string
+  /** A rough answer to restructure, instead of building one from the CV. */
+  draftAnswer?: string
   focus?:     string
   count?:     number
   candidate?: CandidatePayload

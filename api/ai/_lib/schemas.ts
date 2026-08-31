@@ -365,6 +365,13 @@ export const starAnswersRequestSchema = z.object({
   jdUrl:       z.string().url().max(2000).optional(),
   /** Ask for answers to a specific question instead of generated ones. */
   question:    z.string().max(1000).optional(),
+  /**
+   * The candidate's own rough answer, to be restructured rather than replaced.
+   * When present the model reshapes what they wrote instead of inventing from
+   * the CV — a different job, and the one people actually want once they have
+   * something down on paper.
+   */
+  draftAnswer: z.string().max(8000).optional(),
   /** Behavioural themes to bias toward, e.g. Amazon leadership principles. */
   focus:       z.string().max(500).optional(),
   count:       z.number().int().min(1).max(8).default(4).optional(),
