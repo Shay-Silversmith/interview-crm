@@ -188,6 +188,12 @@ const he: Translations = {
       noTasks:          'אין משימות',
       noTasksSub:       'הוסף משימות למעקב אחר מה שצריך לעשות במועמדות זו.',
       // Contacts tab
+      linkExisting:    'קישור איש קשר קיים…',
+      linkContact:     'קשר למועמדות הזו',
+      unlinkContact:   'בטל קישור למועמדות',
+      fromCompany:     'מהחברה',
+      contactLinked:   'איש הקשר קושר למועמדות',
+      contactUnlinked: 'הקישור בוטל',
       noContacts:    'אין אנשי קשר',
       noContactsSub: 'קשר אנשי קשר למועמדות זו למעקב אחר יחסים.',
       lastContact:   'קשר אחרון',

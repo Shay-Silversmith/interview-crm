@@ -90,4 +90,76 @@ const supabaseImpl = {
   },
 }
 
-export const contactsService = isSupabaseMode() ? supabaseImpl : mockImpl
+const impl = isSupabaseMode() ? supabaseImpl : mockImpl
+
+// ---------------------------------------------------------------------------
+// Application ↔ contact linkage
+//
+// Contacts are saved against a company; the link to a specific application is a
+// second, manual step that almost nobody takes. getByApplication matches only
+// on application_ids, so an application showed "no contacts" while three people
+// from that exact company sat in the contacts list. Resolving by company as
+// well is what the user already believes is happening.
+//
+// The two kinds are kept distinguishable rather than merged: an explicit link
+// is a statement about this application, and a company match is an inference.
+// ---------------------------------------------------------------------------
+
+export interface ApplicationContact {
+  contact: Contact
+  /** True when application_ids names this application; false when matched by company. */
+  linked:  boolean
+}
+
+async function getForApplication(
+  appId: string,
+  companyId?: string,
+  companyName?: string,
+): Promise<ApplicationContact[]> {
+  const all = await impl.list()
+  const name = companyName?.trim().toLowerCase()
+
+  const result: ApplicationContact[] = []
+  for (const contact of all) {
+    const linked = contact.applicationIds?.includes(appId) ?? false
+    const sameCompany =
+      (!!companyId && contact.companyId === companyId) ||
+      (!!name && contact.company?.trim().toLowerCase() === name)
+
+    if (linked || sameCompany) result.push({ contact, linked })
+  }
+
+  // Explicit links first, then alphabetical, so the deliberate ones lead.
+  return result.sort((a, b) =>
+    a.linked === b.linked
+      ? a.contact.name.localeCompare(b.contact.name)
+      : a.linked ? -1 : 1,
+  )
+}
+
+/** Adds this application to the contact's application_ids, idempotently. */
+async function linkToApplication(contactId: string, appId: string): Promise<Contact> {
+  const contact = await impl.getById(contactId)
+  if (!contact) throw new Error('That contact no longer exists.')
+
+  const current = contact.applicationIds ?? []
+  if (current.includes(appId)) return contact
+  return impl.update(contactId, { applicationIds: [...current, appId] })
+}
+
+/** Removes the link without touching the contact itself. */
+async function unlinkFromApplication(contactId: string, appId: string): Promise<Contact> {
+  const contact = await impl.getById(contactId)
+  if (!contact) throw new Error('That contact no longer exists.')
+
+  const current = contact.applicationIds ?? []
+  if (!current.includes(appId)) return contact
+  return impl.update(contactId, { applicationIds: current.filter(id => id !== appId) })
+}
+
+export const contactsService = {
+  ...impl,
+  getForApplication,
+  linkToApplication,
+  unlinkFromApplication,
+}

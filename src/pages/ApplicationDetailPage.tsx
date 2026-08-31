@@ -4,7 +4,7 @@ import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, ExternalLink, Calendar, User, CheckSquare,
   FileText, Sparkles, MessageSquare, MapPin, Briefcase,
-  Plus, Edit2, Trash2, Check,
+  Plus, Edit2, Trash2, Check, ChevronDown,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -32,7 +32,8 @@ import type { ContactFormValues } from '@/lib/schemas/contactSchema'
 import { useI18n } from '@/hooks/useI18n'
 import { applicationsService } from '@/services/applicationsService'
 import { tasksService } from '@/services/tasksService'
-import { contactsService } from '@/services/contactsService'
+import { contactsService, type ApplicationContact } from '@/services/contactsService'
+import { useToastActions } from '@/hooks/useToast'
 import { documentsService } from '@/services/documentsService'
 import { aiService } from '@/services/aiService'
 import { CVViewerButton } from '@/components/documents/CVViewerButton'
@@ -77,7 +78,37 @@ export function ApplicationDetailPage() {
     { key: QK.applications.detail(id!) }
   )
   const { data: tasks } = useMockStore(() => tasksService.getByApplication(id!), [id], { key: QK.tasks.byApp(id!) })
-  const { data: contacts } = useMockStore(() => contactsService.getByApplication(id!), [id])
+  const { data: appContacts, refetch: refetchContacts } = useMockStore(
+    () => contactsService.getForApplication(id!, app?.companyId, app?.companyName),
+    [id, app?.companyId, app?.companyName],
+  )
+  const contacts = appContacts?.map(c => c.contact) ?? null
+  const { data: allContacts } = useMockStore(() => contactsService.list())
+  const toast = useToastActions()
+
+  // Linking writes to the contact, not the application, so the contact list is
+  // what has to be refetched afterwards.
+  const handleLinkContact = async (contactId: string) => {
+    if (!id) return
+    try {
+      await contactsService.linkToApplication(contactId, id)
+      refetchContacts()
+      toast.success(t('pages.applicationDetail.contactLinked'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not link that contact')
+    }
+  }
+
+  const handleUnlinkContact = async (contactId: string) => {
+    if (!id) return
+    try {
+      await contactsService.unlinkFromApplication(contactId, id)
+      refetchContacts()
+      toast.success(t('pages.applicationDetail.contactUnlinked'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not unlink that contact')
+    }
+  }
   const { data: cvVersions } = useMockStore(() => documentsService.listCVVersions(), [], { key: QK.cvVersions.all() })
   const { data: aiSummaries } = useMockStore(() => aiService.getByApplication(id!), [id])
   const { data: appDocuments } = useMockStore(() => documentsService.getDocumentsByApplication(id!), [id], { key: QK.documents.all() })
@@ -415,10 +446,13 @@ export function ApplicationDetailPage() {
         )}
         {activeTab === 'contacts' && (
           <ContactsTab
-            contacts={contacts}
+            entries={appContacts}
+            allContacts={allContacts}
             onAdd={() => setContactFormOpen(true)}
             onEdit={setEditContact}
             onDelete={setDeleteContactDlg}
+            onLink={handleLinkContact}
+            onUnlink={handleUnlinkContact}
             t={t}
           />
         )}
@@ -906,27 +940,55 @@ function TasksTab({
 }
 
 function ContactsTab({
-  contacts, onAdd, onEdit, onDelete, t,
+  entries, allContacts, onAdd, onEdit, onDelete, onLink, onUnlink, t,
 }: {
-  contacts: Contact[] | null
-  onAdd: () => void
-  onEdit: (c: Contact) => void
+  entries:     ApplicationContact[] | null
+  allContacts: Contact[] | null
+  onAdd:    () => void
+  onEdit:   (c: Contact) => void
   onDelete: (c: Contact) => void
+  onLink:   (contactId: string) => void
+  onUnlink: (contactId: string) => void
   t: (key: string) => string
 }) {
+  const [picking, setPicking] = useState('')
+
+  const shownIds = new Set((entries ?? []).map(e => e.contact.id))
+  const linkable = (allContacts ?? []).filter(c => !shownIds.has(c.id))
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <p className="text-sm text-slate-500">
-          {contacts?.length ?? 0} {(contacts?.length ?? 0) === 1 ? 'contact' : 'contacts'}
+          {entries?.length ?? 0} {(entries?.length ?? 0) === 1 ? 'contact' : 'contacts'}
         </p>
-        <Button size="sm" onClick={onAdd}>
-          <Plus className="w-3.5 h-3.5" />
-          {t('forms.actions.addContact')}
-        </Button>
+        <div className="flex items-center gap-2">
+          {linkable.length > 0 && (
+            <select
+              value={picking}
+              onChange={e => {
+                const id = e.target.value
+                setPicking('')
+                if (id) onLink(id)
+              }}
+              className="h-8 px-2 rounded-lg border border-slate-200 bg-surface text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            >
+              <option value="">{t('pages.applicationDetail.linkExisting')}</option>
+              {linkable.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.company ? ` — ${c.company}` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button size="sm" onClick={onAdd}>
+            <Plus className="w-3.5 h-3.5" />
+            {t('forms.actions.addContact')}
+          </Button>
+        </div>
       </div>
 
-      {!contacts?.length ? (
+      {!entries?.length ? (
         <EmptyState
           icon={User}
           title={t('pages.applicationDetail.noContacts')}
@@ -936,14 +998,22 @@ function ContactsTab({
         />
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
-          {contacts.map(contact => (
+          {entries.map(({ contact, linked }) => (
             <Card key={contact.id} padding="sm" className="group relative">
               <div className="flex items-start gap-3">
                 <Avatar name={contact.name} size="md" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-slate-800">{contact.name}</p>
                     <ContactTypeBadge type={contact.type} />
+                    {/* A company match is an inference, not a decision someone
+                        made about this application. Say so, and offer to make
+                        it explicit. */}
+                    {!linked && (
+                      <span className="text-2xs font-medium px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                        {t('pages.applicationDetail.fromCompany')}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">{contact.title}</p>
                   {contact.email && <p className="text-xs text-primary-600 mt-1 force-ltr">{contact.email}</p>}
@@ -952,6 +1022,15 @@ function ContactsTab({
                     <p className="text-2xs text-slate-400 mt-1">{t('pages.applicationDetail.lastContact')} <span className="force-ltr">{formatRelative(contact.lastInteractionAt)}</span></p>
                   )}
                   {contact.notes && <p className="text-xs text-slate-500 mt-2 leading-snug line-clamp-2">{contact.notes}</p>}
+
+                  <button
+                    onClick={() => (linked ? onUnlink(contact.id) : onLink(contact.id))}
+                    className="mt-2 text-2xs font-medium text-primary-600 hover:underline"
+                  >
+                    {linked
+                      ? t('pages.applicationDetail.unlinkContact')
+                      : t('pages.applicationDetail.linkContact')}
+                  </button>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                   <button
@@ -1141,23 +1220,16 @@ function AITab({ app, summaries, t }: { app: { id: string; companyName: string; 
         </div>
       )}
 
-      {/* Other AI outputs — compact list (AI surface accent) */}
+      {/* Other saved AI outputs. These used to be a one-line list showing only
+          a tool name and a date, so a saved interview debrief was findable but
+          not readable — which reads as "it did not save". */}
       {others.length > 0 && (
-        <Card variant="ai">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">{t('pages.applicationDetail.previousAiOutputs')}</h3>
-          <ul className="space-y-2">
-            {others.map(s => (
-              <li key={s.id} className="flex items-center gap-3 text-sm text-slate-600 py-2 border-b border-slate-50 last:border-0">
-                <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0" />
-                <span className="font-medium">{s.toolType}</span>
-                {s.isMocked && (
-                  <span className="text-2xs text-warning-600 bg-warning-50 border border-warning-200 px-1.5 py-0.5 rounded-full">{t('pages.applicationDetail.mockBadge')}</span>
-                )}
-                <span className="text-slate-400 text-xs ms-auto force-ltr">{formatDate(s.createdAt)}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-700">{t('pages.applicationDetail.previousAiOutputs')}</h3>
+          {others.map(summary => (
+            <SavedSummaryCard key={summary.id} summary={summary} t={t} />
+          ))}
+        </div>
       )}
     </div>
   )
@@ -1224,6 +1296,84 @@ function SavedPrepPackCard({ pack, t }: { pack: ReturnType<typeof aiService.getB
               </div>
             )
           })}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * Renders one saved AI output so it can actually be read back.
+ *
+ * output_data is a flat map of strings: values that were arrays or objects were
+ * JSON-stringified on the way in, so they are parsed back here. The interview
+ * debrief also carries a ready-made markdown rendering, which is far nicer than
+ * a field-by-field dump, so it wins when present.
+ */
+function SavedSummaryCard({
+  summary, t,
+}: {
+  summary: { id: string; toolType: string; outputData: Record<string, string>; isMocked: boolean; createdAt: string }
+  t: (key: string) => string
+}) {
+  const [open, setOpen] = useState(false)
+
+  const data     = summary.outputData ?? {}
+  const markdown = typeof data.markdown === 'string' ? data.markdown : ''
+
+  const fields = Object.entries(data).filter(([k]) => k !== 'markdown')
+
+  return (
+    <Card variant="ai" padding="sm">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 text-start"
+      >
+        <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+        <span className="text-sm font-semibold text-slate-800">{summary.toolType}</span>
+        {summary.isMocked && (
+          <span className="text-2xs text-warning-600 bg-warning-50 border border-warning-200 px-1.5 py-0.5 rounded-full">
+            {t('pages.applicationDetail.mockBadge')}
+          </span>
+        )}
+        <span className="text-slate-400 text-xs ms-auto force-ltr">{formatDate(summary.createdAt)}</span>
+        <ChevronDown className={cn('w-4 h-4 text-slate-400 transition-transform shrink-0', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="mt-3 pt-3 border-t border-slate-100">
+          {markdown ? (
+            <pre dir="auto" className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap font-sans">
+              {markdown}
+            </pre>
+          ) : (
+            <div className="space-y-3">
+              {fields.map(([key, raw]) => {
+                let value: unknown = raw
+                try { value = JSON.parse(raw) } catch { /* plain string */ }
+
+                return (
+                  <div key={key}>
+                    <p className="text-2xs font-bold uppercase tracking-wide text-slate-500 mb-1">{key}</p>
+                    {Array.isArray(value) ? (
+                      <ul className="space-y-1">
+                        {value.map((item, i) => (
+                          <li key={i} dir="auto" className="text-xs text-slate-700 leading-relaxed flex gap-1.5">
+                            <span className="text-slate-300">•</span>
+                            <span>{typeof item === 'string' ? item : JSON.stringify(item)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p dir="auto" className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </Card>

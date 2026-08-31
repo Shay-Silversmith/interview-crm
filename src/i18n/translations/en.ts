@@ -187,6 +187,12 @@ const en = {
       noTasks:      'No tasks',
       noTasksSub:   'Add tasks to track what needs to be done for this application.',
       // Contacts tab
+      linkExisting:    'Link an existing contact…',
+      linkContact:     'Link to this application',
+      unlinkContact:   'Unlink from this application',
+      fromCompany:     'from company',
+      contactLinked:   'Contact linked to this application',
+      contactUnlinked: 'Contact unlinked',
       noContacts:    'No contacts',
       noContactsSub: 'Link contacts to this application to track relationships.',
       lastContact:   'Last contact',
