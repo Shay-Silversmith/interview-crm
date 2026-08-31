@@ -32,7 +32,53 @@ export const DEFAULT_MODEL = 'gemini-2.5-flash'
  * costs against the flash limit. On the free tier that is the difference
  * between a handful of company briefings a day and roughly twice as many.
  */
-export const STRUCTURING_MODEL = 'gemini-2.5-flash-lite'
+export const STRUCTURING_MODEL = 'gemini-3.5-flash-lite'
+
+/**
+ * Where to go when a model is retired.
+ *
+ * Google withdraws older models from new accounts without warning — a key that
+ * worked yesterday starts refusing gemini-2.5-flash-lite with "no longer
+ * available to new users", and the tool dies on a line of code that was correct
+ * when it was written. The first request to hit that error retries on the
+ * successor rather than surfacing a failure the user cannot act on.
+ */
+const MODEL_FALLBACKS: Record<string, string> = {
+  'gemini-2.5-flash-lite': 'gemini-3.5-flash-lite',
+  'gemini-2.5-flash':      'gemini-3.5-flash',
+  'gemini-2.5-pro':        'gemini-3.5-pro',
+}
+
+/** True when the API refused because the model is gone, not because of the request. */
+function isModelUnavailable(err: unknown): boolean {
+  const raw = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  return (
+    raw.includes('no longer available') ||
+    raw.includes('is not found') ||
+    raw.includes('not supported for') ||
+    (raw.includes('model') && raw.includes('not found'))
+  )
+}
+
+/**
+ * Sends a request, and retries once on the successor model if this one has been
+ * retired. Every call in this file goes through here so the fallback applies
+ * uniformly, including the grounded path.
+ */
+async function generateWithFallback(
+  ai: GoogleGenAI,
+  params: { model: string; contents: unknown; config: unknown },
+): Promise<Awaited<ReturnType<GoogleGenAI['models']['generateContent']>>> {
+  type GenParams = Parameters<GoogleGenAI['models']['generateContent']>[0]
+  try {
+    return await ai.models.generateContent(params as unknown as GenParams)
+  } catch (err) {
+    const successor = MODEL_FALLBACKS[params.model]
+    if (!successor || !isModelUnavailable(err)) throw err
+    console.warn(`[gemini] ${params.model} unavailable, retrying on ${successor}`)
+    return ai.models.generateContent({ ...params, model: successor } as unknown as GenParams)
+  }
+}
 
 /**
  * Reasoning tokens allowed before the answer starts.
@@ -178,7 +224,7 @@ export async function callGeminiRaw(opts: CallGeminiRawOptions): Promise<string>
     ? [{ role: 'user' as const, parts: opts.userParts }]
     : [{ role: 'user' as const, parts: [{ text: opts.user ?? '' }] }]
 
-  const response = await ai.models.generateContent({
+  const response = await generateWithFallback(ai, {
     model:    opts.model ?? DEFAULT_MODEL,
     contents,
     config: {
@@ -420,7 +466,7 @@ async function runResearch(
     'does not matter here; completeness and accuracy do.'
 
   const send = (tools: object[]) =>
-    ai.models.generateContent({
+    generateWithFallback(ai, {
       model:    opts.model ?? DEFAULT_MODEL,
       contents: [{ role: 'user', parts: [{ text: opts.user ?? '' }] }],
       config: {
