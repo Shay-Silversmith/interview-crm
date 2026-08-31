@@ -86,6 +86,7 @@ export function ApplicationDetailPage() {
   const { data: allContacts } = useMockStore(() => contactsService.list())
   const toast = useToastActions()
 
+
   // Linking writes to the contact, not the application, so the contact list is
   // what has to be refetched afterwards.
   const handleLinkContact = async (contactId: string) => {
@@ -135,6 +136,28 @@ export function ApplicationDetailPage() {
 
   // Interview stage mutations
   const { create: createStage, update: updateStage, remove: removeStage } = useInterviewStageMutations(id!)
+
+  // Marking a round done is the most common edit after an interview, and it
+  // lived several clicks deep inside the edit drawer. Completing a round also
+  // records an outcome, because a finished round with none is what makes the
+  // pipeline read as stalled.
+  const handleToggleStageDone = async (stage: InterviewStage) => {
+    const done = !!stage.completedAt
+    try {
+      await updateStage.mutateAsync({
+        id: stage.id,
+        data: {
+          completedAt: done ? undefined : new Date().toISOString(),
+          outcome:     done ? undefined : (stage.outcome ?? 'Passed'),
+        },
+      })
+      toast.success(done
+        ? t('pages.applicationDetail.stageReopened')
+        : t('pages.applicationDetail.stageCompleted'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update that round')
+    }
+  }
   const [stageFormOpen, setStageFormOpen] = useState(false)
   const [editStage, setEditStage] = useState<InterviewStage | null>(null)
   const [deleteStage, setDeleteStage] = useState<InterviewStage | null>(null)
@@ -431,6 +454,7 @@ export function ApplicationDetailPage() {
             onAdd={() => setStageFormOpen(true)}
             onEdit={setEditStage}
             onDelete={setDeleteStage}
+            onToggleDone={handleToggleStageDone}
             t={t}
           />
         )}
@@ -751,12 +775,13 @@ const OUTCOME_STYLES: Record<string, { dot: string; label: string; cardBorder: s
 }
 
 function InterviewsTab({
-  stages, onAdd, onEdit, onDelete, t,
+  stages, onAdd, onEdit, onDelete, onToggleDone, t,
 }: {
   stages: InterviewStage[]
   onAdd: () => void
   onEdit: (s: InterviewStage) => void
   onDelete: (s: InterviewStage) => void
+  onToggleDone: (s: InterviewStage) => void
   t: (key: string, vars?: Record<string, string | number>) => string
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -815,17 +840,34 @@ function InterviewsTab({
                       {isExpanded ? t('pages.applicationDetail.collapse') : t('pages.applicationDetail.expand')}
                     </span>
                   </button>
-                  <div className="flex items-center gap-1 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 p-3">
+                    <button
+                      onClick={() => onToggleDone(stage)}
+                      title={stage.completedAt
+                        ? t('pages.applicationDetail.markNotDone')
+                        : t('pages.applicationDetail.markDone')}
+                      aria-label={stage.completedAt
+                        ? t('pages.applicationDetail.markNotDone')
+                        : t('pages.applicationDetail.markDone')}
+                      className={cn(
+                        'p-1.5 rounded-lg border transition-colors',
+                        stage.completedAt
+                          ? 'bg-success-50 border-success-200 text-success-600 hover:bg-success-100'
+                          : 'border-slate-200 text-slate-300 hover:text-success-600 hover:border-success-200',
+                      )}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => onEdit(stage)}
-                      className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                      className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
                       aria-label="Edit stage"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onDelete(stage)}
-                      className="p-1 rounded hover:bg-danger-50 text-slate-400 hover:text-danger-600"
+                      className="p-1 rounded hover:bg-danger-50 text-slate-400 hover:text-danger-600 opacity-0 group-hover:opacity-100 transition-opacity"
                       aria-label="Delete stage"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

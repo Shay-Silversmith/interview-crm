@@ -15,6 +15,7 @@ import { useCandidate } from '@/hooks/useCandidate'
 import { useToastActions } from '@/hooks/useToast'
 import { useI18n } from '@/hooks/useI18n'
 import { applicationsService } from '@/services/applicationsService'
+import { interviewStageService } from '@/services/interviewStageService'
 import { aiService, type AIRun } from '@/services/aiService'
 import { AIFailureNotice } from './AIFailureNotice'
 import {
@@ -40,6 +41,7 @@ export function InterviewDebriefPanel() {
   const { data: applications } = useMockStore(() => applicationsService.list())
 
   const [selectedAppId,  setSelectedAppId]  = useState('')
+  const [selectedStageId, setSelectedStageId] = useState('')
   const [interviewType,  setInterviewType]  = useState(INTERVIEW_TYPES[0])
   const [interviewer,    setInterviewer]    = useState('')
   const [interviewedAt,  setInterviewedAt]  = useState(() => new Date().toISOString().slice(0, 10))
@@ -48,6 +50,16 @@ export function InterviewDebriefPanel() {
   const [state,          setState]          = useState<RunState>({ status: 'idle' })
 
   const selectedApp = applications?.find(a => a.id === selectedAppId)
+
+  // list() does not carry the rounds, so they are fetched for the chosen
+  // application. Attaching the debrief to a round is what makes it show up
+  // where people look for it — under the round itself, not in a tool's history.
+  const { data: stages } = useMockStore(
+    () => (selectedAppId ? interviewStageService.listByApplication(selectedAppId) : Promise.resolve([])),
+    [selectedAppId],
+  )
+
+  const selectedStage = stages?.find(st => st.id === selectedStageId)
   const canRun = notes.trim().length >= 20
 
   const handleGenerate = async () => {
@@ -81,7 +93,22 @@ export function InterviewDebriefPanel() {
         companyId:     selectedApp?.companyId,
         inputData:     { notes: notes.trim().slice(0, 4000), interviewType, interviewedAt },
       })
-      toast.success(t('ai.debrief.saved'))
+
+      // Writing the debrief onto the round is the part that makes it findable.
+      // Completing the round at the same time matches what actually happened:
+      // you only write a debrief for an interview you have already had.
+      if (selectedStage) {
+        await interviewStageService.update(selectedStage.id, {
+          notes:       state.data.markdown,
+          nextSteps:   state.data.nextSteps.join('\n') || undefined,
+          completedAt: selectedStage.completedAt ?? new Date(`${interviewedAt}T12:00:00`).toISOString(),
+          outcome:     selectedStage.outcome ?? 'Passed',
+        })
+      }
+
+      toast.success(selectedStage
+        ? `${t('ai.debrief.saved')} — ${selectedStage.type}`
+        : t('ai.debrief.saved'))
     } catch (err) {
       // A generic 'could not save' hid a not-null violation for weeks. Say it.
       toast.error(`${t('ai.debrief.saveFailed')} — ${err instanceof Error ? err.message : 'unknown error'}`)
@@ -120,7 +147,7 @@ export function InterviewDebriefPanel() {
             </label>
             <select
               value={selectedAppId}
-              onChange={e => setSelectedAppId(e.target.value)}
+              onChange={e => { setSelectedAppId(e.target.value); setSelectedStageId('') }}
               className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             >
               <option value="">{t('ai.debrief.appPlaceholder')}</option>
@@ -129,6 +156,33 @@ export function InterviewDebriefPanel() {
               ))}
             </select>
           </div>
+
+          {selectedAppId && (stages?.length ?? 0) > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                {t('ai.debrief.stageLabel')}
+              </label>
+              <select
+                value={selectedStageId}
+                onChange={e => {
+                  const id = e.target.value
+                  setSelectedStageId(id)
+                  const st = stages?.find(x => x.id === id)
+                  if (st?.type) setInterviewType(st.type)
+                  if (st?.interviewer) setInterviewer(st.interviewer)
+                }}
+                className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+              >
+                <option value="">{t('ai.debrief.stagePlaceholder')}</option>
+                {(stages ?? []).map(st => (
+                  <option key={st.id} value={st.id}>
+                    {st.type}{st.completedAt ? ` — ${t('ai.debrief.stageDone')}` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-2xs text-slate-400 mt-1">{t('ai.debrief.stageHint')}</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2">
             <div>
