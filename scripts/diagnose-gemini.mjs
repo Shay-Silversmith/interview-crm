@@ -10,7 +10,8 @@
 // text — so the next change is informed by a result rather than a hypothesis.
 //
 // Run:
-//   node scripts/diagnose-gemini.mjs
+//   node scripts/diagnose-gemini.mjs            # compare call shapes
+//   node scripts/diagnose-gemini.mjs --models   # list the models this key can call
 //
 // The key is read from the environment and never printed. Set it for the one
 // command, or put GEMINI_API_KEY in .env.local (which is git-ignored).
@@ -47,7 +48,29 @@ if (!apiKey) {
 }
 
 const ai    = new GoogleGenAI({ apiKey })
-const MODEL = 'gemini-2.5-flash'
+
+// --- model listing ---------------------------------------------------------
+//
+// Which models a key can reach is account-specific and changes without notice:
+// Google withdraws older ones from newer accounts, so a name that is correct in
+// the docs can be refused here. Listing costs no generation quota and settles
+// the question that guessing at names kept reopening.
+//
+//   node scripts/diagnose-gemini.mjs --models
+//
+if (process.argv.includes('--models')) {
+  const usable = []
+  for await (const m of await ai.models.list()) {
+    const actions = m.supportedActions ?? m.supportedGenerationMethods ?? []
+    if (actions.length === 0 || actions.includes('generateContent')) usable.push(m.name)
+  }
+  console.log('Models this key can call with generateContent:\n')
+  for (const name of usable.sort()) console.log('  ' + name.replace(/^models\//, ''))
+  console.log('\nPaste this back. It contains no key material.')
+  process.exit(0)
+}
+
+const MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash'
 
 const SYSTEM_JSON = `\
 You research companies. Return a single JSON object with exactly these keys:
