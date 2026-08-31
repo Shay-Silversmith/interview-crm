@@ -21,7 +21,7 @@
 import { GoogleGenAI } from '@google/genai'
 import type { z } from 'zod'
 
-export const DEFAULT_MODEL = 'gemini-2.5-flash'
+export const DEFAULT_MODEL = 'gemini-3.5-flash'
 
 /**
  * Used for the structuring pass after a grounded search.
@@ -44,9 +44,16 @@ export const STRUCTURING_MODEL = 'gemini-3.5-flash-lite'
  * successor rather than surfacing a failure the user cannot act on.
  */
 const MODEL_FALLBACKS: Record<string, string> = {
+  // Forward: the 2.5 family is being withdrawn from new accounts.
   'gemini-2.5-flash-lite': 'gemini-3.5-flash-lite',
   'gemini-2.5-flash':      'gemini-3.5-flash',
   'gemini-2.5-pro':        'gemini-3.5-pro',
+  // Backward: 3.5 is the default now, but it has not been verified against
+  // every key. If an account cannot reach it, drop to the model that worked
+  // rather than failing — one retry only, so the pairing cannot loop.
+  'gemini-3.5-flash-lite': 'gemini-2.5-flash-lite',
+  'gemini-3.5-flash':      'gemini-2.5-flash',
+  'gemini-3.5-pro':        'gemini-2.5-pro',
 }
 
 /** True when the API refused because the model is gone, not because of the request. */

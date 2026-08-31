@@ -12,10 +12,11 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGeminiRaw, getGeminiApiKey } from '../_lib/gemini.js'
+import { callGeminiRaw, getGeminiApiKey, DEFAULT_MODEL } from '../_lib/gemini.js'
 import { checkRateLimit, getIP } from '../_lib/rate-limit.js'
 
-const MODEL = 'gemini-2.5-flash'
+/** Probe the model the tools actually use, so a retirement shows up here first. */
+const MODEL = DEFAULT_MODEL
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCORSHeaders(res)
