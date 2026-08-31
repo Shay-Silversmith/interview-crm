@@ -121,8 +121,8 @@ export function StarAnswersPanel() {
         inputData:     { role: effectiveRole, company: effectiveCompany, question },
       })
       toast.success(t('ai.star.saved'))
-    } catch {
-      toast.error(t('ai.star.saveFailed'))
+    } catch (err) {
+      toast.error(`${t('ai.star.saveFailed')} — ${err instanceof Error ? err.message : 'unknown error'}`)
     }
     setSaving(false)
   }

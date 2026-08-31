@@ -16,6 +16,7 @@ import { isSupabaseMode, isAIEnabled } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
 import { mapAISummary } from '@/lib/mappers'
 import { hasStoredGeminiKey } from '@/services/aiKey'
+import { getCurrentUserId } from '@/lib/currentUser'
 import {
   aiClientService,
   type AIResult,
@@ -189,9 +190,20 @@ const supabaseCRUD = {
 
   async create(data: Partial<AISummary>): Promise<AISummary> {
     const sb = getSupabaseClient()
+
+    // ai_summaries.user_id is NOT NULL with no default and no trigger, and the
+    // RLS policy checks auth.uid() = user_id, so an insert that omits it fails
+    // twice over. Nothing set it, which is why the table was still empty after
+    // every Save button in the AI tools had been pressed.
+    const userId = getCurrentUserId() ?? (await sb.auth.getUser()).data.user?.id
+    if (!userId) {
+      throw new Error('You are signed out, so there is nothing to save to. Sign in and try again.')
+    }
+
     const { data: inserted, error } = await sb
       .from('ai_summaries')
       .insert({
+        user_id:        userId,
         tool_type:      data.toolType ?? 'Prepare Me',
         application_id: data.applicationId ?? null,
         company_id:     data.companyId ?? null,

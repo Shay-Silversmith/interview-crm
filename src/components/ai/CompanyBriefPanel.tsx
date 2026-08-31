@@ -139,8 +139,8 @@ export function CompanyBriefPanel() {
         },
       )
       toast.success(`${t('ai.companyBrief.savedPrefix')} ${effectiveCompany}`)
-    } catch {
-      toast.error(t('ai.companyBrief.saveFailed'))
+    } catch (err) {
+      toast.error(`${t('ai.companyBrief.saveFailed')} — ${err instanceof Error ? err.message : 'unknown error'}`)
     }
     setSaving(false)
   }

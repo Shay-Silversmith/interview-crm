@@ -82,8 +82,9 @@ export function InterviewDebriefPanel() {
         inputData:     { notes: notes.trim().slice(0, 4000), interviewType, interviewedAt },
       })
       toast.success(t('ai.debrief.saved'))
-    } catch {
-      toast.error(t('ai.debrief.saveFailed'))
+    } catch (err) {
+      // A generic 'could not save' hid a not-null violation for weeks. Say it.
+      toast.error(`${t('ai.debrief.saveFailed')} — ${err instanceof Error ? err.message : 'unknown error'}`)
     }
     setSaving(false)
   }

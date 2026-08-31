@@ -162,8 +162,8 @@ export function PrepPackPanel() {
           .replace('{{role}}', selectedApp?.roleName ?? '')
           .replace('{{company}}', selectedApp?.companyName ?? ''),
       )
-    } catch {
-      toast.error(t('ai.toasts.failedToSavePack'))
+    } catch (err) {
+      toast.error(`${t('ai.toasts.failedToSavePack')} — ${err instanceof Error ? err.message : 'unknown error'}`)
     }
     setSaving(false)
   }
