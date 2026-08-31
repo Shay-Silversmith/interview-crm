@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Analytics } from '@vercel/analytics/react'
 import { AppShell } from './components/layout/AppShell'
 import { AuthGuard } from './components/layout/AuthGuard'
 import { ToastProvider } from './hooks/useToast'
@@ -150,6 +151,13 @@ export default function App() {
                 </Route>
               </Routes>
               <Toaster />
+              {/* Vercel Analytics. Mounted inside BrowserRouter so client-side
+                  navigations register as page views — outside it, a single-page
+                  app reports one view per session and nothing else.
+
+                  The import is /react, not /next: Vercel's setup page defaults
+                  to the Next.js snippet, which does not apply to a Vite app. */}
+              <Analytics />
             </BrowserRouter>
           </ToastProvider>
         </QueryClientProvider>
