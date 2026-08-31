@@ -172,7 +172,10 @@ export function ContactsPage() {
         />
       ) : (
         <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
-          <table className="w-full">
+          {/* Six columns do not fit a phone. The table scrolls inside its own
+              card rather than dragging the whole page sideways with it. */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60">
                 <th className="text-start px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('pages.contacts.colName')}</th>
@@ -258,7 +261,8 @@ export function ContactsPage() {
                 )
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       )}
 

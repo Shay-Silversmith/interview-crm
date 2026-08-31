@@ -46,7 +46,7 @@ export function QuickAIWidget() {
           {t('pages.dashboard.allTools')}
         </Link>
       </CardHeader>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {AI_ACTIONS.map(action => (
           <Link
             key={action.label}

@@ -246,6 +246,30 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  /* A scroll strip with no visible scrollbar — for tab rows and chip rails on
+     a phone, where a horizontal bar under the tabs is noise and the row is
+     obviously swipeable from its cut-off edge. */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Lets a full-bleed scroll strip run to the screen edges inside a padded
+     page, so the last tab is not clipped behind the container padding. */
+  .bleed-x {
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 768px) {
+    .bleed-x {
+      margin-inline: 0;
+      padding-inline: 0;
+    }
+  }
+
   /* Force left-to-right rendering inside an RTL document.
      Apply to technical text (backend pill, search input, file names, etc.)
      that must never mirror in Hebrew mode. */

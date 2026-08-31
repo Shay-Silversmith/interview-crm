@@ -208,7 +208,7 @@ export function StarAnswersPanel() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
                 {t('ai.star.roleLabel')}<span className="text-danger-500 ms-0.5">*</span>
@@ -248,7 +248,7 @@ export function StarAnswersPanel() {
             <p className="text-2xs text-slate-400 mt-1">{t('ai.star.questionHint')}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
                 {t('ai.star.focusLabel')} <span className="text-slate-400">({t('ai.jdParser.optional')})</span>

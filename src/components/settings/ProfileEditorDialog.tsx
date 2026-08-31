@@ -119,7 +119,7 @@ export function ProfileEditorDialog({ open, onClose, profile }: Props) {
 
         <section className="space-y-3">
           <h4 className="text-2xs font-semibold text-slate-400 uppercase tracking-wide">Identity</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Full name" value={form.name} onChange={set('name')} placeholder="Shay Silversmith" />
             <Input label="Greeting name" value={form.displayName} onChange={set('displayName')} placeholder="Shay" />
           </div>
@@ -128,7 +128,7 @@ export function ProfileEditorDialog({ open, onClose, profile }: Props) {
 
         <section className="space-y-3">
           <h4 className="text-2xs font-semibold text-slate-400 uppercase tracking-wide">Background</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="University" value={form.university} onChange={set('university')} />
             <Input label="Year of study" type="number" min={1} max={10} value={form.year} onChange={set('year')} />
           </div>
@@ -136,7 +136,7 @@ export function ProfileEditorDialog({ open, onClose, profile }: Props) {
           <Input label="Military service / unit" value={form.unit} onChange={set('unit')} />
           <Textarea label="Bio" rows={3} value={form.bio} onChange={set('bio')}
                     placeholder="A few lines on who you are and what you are good at." />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="LinkedIn URL" value={form.linkedinUrl} onChange={set('linkedinUrl')} placeholder="https://linkedin.com/in/…" />
             <Input label="GitHub URL" value={form.githubUrl} onChange={set('githubUrl')} placeholder="https://github.com/…" />
           </div>

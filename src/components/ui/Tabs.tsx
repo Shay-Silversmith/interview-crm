@@ -15,13 +15,22 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
   return (
-    <div className={cn('flex gap-1 border-b border-slate-200', className)}>
+    // Eight tabs do not fit a phone. Without a scroll strip they either squash
+    // to unreadable or push the whole page sideways; here the row scrolls on
+    // its own and the cut-off edge shows there is more to reach.
+    <div
+      className={cn(
+        'flex gap-1 border-b border-slate-200 overflow-x-auto scrollbar-none bleed-x',
+        className,
+      )}
+    >
       {tabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
             'flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors duration-150',
+            'shrink-0 whitespace-nowrap',
             activeTab === tab.id
               ? 'border-primary-600 text-primary-700'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'

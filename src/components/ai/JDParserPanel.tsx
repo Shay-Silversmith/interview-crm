@@ -160,7 +160,7 @@ export function JDParserPanel() {
             placeholder={t('ai.jdParser.linkPlaceholder')}
           />
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
                 {t('ai.jdParser.roleTitleLabel')}
