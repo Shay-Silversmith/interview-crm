@@ -159,7 +159,6 @@ export default function App() {
                   to the Next.js snippet, which does not apply to a Vite app. */}
               <Analytics />
             </BrowserRouter>
-            <Analytics />
           </ToastProvider>
         </QueryClientProvider>
       </I18nProvider>
