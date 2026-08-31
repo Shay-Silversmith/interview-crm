@@ -27,3 +27,9 @@ Thumbs.db
 
 # Scratch for files staged for deletion — safe to remove.
 _to_delete/
+
+# This project uses npm. A second lockfile changes which package manager
+# the host picks, and a stale one fails the build outright.
+pnpm-lock.yaml
+yarn.lock
+bun.lockb
