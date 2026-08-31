@@ -40,7 +40,11 @@ type AIMode = 'rewrite' | 'fromCV'
 export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAnswerFormProps) {
   const { t, locale } = useI18n()
   const toast = useToastActions()
-  const { candidate, activeCV } = useCandidate()
+  const [cvId, setCvId] = useState('')
+  // Which CV the answer is built from is a real choice — a data CV and a
+  // product CV produce different stories for the same question — so it is
+  // picked here rather than silently defaulting to whichever is active.
+  const { candidate, activeCV, cvVersions } = useCandidate(cvId || undefined)
 
   const schema = useMemo(() => makePrepAnswerSchema(t), [t])
 
@@ -88,11 +92,13 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
   // questions; the others are the same whatever the job is.
   const bank = questionsFor(category, roleFamily)
 
-  // STAR is how you answer a story question, not a kind of question. Offering
-  // it on "explain a LEFT JOIN" teaches the wrong instinct, so the helper is
-  // only enabled once the current question is one a story fits.
-  const matched   = bank.find(q => q.question === question?.trim())
-  const starFits  = matched ? matched.star === true : true
+  // STAR is how you answer a story question, not a kind of question — so it
+  // decides the SHAPE of the generated answer, not whether the helper runs.
+  // Gating the buttons on it left every phone-screen question with nothing to
+  // click, which is the opposite of helpful.
+  const matched  = bank.find(q => q.question === question?.trim())
+  const starFits = matched ? matched.star === true : true
+  const style: 'star' | 'direct' = starFits ? 'star' : 'direct'
 
   const [busy,    setBusy]    = useState<AIMode | null>(null)
   const [failure, setFailure] = useState<Extract<AIRun<never>, { ok: false }> | null>(null)
@@ -112,6 +118,7 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
       company:     t('forms.prepAI.genericCompany'),
       question:    question.trim(),
       draftAnswer: mode === 'rewrite' ? answer?.trim() : undefined,
+      answerStyle: style,
       count:       1,
       candidate,
       locale:      locale as 'en' | 'he',
@@ -130,17 +137,24 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
       return
     }
 
-    // The spoken version is what gets rehearsed, so it leads; the STAR
-    // breakdown follows for editing. Both are kept — losing the structure
-    // would make the answer harder to sharpen later.
+    // The spoken version is what gets rehearsed, so it leads. The STAR
+    // breakdown follows only when there is one — a direct answer has empty
+    // STAR fields, and printing four empty labels would be noise.
+    const hasStar = [first.situation, first.task, first.action, first.result]
+      .some(v => v?.trim())
+
     const composed = [
-      first.spokenAnswer?.trim(),
-      '',
-      `${t('forms.prepAI.situation')}: ${first.situation}`,
-      `${t('forms.prepAI.task')}: ${first.task}`,
-      `${t('forms.prepAI.action')}: ${first.action}`,
-      `${t('forms.prepAI.result')}: ${first.result}`,
-    ].filter(v => v !== undefined).join('\n')
+      first.spokenAnswer?.trim() || '',
+      ...(hasStar
+        ? [
+            '',
+            `${t('forms.prepAI.situation')}: ${first.situation}`,
+            `${t('forms.prepAI.task')}: ${first.task}`,
+            `${t('forms.prepAI.action')}: ${first.action}`,
+            `${t('forms.prepAI.result')}: ${first.result}`,
+          ]
+        : []),
+    ].join('\n').trim()
 
     setValue('answer', composed, { shouldDirty: true })
 
@@ -252,8 +266,7 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
           <button
             type="button"
             onClick={() => runAI('rewrite')}
-            disabled={busy !== null || !answer?.trim() || !starFits}
-            title={!starFits ? t('forms.prepAI.notAStoryQuestion') : undefined}
+            disabled={busy !== null || !answer?.trim()}
             className={cn(
               'flex items-start gap-2 rounded-lg border px-3 py-2.5 text-start transition-colors',
               'bg-surface border-slate-200 hover:border-violet-300 disabled:opacity-50 disabled:cursor-not-allowed',
@@ -273,8 +286,7 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
           <button
             type="button"
             onClick={() => runAI('fromCV')}
-            disabled={busy !== null || !starFits}
-            title={!starFits ? t('forms.prepAI.notAStoryQuestion') : undefined}
+            disabled={busy !== null}
             className={cn(
               'flex items-start gap-2 rounded-lg border px-3 py-2.5 text-start transition-colors',
               'bg-surface border-slate-200 hover:border-violet-300 disabled:opacity-50 disabled:cursor-not-allowed',
@@ -292,15 +304,32 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
           </button>
         </div>
 
-        {!starFits && (
-          <p className="text-2xs text-slate-500">{t('forms.prepAI.notAStoryQuestion')}</p>
-        )}
-
         <p className="text-2xs text-slate-500">
-          {activeCV
-            ? `${t('forms.prepAI.usingCV')} ${activeCV.name}`
-            : t('forms.prepAI.noCV')}
+          {starFits ? t('forms.prepAI.willUseStar') : t('forms.prepAI.willUseDirect')}
         </p>
+
+        {/* Which CV the answer is drawn from. */}
+        <div>
+          <label className="block text-2xs font-medium text-slate-600 mb-1">
+            {t('forms.prepAI.cvLabel')}
+          </label>
+          <select
+            value={cvId}
+            onChange={e => setCvId(e.target.value)}
+            className="w-full h-8 px-2 rounded-lg border border-slate-200 bg-surface text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          >
+            <option value="">
+              {activeCV
+                ? `${t('forms.prepAI.cvAuto')} — ${activeCV.name}`
+                : t('forms.prepAI.noCV')}
+            </option>
+            {cvVersions.map(cv => (
+              <option key={cv.id} value={cv.id}>
+                {cv.name}{cv.emphasis ? ` — ${cv.emphasis.slice(0, 45)}` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {failure && (
           <div className="relative">

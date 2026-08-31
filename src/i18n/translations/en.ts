@@ -316,7 +316,7 @@ const en = {
     },
 
     prep: {
-      title:    'Answer Bank',
+      title:    'Interview prep',
       subtitle: 'Your answers to the questions that keep coming up',
       // What this page is for. Without it the page reads as an empty list of
       // categories and nobody works out what they are supposed to put in it.
@@ -591,6 +591,10 @@ const en = {
       addAnswer:      'Add question',
     },
     prepAI: {
+      cvLabel:        'Build the answer from which CV?',
+      cvAuto:         'Automatic',
+      willUseStar:    'This is a story question — the answer will come back as STAR.',
+      willUseDirect:  'This one wants a direct answer, so it will not be forced into STAR.',
       roleFamily:     'What kind of role is this?',
       roleFamilyHint: 'Changes which professional questions are shown.',
       notAStoryQuestion: 'STAR is for story questions. This one wants a direct answer.',

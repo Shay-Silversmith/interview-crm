@@ -84,6 +84,8 @@ Rules, and these override everything else:
 — Keep the candidate's voice. Fix structure, grammar and order; do not upgrade the story.
 — Return exactly one answer, for the question given.`
 
+const DIRECT_SUFFIX = `\n\nIMPORTANT — DIRECT ANSWER MODE.\nThis question does not want a story, so do NOT force it into STAR. Instead:\n— Put the full answer in "spokenAnswer": what the candidate should actually say, 30-60 seconds, first person, natural speech.\n— Leave "situation", "task", "action" and "result" as empty strings.\n— Keep "whyAsked", "basedOn", "deliveryTips" and "followUps" as specified.\n— For questions about expectations, availability or preferences, give a usable, specific answer and say what it depends on. Never invent a salary figure the candidate has not given you; give the shape of a good answer and mark the number as [your range].`
+
 export default createAIRoute({
   name:   'star-answers',
   schema: starAnswersRequestSchema,
@@ -110,7 +112,9 @@ export default createAIRoute({
 
       const data = await callGemini({
         apiKey,
-        system:         REWRITE_SYSTEM + localeSystemSuffix(body.locale),
+        system:         REWRITE_SYSTEM
+          + (body.answerStyle === 'direct' ? DIRECT_SUFFIX : '')
+          + localeSystemSuffix(body.locale),
         user:           parts.join('\n\n'),
         schema:         starAnswersResponseSchema,
         maxTokens:      8_000,
@@ -151,7 +155,9 @@ export default createAIRoute({
       )
     }
 
-    const system = SYSTEM + localeSystemSuffix(body.locale)
+    const system = SYSTEM
+      + (body.answerStyle === 'direct' ? DIRECT_SUFFIX : '')
+      + localeSystemSuffix(body.locale)
 
     if (body.jdText?.trim()) {
       sections.push(`JOB DESCRIPTION:\n${body.jdText.trim()}`)

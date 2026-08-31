@@ -372,6 +372,12 @@ export const starAnswersRequestSchema = z.object({
    * something down on paper.
    */
   draftAnswer: z.string().max(8000).optional(),
+  /**
+   * How the answer should be shaped. Not every question wants a story — salary
+   * expectations answered in STAR is a worse answer, not a better one — so the
+   * caller says which, and 'direct' returns a concise reply instead.
+   */
+  answerStyle: z.enum(['star', 'direct']).default('star').optional(),
   /** Behavioural themes to bias toward, e.g. Amazon leadership principles. */
   focus:       z.string().max(500).optional(),
   count:       z.number().int().min(1).max(8).default(4).optional(),

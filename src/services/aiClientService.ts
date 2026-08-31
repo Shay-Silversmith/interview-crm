@@ -323,6 +323,8 @@ export interface StarAnswersRequest {
   question?:  string
   /** A rough answer to restructure, instead of building one from the CV. */
   draftAnswer?: string
+  /** Story or direct. Not every question wants STAR. */
+  answerStyle?: 'star' | 'direct'
   focus?:     string
   count?:     number
   candidate?: CandidatePayload
