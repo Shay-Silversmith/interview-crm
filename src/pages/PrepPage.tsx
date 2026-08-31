@@ -16,13 +16,13 @@ import { prepService } from '@/services/prepService'
 import { formatDate } from '@/utils/date'
 import { cn } from '@/lib/cn'
 import { QK } from '@/lib/query-keys'
+import { normalizeCategory } from '@/data/question-bank'
 import type { PrepCategory, ConfidenceLevel } from '@/lib/enums'
 import type { PreparedAnswer } from '@/types'
 import type { PrepAnswerFormValues } from '@/lib/schemas/prepAnswerSchema'
 
 const CATEGORIES: PrepCategory[] = [
-  'Personal Pitch', 'HR', 'Behavioral', 'STAR', 'Technical',
-  'Product / PM', 'SQL', 'Python', 'Data Engineering', 'Information Systems',
+  'Phone Screen', 'Professional', 'Home Assignment', 'Manager', 'HR / Personality', 'Other',
 ]
 
 const CONFIDENCE_COLOR: Record<number, 'danger' | 'warning' | 'primary' | 'success'> = {
@@ -36,7 +36,7 @@ export function PrepPage() {
   const { data: answers, loading } = useMockStore(() => prepService.list(), [], { key: QK.prep.all() })
   const { create, update, remove } = usePrepMutations()
 
-  const [activeCategory, setActiveCategory] = useState<PrepCategory>('Personal Pitch')
+  const [activeCategory, setActiveCategory] = useState<PrepCategory>('Phone Screen')
   const [expandedId,     setExpandedId]     = useState<string | null>(null)
   const [addOpen,        setAddOpen]        = useState(false)
   const [editAnswer,     setEditAnswer]     = useState<PreparedAnswer | null>(null)
@@ -56,7 +56,7 @@ export function PrepPage() {
   }
 
   const filtered = useMemo(
-    () => answers?.filter(a => a.category === activeCategory) ?? [],
+    () => answers?.filter(a => normalizeCategory(a.category) === activeCategory) ?? [],
     [answers, activeCategory],
   )
 
@@ -65,9 +65,10 @@ export function PrepPage() {
     CATEGORIES.forEach(c => { stats[c] = { total: 0, ready: 0 } })
     answers?.forEach(a => {
       // A category that is not in the list would throw on the increment below.
-      if (!stats[a.category]) stats[a.category] = { total: 0, ready: 0 }
-      stats[a.category].total++
-      if (a.isReady) stats[a.category].ready++
+      const key = normalizeCategory(a.category)
+      if (!stats[key]) stats[key] = { total: 0, ready: 0 }
+      stats[key].total++
+      if (a.isReady) stats[key].ready++
     })
     return stats
   }, [answers])

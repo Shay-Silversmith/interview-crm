@@ -82,17 +82,44 @@ export type DocumentType =
   | 'Reference Letter'
   | 'Other'
 
+/**
+ * Prep is organised by the round you are walking into, not by subject.
+ *
+ * The earlier list mixed the two — 'HR' and 'Behavioral' next to 'SQL' and
+ * 'Python' — which left no answer to the question people actually have the
+ * night before: what am I being asked tomorrow. A discipline like SQL is not a
+ * kind of interview; it is what gets asked inside the professional round, and
+ * it now lives there as a role family.
+ *
+ * STAR is likewise absent: it is the way you answer a story question, not a
+ * round of its own. Questions that suit it are flagged in the question bank.
+ */
 export type PrepCategory =
-  | 'Personal Pitch'
-  | 'HR'
-  | 'Behavioral'
-  | 'STAR'
-  | 'Technical'
-  | 'Product / PM'
-  | 'SQL'
-  | 'Python'
+  | 'Phone Screen'
+  | 'Professional'
+  | 'Home Assignment'
+  | 'Manager'
+  | 'HR / Personality'
+  | 'Other'
+
+/**
+ * What the professional round is about. Chosen when browsing questions, not
+ * stored on the answer — the saved answer belongs to a round, and the family
+ * only decides which questions are worth showing while writing it.
+ */
+export type RoleFamily =
+  | 'Software Engineering'
   | 'Data Engineering'
-  | 'Information Systems'
+  | 'Data Analysis / BI'
+  | 'Data Science / ML'
+  | 'Product Management'
+  | 'Project / Program Management'
+  | 'Business / Systems Analysis'
+  | 'QA / Automation'
+  | 'DevOps / SRE'
+  | 'Cybersecurity'
+  | 'IT / Information Systems'
+  | 'Support / Customer Success'
 
 export type ConfidenceLevel = 1 | 2 | 3 | 4 | 5
 

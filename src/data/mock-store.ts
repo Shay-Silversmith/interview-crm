@@ -218,7 +218,7 @@ export const mockStore = {
   prep: makeStore<PreparedAnswer>(
     'prep',
     () => _prep, v => { _prep = v },
-    { questionId: '', question: '', category: 'Behavioral', answer: '', confidence: 3, isReady: false, lastUpdatedAt: now() }
+    { questionId: '', question: '', category: 'HR / Personality', answer: '', confidence: 3, isReady: false, lastUpdatedAt: now() }
   ),
   ai: {
     list:    (): AISummary[]                     => [..._ai],

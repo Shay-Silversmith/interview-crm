@@ -16,7 +16,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Sparkles, Wand2, ListChecks, ChevronDown, X } from 'lucide-react'
 import type { PreparedAnswer } from '@/types'
-import type { PrepCategory } from '@/lib/enums'
+import type { PrepCategory, RoleFamily } from '@/lib/enums'
 import { makePrepAnswerSchema, type PrepAnswerFormValues } from '@/lib/schemas/prepAnswerSchema'
 import { TextField, SelectField, TextareaField, CheckboxField } from './Field'
 import { SubmitBar } from './FormLayout'
@@ -25,7 +25,7 @@ import { useCandidate } from '@/hooks/useCandidate'
 import { useToastActions } from '@/hooks/useToast'
 import { aiService, type AIRun } from '@/services/aiService'
 import { AIFailureNotice } from '@/components/ai/AIFailureNotice'
-import { questionsFor } from '@/data/question-bank'
+import { questionsFor, ROLE_FAMILIES } from '@/data/question-bank'
 import { cn } from '@/lib/cn'
 
 interface PrepAnswerFormProps {
@@ -45,16 +45,12 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
   const schema = useMemo(() => makePrepAnswerSchema(t), [t])
 
   const CATEGORY_OPTS = [
-    { value: 'Personal Pitch',      label: t('forms.options.prepPersonalPitch') },
-    { value: 'HR',                  label: t('forms.options.prepHR') },
-    { value: 'Behavioral',          label: t('forms.options.prepBehavioral') },
-    { value: 'STAR',                label: t('forms.options.prepSTAR') },
-    { value: 'Technical',           label: t('forms.options.prepTechnical') },
-    { value: 'Product / PM',        label: t('forms.options.prepProductPM') },
-    { value: 'SQL',                 label: t('forms.options.prepSQL') },
-    { value: 'Python',              label: t('forms.options.prepPython') },
-    { value: 'Data Engineering',    label: t('forms.options.prepDataEngineering') },
-    { value: 'Information Systems', label: t('forms.options.prepInfoSystems') },
+    { value: 'Phone Screen',     label: t('pages.prep.categories.Phone Screen') },
+    { value: 'Professional',     label: t('pages.prep.categories.Professional') },
+    { value: 'Home Assignment',  label: t('pages.prep.categories.Home Assignment') },
+    { value: 'Manager',          label: t('pages.prep.categories.Manager') },
+    { value: 'HR / Personality', label: t('pages.prep.categories.HR / Personality') },
+    { value: 'Other',            label: t('pages.prep.categories.Other') },
   ]
 
   const CONFIDENCE_LABELS: Record<number, string> = {
@@ -69,7 +65,7 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
     resolver: zodResolver(schema),
     defaultValues: {
       question:   initial?.question ?? '',
-      category:   initial?.category ?? 'Behavioral',
+      category:   initial?.category ?? 'Phone Screen',
       answer:     initial?.answer ?? '',
       confidence: initial?.confidence ?? 3,
       isReady:    initial?.isReady ?? false,
@@ -86,7 +82,17 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
   // Only offer the bank on a new entry — reopening a saved answer to a list of
   // other questions is noise.
   const [bankOpen, setBankOpen] = useState(!initial?.id && !initial?.question)
-  const bank = questionsFor(category)
+  const [roleFamily, setRoleFamily] = useState<RoleFamily>('Software Engineering')
+
+  // The professional round is the only one where the discipline changes the
+  // questions; the others are the same whatever the job is.
+  const bank = questionsFor(category, roleFamily)
+
+  // STAR is how you answer a story question, not a kind of question. Offering
+  // it on "explain a LEFT JOIN" teaches the wrong instinct, so the helper is
+  // only enabled once the current question is one a story fits.
+  const matched   = bank.find(q => q.question === question?.trim())
+  const starFits  = matched ? matched.star === true : true
 
   const [busy,    setBusy]    = useState<AIMode | null>(null)
   const [failure, setFailure] = useState<Extract<AIRun<never>, { ok: false }> | null>(null)
@@ -182,6 +188,11 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
                     >
                       <p dir="auto" className="text-xs font-medium text-slate-800 leading-snug">
                         {item.question}
+                        {item.star && (
+                          <span className="ms-1.5 align-middle text-2xs font-bold px-1 py-0.5 rounded bg-violet-100 text-violet-700">
+                            STAR
+                          </span>
+                        )}
                       </p>
                       <p dir="auto" className="text-2xs text-slate-400 mt-0.5 leading-snug">
                         {item.why}
@@ -194,6 +205,24 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
           </div>
         )}
       </div>
+
+      {category === 'Professional' && (
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            {t('forms.prepAI.roleFamily')}
+          </label>
+          <select
+            value={roleFamily}
+            onChange={e => setRoleFamily(e.target.value as RoleFamily)}
+            className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-surface text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          >
+            {ROLE_FAMILIES.map(f => (
+              <option key={f} value={f}>{t(`forms.prepAI.roles.${f}`)}</option>
+            ))}
+          </select>
+          <p className="text-2xs text-slate-400 mt-1">{t('forms.prepAI.roleFamilyHint')}</p>
+        </div>
+      )}
 
       <TextareaField
         label={t('forms.fields.question')} required
@@ -223,7 +252,8 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
           <button
             type="button"
             onClick={() => runAI('rewrite')}
-            disabled={busy !== null || !answer?.trim()}
+            disabled={busy !== null || !answer?.trim() || !starFits}
+            title={!starFits ? t('forms.prepAI.notAStoryQuestion') : undefined}
             className={cn(
               'flex items-start gap-2 rounded-lg border px-3 py-2.5 text-start transition-colors',
               'bg-surface border-slate-200 hover:border-violet-300 disabled:opacity-50 disabled:cursor-not-allowed',
@@ -243,7 +273,8 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
           <button
             type="button"
             onClick={() => runAI('fromCV')}
-            disabled={busy !== null}
+            disabled={busy !== null || !starFits}
+            title={!starFits ? t('forms.prepAI.notAStoryQuestion') : undefined}
             className={cn(
               'flex items-start gap-2 rounded-lg border px-3 py-2.5 text-start transition-colors',
               'bg-surface border-slate-200 hover:border-violet-300 disabled:opacity-50 disabled:cursor-not-allowed',
@@ -260,6 +291,10 @@ export function PrepAnswerForm({ initial, onSubmit, onCancel, loading }: PrepAns
             </span>
           </button>
         </div>
+
+        {!starFits && (
+          <p className="text-2xs text-slate-500">{t('forms.prepAI.notAStoryQuestion')}</p>
+        )}
 
         <p className="text-2xs text-slate-500">
           {activeCV

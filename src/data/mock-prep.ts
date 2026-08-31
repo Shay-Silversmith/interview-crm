@@ -5,7 +5,7 @@ export const mockPreparedAnswers: PreparedAnswer[] = [
     id: 'prep-1',
     questionId: 'q-pitch',
     question: 'Tell me about yourself',
-    category: 'Personal Pitch',
+    category: 'Phone Screen',
     answer: `I'm a third-year Industrial Engineering & Management student at Bar-Ilan University. Before starting my degree, I did a year-long analytics internship at a SaaS startup, where I owned a usage-data pipeline and reported insights to the product team. That experience gave me strong analytical foundations and the ability to drive clarity in ambiguous environments.
 
 At university, I'm deepening my technical skills in data analytics, systems design, and product development. I've led a cross-disciplinary capstone project and won a hackathon building a data-driven urban mobility app.
@@ -21,7 +21,7 @@ I'm now looking for a student role where I can combine my technical depth with p
     id: 'prep-2',
     questionId: 'q-why-amazon',
     question: 'Why Amazon?',
-    category: 'HR',
+    category: 'HR / Personality',
     answer: `Amazon operates at a scale that's genuinely hard to replicate anywhere else — petabyte-scale data problems, global infrastructure, and the discipline of the Leadership Principles creating a consistent engineering culture.
 
 Specifically for the Data Engineer role: I want to work on real production data pipelines, not toy datasets. The AWS ecosystem (Redshift, Glue, Spark on EMR) is the industry standard for what I want to do long-term, and getting hands-on experience here would compress years of learning into months.
@@ -38,7 +38,7 @@ The Leadership Principles also resonate with me personally. "Dive Deep" and "Are
     id: 'prep-3',
     questionId: 'q-why-wix',
     question: 'Why Wix? Why Product Management?',
-    category: 'HR',
+    category: 'HR / Personality',
     answer: `Why Wix: I've been a Wix user — I actually built a portfolio site for a side project on Wix. What impressed me wasn't just the tool but the product decisions behind it: how they balance simplicity for non-technical users with power for developers. That's a genuinely hard product problem, and I want to work on it from the inside.
 
 Why PM: I keep gravitating toward the "why" questions — why are we building this, who is it for, how do we know it worked? In my prior internship, even as a technical contributor, I ended up driving decisions about what data to collect and why. At university, I led a team in our capstone project and found that the coordination and prioritization challenges were more interesting to me than pure implementation. PM is the natural fit.`,
@@ -53,7 +53,7 @@ Why PM: I keep gravitating toward the "why" questions — why are we building th
     id: 'prep-4',
     questionId: 'q-prior-internship',
     question: 'Tell me about your prior internship experience',
-    category: 'Behavioral',
+    category: 'HR / Personality',
     answer: `My prior internship was a year-long analytics role at a Series-A SaaS startup. I owned the usage-data pipeline that fed the product team's weekly metrics review.
 
 The technical side: I worked in PostgreSQL, Python (Pandas), and dbt on event datasets of millions of records per week. I also contributed to automating parts of the manual reporting pipeline, which cut report-prep time by roughly 40%.
@@ -71,7 +71,7 @@ Core takeaway: ambiguous, fast-moving environments where data quality and speed 
     id: 'prep-5',
     questionId: 'q-data-problem',
     question: 'Tell me about a time you used data to solve a problem',
-    category: 'STAR',
+    category: 'HR / Personality',
     answer: `**Situation:** During my prior internship, the analytics team was spending 4+ hours per day manually triaging and tagging anomalous events in a spreadsheet-based workflow. The process was error-prone and created bottlenecks.
 
 **Task:** I was asked (informally at first) to look into why the process was slow and whether anything could be automated.
@@ -89,7 +89,7 @@ Core takeaway: ambiguous, fast-moving environments where data quality and speed 
     id: 'prep-6',
     questionId: 'q-project-cv',
     question: 'Walk me through a project from your CV',
-    category: 'Behavioral',
+    category: 'HR / Personality',
     answer: `I'll walk through my university Capstone — an A/B Testing Platform project — a semester-long capstone where I led a team of 4.
 
 We were tasked with building a lightweight experimentation platform for a partner startup that wanted to run product A/B tests without paying for a full SaaS tool.
@@ -111,7 +111,7 @@ Key takeaway for my career: I enjoyed every part — the data modeling, the pipe
     id: 'prep-7',
     questionId: 'q-sql-window',
     question: 'Explain window functions in SQL and give an example',
-    category: 'SQL',
+    category: 'Professional',
     answer: `Window functions perform calculations across a set of rows related to the current row, without collapsing the result set the way GROUP BY does. They're applied after WHERE and GROUP BY but before the final ORDER BY.
 
 Common functions: ROW_NUMBER(), RANK(), DENSE_RANK(), LAG(), LEAD(), SUM() OVER, AVG() OVER, FIRST_VALUE(), LAST_VALUE().
@@ -142,7 +142,7 @@ Common interview trap: understanding that window functions run after WHERE filte
     id: 'prep-8',
     questionId: 'q-sql-optimization',
     question: 'How would you optimize a slow SQL query?',
-    category: 'SQL',
+    category: 'Professional',
     answer: `My process:
 
 1. **Understand the query plan first** — use EXPLAIN ANALYZE (PostgreSQL) or EXPLAIN (MySQL/Redshift). Look for sequential scans on large tables, high estimated rows, expensive sorts.
@@ -166,7 +166,7 @@ Common interview trap: understanding that window functions run after WHERE filte
     id: 'prep-9',
     questionId: 'q-python-pandas',
     question: 'How do you handle missing data in a Pandas DataFrame?',
-    category: 'Python',
+    category: 'Professional',
     answer: `**Detection:** df.isnull().sum() per column, df.info() for non-null counts, df.describe() to catch anomalies.
 
 **Strategy depends on the data and use case:**
@@ -194,7 +194,7 @@ I always document the imputation strategy and its assumptions, especially in pro
     id: 'prep-10',
     questionId: 'q-product-improve',
     question: 'How would you improve a product you use daily?',
-    category: 'Product / PM',
+    category: 'Professional',
     answer: `I'll use Wix as an example since it's relevant here.
 
 **The problem I'd focus on:** Small business owners abandoning site edits midway. Wix has great creation tools, but I observe (from research and my own usage) that updating existing content post-launch feels fragile — users worry about "breaking" things.
@@ -219,7 +219,7 @@ I always document the imputation strategy and its assumptions, especially in pro
     id: 'prep-11',
     questionId: 'q-conflict',
     question: 'Tell me about a time you had a conflict with a teammate',
-    category: 'STAR',
+    category: 'HR / Personality',
     answer: `**Situation:** During my university capstone project, I was leading a team of 4. One team member wanted to use a NoSQL database for our event data; I thought PostgreSQL was the right choice given our reporting and join requirements.
 
 **Task:** We needed to make a technical decision quickly (deadline approaching) while preserving team cohesion.
@@ -241,7 +241,7 @@ The POC took 6 hours total. PostgreSQL clearly handled the joins and aggregation
     id: 'prep-12',
     questionId: 'q-why-data-roles',
     question: 'Why data/product/project roles?',
-    category: 'Personal Pitch',
+    category: 'Phone Screen',
     answer: `The honest answer is that I'm drawn to the intersection of technical depth and decision-making.
 
 Pure engineering is interesting, but I find myself most energized when I can ask "what should we build and why" alongside "how do we build it." That's the PM axis.
@@ -261,7 +261,7 @@ So: data + product + project management aren't three different careers to me. Th
     id: 'prep-13',
     questionId: 'q-etl-design',
     question: 'How would you design an ETL pipeline for a new data source?',
-    category: 'Data Engineering',
+    category: 'Professional',
     answer: `**My approach:**
 
 1. **Understand the source** — is it a database (CDC vs batch?), an API (pagination, rate limits?), a file drop (schema consistency?)? What's the volume, velocity, and variability?
@@ -290,7 +290,7 @@ So: data + product + project management aren't three different careers to me. Th
     id: 'prep-14',
     questionId: 'q-iem',
     question: 'How does your Industrial Engineering & Management background help you in this role?',
-    category: 'Personal Pitch',
+    category: 'Phone Screen',
     answer: `Industrial Engineering & Management sits at the intersection of operations research, statistics, and business — which means we're trained to think about systems from both the technical/analytical side and the user/business requirements side simultaneously.
 
 Concretely: I've done coursework in databases, systems analysis, software engineering, operations research, organizational behavior, and project management — as well as CS fundamentals (algorithms, data structures, OS).
@@ -308,7 +308,7 @@ For a PM/project role: I understand enough about engineering to have credible co
     id: 'prep-15',
     questionId: 'q-prioritization',
     question: 'How do you prioritize when you have multiple urgent tasks?',
-    category: 'Behavioral',
+    category: 'HR / Personality',
     answer: `**My framework:**
 
 First, I separate "urgent" from "important." A lot of things feel urgent but aren't important in the larger scheme. I try to quickly map tasks on an impact/urgency grid.
