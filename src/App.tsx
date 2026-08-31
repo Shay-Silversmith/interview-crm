@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Analytics } from '@vercel/analytics/react'
 import { AppShell } from './components/layout/AppShell'
 import { AuthGuard } from './components/layout/AuthGuard'
 import { ToastProvider } from './hooks/useToast'
@@ -151,6 +152,7 @@ export default function App() {
               </Routes>
               <Toaster />
             </BrowserRouter>
+            <Analytics />
           </ToastProvider>
         </QueryClientProvider>
       </I18nProvider>
