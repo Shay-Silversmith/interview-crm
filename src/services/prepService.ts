@@ -5,6 +5,7 @@ import { MOCK_DELAY_MS } from '@/lib/constants'
 import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
 import { mapPreparedAnswer } from '@/lib/mappers'
+import { requireUserId } from '@/lib/currentUser'
 
 const delay = () => new Promise<void>(r => setTimeout(r, MOCK_DELAY_MS + Math.random() * 100))
 
@@ -56,7 +57,10 @@ const supabaseImpl = {
   },
   async create(data: Partial<PreparedAnswer>): Promise<PreparedAnswer> {
     const sb = getSupabaseClient()
+    // user_id is NOT NULL with no default, and RLS checks auth.uid() = user_id.
+    const userId = await requireUserId()
     const { data: inserted, error } = await sb.from('prepared_answers').insert({
+        user_id: userId,
       question: data.question, category: data.category ?? 'Behavioral',
       answer: data.answer, confidence: data.confidence ?? 3,
       is_ready: data.isReady ?? false, tags: data.tags ?? [],

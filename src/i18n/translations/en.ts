@@ -633,6 +633,14 @@ const en = {
       action:      'Action',
       result:      'Result',
     },
+    company: {
+      create:              'Create',
+      creating:            'Creating…',
+      researching:         'Researching…',
+      quickPlaceholder:    'Or type a new company name — the details get filled in from the web…',
+      addedWithDetails:    'added, with details filled in from the web',
+      addedWithoutDetails: 'added. The web lookup did not run, so fill the details in from the Companies page.',
+    },
     options: {
       notSpecified:  'Not specified',
       selectCompany: 'Select a company…',

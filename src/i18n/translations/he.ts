@@ -632,6 +632,14 @@ const he: Translations = {
       action:      'פעולה',
       result:      'תוצאה',
     },
+    company: {
+      create:              'צור',
+      creating:            'יוצר…',
+      researching:         'חוקר…',
+      quickPlaceholder:    'או הקלידו שם חברה חדשה — הפרטים יושלמו מהאינטרנט…',
+      addedWithDetails:    'נוספה, עם פרטים שהושלמו מהאינטרנט',
+      addedWithoutDetails: 'נוספה. החיפוש באינטרנט לא רץ, אז השלימו את הפרטים ממסך החברות.',
+    },
     options: {
       notSpecified:  'לא צוין',
       selectCompany: 'בחר חברה…',

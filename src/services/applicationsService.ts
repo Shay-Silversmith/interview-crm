@@ -4,6 +4,7 @@ import { MOCK_DELAY_MS } from '@/lib/constants'
 import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
 import { mapApplication, mapInterviewStage } from '@/lib/mappers'
+import { requireUserId } from '@/lib/currentUser'
 
 const delay = () => new Promise<void>(r => setTimeout(r, MOCK_DELAY_MS + Math.random() * 100))
 
@@ -84,7 +85,10 @@ const supabaseImpl = {
   },
   async create(data: Partial<JobApplication>): Promise<JobApplication> {
     const sb = getSupabaseClient()
+    // user_id is NOT NULL with no default, and RLS checks auth.uid() = user_id.
+    const userId = await requireUserId()
     const row = {
+      user_id: userId,
       company_id: data.companyId,
       company_name: data.companyName,
       company_logo_url: data.companyLogoUrl,

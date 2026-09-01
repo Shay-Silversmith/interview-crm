@@ -4,6 +4,7 @@ import { MOCK_DELAY_MS } from '@/lib/constants'
 import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
 import { mapCVVersion, mapDocument } from '@/lib/mappers'
+import { requireUserId } from '@/lib/currentUser'
 
 const delay = () => new Promise<void>(r => setTimeout(r, MOCK_DELAY_MS + Math.random() * 100))
 
@@ -56,7 +57,10 @@ const supabaseImpl = {
   },
   async createCV(data: Partial<CVVersion>): Promise<CVVersion> {
     const sb = getSupabaseClient()
+    // user_id is NOT NULL with no default, and RLS checks auth.uid() = user_id.
+    const userId = await requireUserId()
     const { data: inserted, error } = await sb.from('cv_versions').insert({
+        user_id: userId,
       name: data.name, version: data.version ?? 1, emphasis: data.emphasis,
       skills_highlighted: data.skillsHighlighted ?? [], projects_highlighted: data.projectsHighlighted ?? [],
       file_name: data.fileName, file_size: data.fileSize, storage_path: data.storagePath,
@@ -87,7 +91,10 @@ const supabaseImpl = {
   },
   async createDocument(data: Partial<Document>): Promise<Document> {
     const sb = getSupabaseClient()
+    // user_id is NOT NULL with no default, and RLS checks auth.uid() = user_id.
+    const userId = await requireUserId()
     const { data: inserted, error } = await sb.from('documents').insert({
+        user_id: userId,
       name: data.name, type: data.type ?? 'CV', file_name: data.fileName,
       file_size: data.fileSize, storage_path: data.storagePath,
       notes: data.notes, application_id: data.applicationIds?.[0],

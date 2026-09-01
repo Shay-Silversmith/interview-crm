@@ -9,6 +9,8 @@ import { FormRow, FormSection, SubmitBar } from './FormLayout'
 import { useI18n } from '@/hooks/useI18n'
 import { useToastActions } from '@/hooks/useToast'
 import { useCompanyMutations } from '@/hooks/useCompanyMutations'
+import { aiService } from '@/services/aiService'
+import { companiesService } from '@/services/companiesService'
 import { JDSummarizeDialog } from '@/components/applications/JDSummarizeDialog'
 
 interface ApplicationFormProps {
@@ -71,6 +73,7 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
 
   const toast = useToastActions()
   const { create: createCompany } = useCompanyMutations()
+  const [enriching, setEnriching] = useState(false)
   const [quickCompanyName, setQuickCompanyName] = useState('')
   const [jdSummarizeOpen, setJdSummarizeOpen] = useState(false)
 
@@ -107,17 +110,52 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
   ]
 
   // Quick-create a company on the fly so the user doesn't have to leave the
-  // form. Useful especially when the companies list is empty.
+  // form, then fill in the rest of it from the web.
+  //
+  // The record is created from the name FIRST and the research applied after.
+  // Doing it the other way round means a slow or failed lookup costs you the
+  // company too, and the name alone is already a usable record.
   async function handleQuickCreateCompany() {
     const name = quickCompanyName.trim()
     if (!name) return
+
+    let created
     try {
-      const newCompany = await createCompany.mutateAsync({ name })
-      setValue('companyId',   newCompany.id,   { shouldValidate: true })
-      setValue('companyName', newCompany.name, { shouldValidate: true })
-      setQuickCompanyName('')
+      created = await createCompany.mutateAsync({ name })
     } catch {
-      // Toast is already raised by useCompanyMutations.onError
+      return // useCompanyMutations.onError already raised a toast
+    }
+
+    setValue('companyId',   created.id,   { shouldValidate: true })
+    setValue('companyName', created.name, { shouldValidate: true })
+    setQuickCompanyName('')
+
+    setEnriching(true)
+    const res = await aiService.fillCompany({ companyName: name })
+    setEnriching(false)
+
+    if (!res.ok) {
+      // The company exists either way; say the details are missing, not that
+      // the whole thing failed.
+      toast.info(`${created.name} ${t('forms.company.addedWithoutDetails')}`)
+      return
+    }
+
+    const d = res.data
+    try {
+      await companiesService.update(created.id, {
+        industry:        d.industry || undefined,
+        size:            d.size ?? undefined,
+        location:        d.location || undefined,
+        description:     d.description || undefined,
+        website:         d.website ?? undefined,
+        linkedinUrl:     d.linkedinUrl ?? undefined,
+        glassdoorRating: d.glassdoorRating ?? undefined,
+        techStack:       d.techStack?.length ? d.techStack : undefined,
+      })
+      toast.success(`${created.name} ${t('forms.company.addedWithDetails')}`)
+    } catch {
+      toast.info(`${created.name} ${t('forms.company.addedWithoutDetails')}`)
     }
   }
 
@@ -156,17 +194,21 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
             onKeyDown={e => {
               if (e.key === 'Enter') { e.preventDefault(); void handleQuickCreateCompany() }
             }}
-            placeholder="Or type a new company name…"
+            placeholder={t('forms.company.quickPlaceholder')}
             className="flex-1 h-8 px-3 text-xs rounded-lg border border-slate-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 bg-surface"
           />
           <button
             type="button"
             onClick={handleQuickCreateCompany}
-            disabled={!quickCompanyName.trim() || createCompany.isPending}
+            disabled={!quickCompanyName.trim() || createCompany.isPending || enriching}
             className="inline-flex items-center gap-1 h-8 px-3 text-xs font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Plus className="w-3 h-3" />
-            {createCompany.isPending ? 'Creating…' : 'Create'}
+            {enriching
+              ? t('forms.company.researching')
+              : createCompany.isPending
+                ? t('forms.company.creating')
+                : t('forms.company.create')}
           </button>
         </div>
         <FormRow>
