@@ -633,6 +633,14 @@ const en = {
       action:      'Action',
       result:      'Result',
     },
+    autofill: {
+      button:   'Fill from the posting',
+      working:  'Reading the posting…',
+      hint:     'Reads the link above and fills in what it states. Only empty fields are written, so anything you have already corrected is left alone.',
+      needUrl:  'Paste the job posting link first.',
+      filled:   'Filled in from the posting',
+      notFound: 'The posting did not state:',
+    },
     company: {
       create:              'Create',
       creating:            'Creating…',

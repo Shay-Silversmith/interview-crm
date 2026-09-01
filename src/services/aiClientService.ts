@@ -384,6 +384,36 @@ export interface JDSummarizeResponse {
   bodyText: string
 }
 
+
+// ---------------------------------------------------------------------------
+// Application autofill — a posting link in, CRM fields out
+// ---------------------------------------------------------------------------
+
+export interface ApplicationFillRequest {
+  jdUrl?:  string
+  jdText?: string
+  locale?: AILocale
+  stage?:  'research' | 'structure'
+  research?: string
+}
+
+export interface ApplicationFillResponse {
+  companyName:    string | null
+  roleName:       string | null
+  location:       string | null
+  workModel:      'On-site' | 'Hybrid' | 'Remote' | null
+  jobScope:       'Full-time' | '4 days' | '3 days' | '2 days' | null
+  salaryMin:      number | null
+  salaryMax:      number | null
+  salaryType:     'Hourly' | 'Monthly' | null
+  currency:       string | null
+  jobDescription: string | null
+  whyInteresting: string | null
+  /** Fields the posting genuinely did not state. */
+  notFound:       string[]
+  sourceNote?:    string | null
+}
+
 // ---------------------------------------------------------------------------
 // Transport
 // ---------------------------------------------------------------------------
@@ -559,6 +589,11 @@ export const aiClientService = {
 
   interviewDebrief: (req: InterviewDebriefRequest) =>
     post<InterviewDebriefRequest, InterviewDebriefResponse>('/api/ai/interview-debrief', req),
+
+  fillApplication: (req: ApplicationFillRequest) =>
+    req.jdText?.trim()
+      ? post<ApplicationFillRequest, ApplicationFillResponse>('/api/ai/application-fill', req, TIMEOUT_QUICK_MS)
+      : runInTwoStages<ApplicationFillRequest, ApplicationFillResponse>('/api/ai/application-fill', req, 'research'),
 
   parseCV:        (req: CVParseRequest) =>
     post<CVParseRequest, CVParseResponse>('/api/ai/cv-parse', req),

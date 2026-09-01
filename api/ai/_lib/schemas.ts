@@ -452,3 +452,45 @@ export const jdSummarizeResponseSchema = z.object({
 
 export type JDSummarizeRequest  = z.infer<typeof jdSummarizeRequestSchema>
 export type JDSummarizeResponse = z.infer<typeof jdSummarizeResponseSchema>
+
+// ---------------------------------------------------------------------------
+// Application autofill — a posting link in, CRM fields out
+// ---------------------------------------------------------------------------
+
+export const applicationFillRequestSchema = z
+  .object({
+    jdUrl:  z.string().url().max(2000).optional(),
+    jdText: z.string().max(30_000).optional(),
+    locale: localeField,
+    stage:  stageField,
+    research: researchField,
+  })
+  .refine(d => !!d.jdUrl || (d.jdText && d.jdText.trim().length > 20), {
+    message: 'Give a link to the posting, or paste its text.',
+  })
+
+/**
+ * Every field is nullable on purpose. A posting that does not state a salary
+ * must come back with null, not a plausible guess — these values are written
+ * straight into the form, and an invented salary band becomes a fact the
+ * candidate negotiates against.
+ */
+export const applicationFillResponseSchema = z.object({
+  companyName:  z.string().nullable(),
+  roleName:     z.string().nullable(),
+  location:     z.string().nullable(),
+  workModel:    z.enum(['On-site', 'Hybrid', 'Remote']).nullable(),
+  jobScope:     z.enum(['Full-time', '4 days', '3 days', '2 days']).nullable(),
+  salaryMin:    z.number().nullable(),
+  salaryMax:    z.number().nullable(),
+  salaryType:   z.enum(['Hourly', 'Monthly']).nullable(),
+  currency:     z.string().nullable(),
+  jobDescription: z.string().nullable(),
+  whyInteresting: z.string().nullable(),
+  /** Named so the UI can show what the posting did not say. */
+  notFound:     z.array(z.string()).default([]),
+  sourceNote:   z.string().nullable().optional(),
+})
+
+export type ApplicationFillRequest  = z.infer<typeof applicationFillRequestSchema>
+export type ApplicationFillResponse = z.infer<typeof applicationFillResponseSchema>

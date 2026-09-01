@@ -17,6 +17,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 import agent            from './_routes/agent.js'
+import applicationFill  from './_routes/application-fill.js'
 import companyBrief     from './_routes/company-brief.js'
 import companyFill      from './_routes/company-fill.js'
 import companyInterview from './_routes/company-interview.js'
@@ -35,6 +36,7 @@ type Handler = (req: VercelRequest, res: VercelResponse) => unknown | Promise<un
 /** URL segment → handler. Keys are the public paths and must not be renamed. */
 const ROUTES: Record<string, Handler> = {
   'agent':             agent,
+  'application-fill':  applicationFill,
   'company-brief':     companyBrief,
   'company-fill':      companyFill,
   'company-interview': companyInterview,

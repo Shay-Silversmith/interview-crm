@@ -23,7 +23,7 @@ interface ApplicationFormProps {
 }
 
 export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, loading, submitLabel }: ApplicationFormProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   const schema = useMemo(() => makeApplicationSchema(t), [t])
 
@@ -72,8 +72,15 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
   ]
 
   const toast = useToastActions()
-  const { create: createCompany } = useCompanyMutations()
+  const { create: createCompany, update: updateCompany } = useCompanyMutations()
   const [enriching, setEnriching] = useState(false)
+  // The companies query refetches asynchronously, so a company created a
+  // moment ago is not in `companies` yet. Without an <option> to match, the
+  // browser resets the select to its placeholder and the selection is lost —
+  // which is why the new company had to be hunted for in the list.
+  const [justCreated, setJustCreated] = useState<Company | null>(null)
+  const [filling, setFilling] = useState(false)
+  const [notFound, setNotFound] = useState<string[]>([])
   const [quickCompanyName, setQuickCompanyName] = useState('')
   const [jdSummarizeOpen, setJdSummarizeOpen] = useState(false)
 
@@ -107,6 +114,10 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
   const companyOpts = [
     { value: '', label: t('forms.options.selectCompany') },
     ...companies.map(c => ({ value: c.id, label: c.name })),
+    // Merged in until the refetch catches up, then deduped away.
+    ...(justCreated && !companies.some(c => c.id === justCreated.id)
+      ? [{ value: justCreated.id, label: justCreated.name }]
+      : []),
   ]
 
   // Quick-create a company on the fly so the user doesn't have to leave the
@@ -126,6 +137,7 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
       return // useCompanyMutations.onError already raised a toast
     }
 
+    setJustCreated(created)
     setValue('companyId',   created.id,   { shouldValidate: true })
     setValue('companyName', created.name, { shouldValidate: true })
     setQuickCompanyName('')
@@ -143,20 +155,81 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
 
     const d = res.data
     try {
-      await companiesService.update(created.id, {
-        industry:        d.industry || undefined,
-        size:            d.size ?? undefined,
-        location:        d.location || undefined,
-        description:     d.description || undefined,
-        website:         d.website ?? undefined,
-        linkedinUrl:     d.linkedinUrl ?? undefined,
-        glassdoorRating: d.glassdoorRating ?? undefined,
-        techStack:       d.techStack?.length ? d.techStack : undefined,
+      const filled = await updateCompany.mutateAsync({
+        id: created.id,
+        data: {
+          industry:        d.industry || undefined,
+          size:            d.size ?? undefined,
+          location:        d.location || undefined,
+          description:     d.description || undefined,
+          website:         d.website ?? undefined,
+          linkedinUrl:     d.linkedinUrl ?? undefined,
+          glassdoorRating: d.glassdoorRating ?? undefined,
+          techStack:       d.techStack?.length ? d.techStack : undefined,
+        },
       })
+      setJustCreated(filled)
       toast.success(`${created.name} ${t('forms.company.addedWithDetails')}`)
     } catch {
       toast.info(`${created.name} ${t('forms.company.addedWithoutDetails')}`)
     }
+  }
+
+  /**
+   * Turn a posting link into a filled form.
+   *
+   * Only empty fields are written. Re-running after you have corrected
+   * something must not overwrite the correction — the posting is a starting
+   * point, and what you typed is a decision.
+   */
+  async function handleFillFromPosting() {
+    const url = (watch('roleUrl') ?? '').trim()
+    if (!url) { toast.error(t('forms.autofill.needUrl')); return }
+
+    setFilling(true)
+    setNotFound([])
+    const res = await aiService.fillApplication({ jdUrl: url, locale: locale as 'en' | 'he' })
+    setFilling(false)
+
+    if (!res.ok) { toast.error(res.message); return }
+    const d = res.data
+
+    if (d.sourceNote) { toast.error(d.sourceNote); return }
+
+    const setIfEmpty = (field: keyof ApplicationFormValues, value: unknown) => {
+      if (value === null || value === undefined || value === '') return
+      const current = watch(field)
+      if (current !== undefined && current !== null && current !== '') return
+      setValue(field, value as never, { shouldValidate: true, shouldDirty: true })
+    }
+
+    setIfEmpty('roleName',       d.roleName)
+    setIfEmpty('location',       d.location)
+    setIfEmpty('workModel',      d.workModel)
+    setIfEmpty('jobScope',       d.jobScope)
+    setIfEmpty('salaryMin',      d.salaryMin)
+    setIfEmpty('salaryMax',      d.salaryMax)
+    setIfEmpty('salaryType',     d.salaryType)
+    setIfEmpty('currency',       d.currency)
+    setIfEmpty('jobDescription', d.jobDescription)
+    setIfEmpty('whyInteresting', d.whyInteresting)
+
+    // The posting names a company that may not be in the CRM yet. Creating it
+    // here saves the second trip, and it is researched like any other.
+    if (d.companyName && !watch('companyId')) {
+      const existing = companies.find(
+        c => c.name.trim().toLowerCase() === d.companyName!.trim().toLowerCase(),
+      )
+      if (existing) {
+        setValue('companyId',   existing.id,   { shouldValidate: true })
+        setValue('companyName', existing.name, { shouldValidate: true })
+      } else {
+        setQuickCompanyName(d.companyName)
+      }
+    }
+
+    setNotFound(d.notFound ?? [])
+    toast.success(t('forms.autofill.filled'))
   }
 
   // Surface the first validation error so the submit doesn't fail silently
@@ -215,6 +288,27 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
           <TextField label={t('forms.fields.roleName')} required placeholder="Senior Product Manager" error={errors.roleName?.message} {...register('roleName')} />
           <TextField label={t('forms.fields.jobPostingUrl')} type="url" placeholder="https://amazon.jobs/…" error={errors.roleUrl?.message} {...register('roleUrl')} />
         </FormRow>
+
+        {/* Fill the form from the posting. Only empty fields are written, so
+            re-running never overwrites something you corrected by hand. */}
+        <div className="-mt-2 space-y-2">
+          <button
+            type="button"
+            onClick={handleFillFromPosting}
+            disabled={filling || !(watch('roleUrl') ?? '').trim()}
+            className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-lg border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {filling ? t('forms.autofill.working') : t('forms.autofill.button')}
+          </button>
+          <p className="text-2xs text-slate-400">{t('forms.autofill.hint')}</p>
+
+          {notFound.length > 0 && (
+            <p className="text-2xs text-warning-700 bg-warning-50 border border-warning-200 rounded-lg px-2.5 py-1.5">
+              {t('forms.autofill.notFound')} {notFound.join(', ')}
+            </p>
+          )}
+        </div>
         <FormRow>
           <SelectField label={t('forms.fields.stage')}    required options={STAGE_OPTS}    error={errors.stage?.message}    {...register('stage')} />
           <SelectField label={t('forms.fields.priority')} required options={PRIORITY_OPTS} error={errors.priority?.message} {...register('priority')} />

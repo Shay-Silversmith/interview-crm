@@ -37,6 +37,8 @@ import {
   type InterviewDebriefResponse,
   type StarAnswersRequest,
   type StarAnswersResponse,
+  type ApplicationFillRequest,
+  type ApplicationFillResponse,
   type CVParseRequest,
   type CVParseResponse,
   type JDSummarizeRequest,
@@ -371,6 +373,9 @@ export const aiService = {
 
   starAnswers: (req: StarAnswersRequest): Promise<AIRun<StarAnswersResponse>> =>
     run(() => aiClientService.starAnswers(req)),
+
+  fillApplication: (req: ApplicationFillRequest): Promise<AIRun<ApplicationFillResponse>> =>
+    run(() => aiClientService.fillApplication(req)),
 
   parseCV: (req: CVParseRequest): Promise<AIRun<CVParseResponse>> =>
     run(() => aiClientService.parseCV(req)),
