@@ -14,7 +14,7 @@
 // fills the CRM's columns.
 // ---------------------------------------------------------------------------
 
-import { callGeminiGrounded, localeSystemSuffix } from '../_lib/gemini.js'
+import { researchGrounded, structureResearch, localeSystemSuffix } from '../_lib/gemini.js'
 import { createAIRoute } from '../_lib/handler.js'
 import { RESEARCH_RULES } from '../_lib/prompt.js'
 import { companyFillRequestSchema, companyFillResponseSchema } from '../_lib/schemas.js'
@@ -51,12 +51,30 @@ export default createAIRoute({
       ? `Company name: ${body.companyName}\nDisambiguator hint: ${body.hint}`
       : `Company name: ${body.companyName}`
 
-    const { data, sources } = await callGeminiGrounded({
-      apiKey,
-      system:    SYSTEM + localeSystemSuffix(body.locale),
-      user:      userMsg,
-      schema:    companyFillResponseSchema,
-      maxTokens: 12_000,
+    const system = SYSTEM + localeSystemSuffix(body.locale)
+
+    // This was the last grounded route still doing research and structuring in
+    // one request, which is what put it over the host's 60-second function
+    // limit — the enrichment silently failed and the company was saved bare.
+    if (body.stage === 'structure') {
+      const data = await structureResearch({
+        apiKey,
+        system,
+        research:  body.research ?? '',
+        schema:    companyFillResponseSchema,
+        maxTokens: 12_000,
+      })
+      return { data }
+    }
+
+    const { research, sources } = await researchGrounded({
+      apiKey, system, user: userMsg, maxTokens: 12_000,
+    })
+
+    if (body.stage === 'research') return { data: null, research, sources }
+
+    const data = await structureResearch({
+      apiKey, system, research, schema: companyFillResponseSchema, maxTokens: 12_000,
     })
 
     // Sources let the UI show where each claim came from, so the user can

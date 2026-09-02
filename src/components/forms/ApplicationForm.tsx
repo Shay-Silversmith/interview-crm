@@ -147,9 +147,10 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
     setEnriching(false)
 
     if (!res.ok) {
-      // The company exists either way; say the details are missing, not that
-      // the whole thing failed.
-      toast.info(`${created.name} ${t('forms.company.addedWithoutDetails')}`)
+      // The company exists either way, so this is not a failure — but the
+      // reason belongs on screen. Saying only that the lookup "did not run"
+      // hid an out-of-quota key behind a message that read like a bug.
+      toast.info(`${created.name} ${t('forms.company.addedWithoutDetails')} — ${res.message}`)
       return
     }
 

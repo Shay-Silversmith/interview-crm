@@ -204,6 +204,8 @@ export interface CompanyFillRequest {
   companyName: string
   hint?:       string
   locale?:     AILocale
+  stage?:      'research' | 'structure'
+  research?:   string
 }
 
 export interface CompanyFillResponse {
@@ -568,7 +570,7 @@ export const aiClientService = {
     post<PrepPackRequest, PrepPlanResponse>('/api/ai/prep-plan', req, TIMEOUT_QUICK_MS),
 
   fillCompany:    (req: CompanyFillRequest) =>
-    post<CompanyFillRequest, CompanyFillResponse>('/api/ai/company-fill', req, TIMEOUT_RESEARCH_MS),
+    runInTwoStages<CompanyFillRequest, CompanyFillResponse>('/api/ai/company-fill', req, 'research'),
 
   // Reads a URL when given one, so it can also be slow.
   parseJD:        (req: JDParserRequest) =>

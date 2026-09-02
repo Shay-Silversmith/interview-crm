@@ -223,6 +223,8 @@ export const companyFillRequestSchema = z.object({
   companyName: z.string().min(1).max(200),
   hint:        z.string().max(500).optional(),
   locale:      localeField,
+  stage:       stageField,
+  research:    researchField,
 })
 
 export const companyFillResponseSchema = z.object({
