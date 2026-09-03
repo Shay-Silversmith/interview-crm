@@ -21,7 +21,21 @@
 import { GoogleGenAI } from '@google/genai'
 import type { z } from 'zod'
 
-export const DEFAULT_MODEL = 'gemini-3.5-flash'
+/**
+ * Back on 2.5-flash, on evidence rather than preference.
+ *
+ * The default was moved to 3.5-flash when Google retired 2.5-flash-lite and
+ * recommended the 3.5 line. But the quota error that came back afterwards named
+ * `model: gemini-2.5-flash` — which only happens if 3.5 was refused and the
+ * fallback fired. So every research call was costing two requests against the
+ * limit: one rejected for a model this key cannot reach, one that did the work.
+ *
+ * On a free tier measured in requests rather than tokens, that halves the
+ * usable budget for nothing. The fallback stays, pointing the other way, so a
+ * key that can reach 3.5 still gets there and a future retirement still
+ * survives without a code change.
+ */
+export const DEFAULT_MODEL = 'gemini-2.5-flash'
 
 /**
  * Used for the structuring pass after a grounded search.
@@ -150,20 +164,41 @@ export function describeGeminiError(err: unknown): string {
         if (inner.status === 'INVALID_ARGUMENT' && /api key/i.test(inner.message))
           return 'The Gemini API key was rejected. Check it in Settings.'
         if (inner.code === 429 || inner.status === 'RESOURCE_EXHAUSTED') {
-          // Google names the limit it hit in the violation details, and per-day
-          // and per-minute call for completely different responses: one means
-          // wait a minute, the other means you are done until the reset.
+          // Per-day and per-minute call for opposite responses — one means wait
+          // a minute, the other means wait for the reset — and reporting the
+          // wrong one sends people to the wrong conclusion. Read it out of the
+          // payload rather than guessing:
+          //   RetryInfo.retryDelay is seconds for a per-minute limit and hours
+          //   for a daily one, so it settles the question on its own.
+          //   QuotaFailure.violations names the metric and the limit value.
           const raw429 = JSON.stringify(body)
-          const perDay = /PerDay|RequestsPerDay/i.test(raw429)
-          const perMin = /PerMinute|RequestsPerMinute/i.test(raw429)
-          const which  = perDay ? 'daily' : perMin ? 'per-minute' : 'unspecified'
+
+          const delaySec = Number(raw429.match(/"retryDelay"\s*:\s*"(\d+)s"/)?.[1] ?? NaN)
+          const quotaId  = raw429.match(/"quotaId"\s*:\s*"([^"]+)"/)?.[1] ?? ''
+          const metric   = raw429.match(/"quotaMetric"\s*:\s*"([^"]+)"/)?.[1] ?? ''
+          const limit    = raw429.match(/"quotaValue"\s*:\s*"?(\d+)/)?.[1] ?? ''
+
+          const haystack = `${quotaId} ${metric}`
+          const perDay = /PerDay|RequestsPerDay/i.test(haystack) ||
+                         (Number.isFinite(delaySec) && delaySec > 300)
+          const perMin = /PerMinute|RequestsPerMinute/i.test(haystack) ||
+                         (Number.isFinite(delaySec) && delaySec <= 300)
+
+          const which = perDay ? 'daily' : perMin ? 'per-minute' : 'unspecified'
+          const wait  = Number.isFinite(delaySec)
+            ? delaySec <= 300
+              ? ` Google says to retry in about ${delaySec} seconds.`
+              : ` Google says to retry in about ${Math.round(delaySec / 3600)} hours.`
+            : ''
+          const detail = limit ? ` The limit hit was ${limit}${metric ? ` on ${metric}` : ''}.` : ''
+
           return (
-            `Gemini quota exceeded (${which} limit). ` +
+            `Gemini quota exceeded (${which} limit).${wait}${detail} ` +
             (perDay
               ? 'The daily allowance for this key is spent; it resets at midnight Pacific time.'
               : perMin
-                ? 'Wait about a minute and try again.'
-                : 'Wait a minute, then check the quota for this key in Google AI Studio.') +
+                ? 'This is the per-minute limit, not the daily one — the tools fire several requests per run, which trips it easily. Waiting a minute is usually enough.'
+                : 'Check the quota for this key in Google AI Studio.') +
             ` Google said: ${inner.message}`
           )
         }
