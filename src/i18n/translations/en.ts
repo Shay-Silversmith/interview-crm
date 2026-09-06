@@ -511,6 +511,8 @@ const en = {
       interviewer:      'Interviewer',
     },
     fields: {
+      urgency:     'Urgency (0–100)',
+      urgencyHint: 'How urgent is this opportunity',
       fitCompute:        'Compute fit from this job description',
       fitRecompute:      'Recompute',
       fitWorking:        'Analysing…',
@@ -648,6 +650,17 @@ const en = {
       task:        'Task',
       action:      'Action',
       result:      'Result',
+    },
+    jd: {
+      fetchFromLink:   'Read it from the link',
+      fetchHint:       'Or paste the text below.',
+      pastePlaceholder:'Paste the full job description here…',
+      linkEmpty:       'The link opened, but no job description came back. Paste the text instead.',
+      alreadyHasText:  'There is already a description here. Clear it first if you want the link version.',
+      add:             'Add a job description',
+      edit:            'Edit the description',
+      saved:           'Job description saved',
+      saveFailed:      'Could not save the job description.',
     },
     autofill: {
       button:   'Fill from the posting',

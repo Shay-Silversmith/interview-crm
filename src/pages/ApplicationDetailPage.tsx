@@ -35,6 +35,7 @@ import { tasksService } from '@/services/tasksService'
 import { contactsService, type ApplicationContact } from '@/services/contactsService'
 import { isClosedStage } from '@/lib/enums'
 import { useComputeFit } from '@/hooks/useComputeFit'
+import { JobDescriptionEditor } from '@/components/applications/JobDescriptionEditor'
 import { useToastActions } from '@/hooks/useToast'
 import { documentsService } from '@/services/documentsService'
 import { aiService } from '@/services/aiService'
@@ -511,7 +512,7 @@ export function ApplicationDetailPage() {
       {/* Tab content — key forces a clean fade when the active tab changes */}
       <div key={activeTab} className="animate-fade-in">
         {activeTab === 'overview' && <OverviewTab app={app} tasks={tasks} contacts={contacts} t={t} />}
-        {activeTab === 'jd' && <JDTab app={app} t={t} />}
+        {activeTab === 'jd' && <JDTab app={app} t={t} onSaved={refetchApp} />}
         {activeTab === 'interviews' && (
           <InterviewsTab
             stages={app.interviewStages}
@@ -762,15 +763,75 @@ function OverviewTab({ app, tasks, contacts, t }: { app: JobApplication; tasks: 
   )
 }
 
-function JDTab({ app, t }: { app: JobApplication; t: (key: string) => string }) {
+function JDTab({ app, t, onSaved }: { app: JobApplication; t: (key: string) => string; onSaved: () => void }) {
   const aiSummary = app.aiRoleSummary as Record<string, unknown> | undefined
+
+  // An application saved without a JD had no way back to one: the field only
+  // existed on the create form. Editing happens here because this is the screen
+  // that tells you it is missing.
+  const { update } = useApplicationMutations()
+  const toast = useToastActions()
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState(app.jobDescription ?? '')
+  const [url,     setUrl]     = useState(app.roleUrl ?? '')
+
+  const startEditing = () => {
+    setDraft(app.jobDescription ?? '')
+    setUrl(app.roleUrl ?? '')
+    setEditing(true)
+  }
+
+  const saveJd = async () => {
+    try {
+      await update.mutateAsync({
+        id: app.id,
+        data: {
+          jobDescription: draft.trim() || undefined,
+          // The link is half of how the description gets here, so a corrected
+          // one is worth keeping too.
+          ...(url.trim() !== (app.roleUrl ?? '') ? { roleUrl: url.trim() || undefined } : {}),
+        },
+      })
+      toast.success(t('forms.jd.saved'))
+      setEditing(false)
+      onSaved()
+    } catch {
+      toast.error(t('forms.jd.saveFailed'))
+    }
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2">
         <Card>
-          <h3 className="text-sm font-semibold text-slate-700 mb-4">{t('pages.applicationDetail.fullJobDescription')}</h3>
-          {app.jobDescription ? (
+          <div className="flex items-center gap-2 mb-4">
+            <h3 className="text-sm font-semibold text-slate-700">{t('pages.applicationDetail.fullJobDescription')}</h3>
+            {!editing && (
+              <Button variant="outline" size="xs" className="ms-auto" onClick={startEditing}>
+                {app.jobDescription ? t('forms.jd.edit') : t('forms.jd.add')}
+              </Button>
+            )}
+          </div>
+
+          {editing ? (
+            <div className="space-y-3">
+              <JobDescriptionEditor
+                value={draft}
+                onChange={setDraft}
+                url={url}
+                onUrlChange={setUrl}
+                rows={12}
+              />
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={saveJd} loading={update.isPending}>
+                  {t('common.save')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setEditing(false)} disabled={update.isPending}>
+                  {t('common.cancel')}
+                </Button>
+              </div>
+            </div>
+          ) : app.jobDescription ? (
             <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap force-ltr">
               {app.jobDescription}
             </div>

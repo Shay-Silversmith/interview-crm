@@ -4,7 +4,7 @@
 // and notes.  Stage / Priority are intentionally excluded — they have their
 // own inline chip controls on the hero.
 // ---------------------------------------------------------------------------
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { JobApplication, CVVersion } from '@/types'
@@ -18,7 +18,10 @@ import { TextField, SelectField, TextareaField } from '@/components/forms/Field'
 import { FormRow, FormSection } from '@/components/forms/FormLayout'
 import { Button } from '@/components/ui/Button'
 import { useI18n } from '@/hooks/useI18n'
+import { useComputeFit } from '@/hooks/useComputeFit'
+import { fitFromRoleSummary, type FitBreakdown } from '@/lib/fitScore'
 import { useApplicationMutations } from '@/hooks/useApplicationMutations'
+import { JobDescriptionEditor } from '@/components/applications/JobDescriptionEditor'
 
 interface EditApplicationDrawerProps {
   open: boolean
@@ -69,6 +72,8 @@ export function EditApplicationDrawer({
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isDirty },
     reset,
   } = useForm<ApplicationEditFormValues>({
@@ -86,9 +91,27 @@ export function EditApplicationDrawer({
       fitScore:      app.fitScore,
       urgencyScore:  app.urgencyScore,
       submittedCvId: app.submittedCvId  ?? '',
+      jobDescription: app.jobDescription ?? '',
       notes:         app.notes          ?? '',
     },
   })
+
+  const savedFit = fitFromRoleSummary(app.aiRoleSummary)
+  const [freshFit, setFreshFit] = useState<FitBreakdown | null>(null)
+  const fit = freshFit ?? savedFit
+
+  const { run: runFit, scoring } = useComputeFit(app.submittedCvId)
+
+  async function handleComputeFit() {
+    const computed = await runFit({
+      applicationId:  app.id,
+      jobDescription: app.jobDescription,
+      jobUrl:         app.roleUrl,
+      roleName:       app.roleName,
+      companyName:    app.companyName,
+    })
+    if (computed) setFreshFit(computed)
+  }
 
   // Re-sync defaults if the app record changes while the drawer is open
   // (e.g. a stage chip update comes in and re-renders the parent)
@@ -119,6 +142,7 @@ export function EditApplicationDrawer({
         urgencyScore:    values.urgencyScore,
         submittedCvId:   values.submittedCvId  || undefined,
         submittedCvName: cv?.name              || undefined,
+        jobDescription:  values.jobDescription || undefined,
         notes:           values.notes          || undefined,
       },
     })
@@ -202,23 +226,45 @@ export function EditApplicationDrawer({
             />
           </FormRow>
           <FormRow>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                {t('forms.fields.fit')}
+              </label>
+              {fit ? (
+                <div className="h-9 px-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50">
+                  <span className="text-sm font-semibold text-slate-800">{fit.score}</span>
+                  <span className="text-2xs text-slate-500">
+                    {fit.strong} {t('forms.fields.fitStrong')} · {fit.partial} {t('forms.fields.fitPartial')} · {fit.gap} {t('forms.fields.fitGap')}
+                  </span>
+                </div>
+              ) : (
+                <div className="h-9 px-3 flex items-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60">
+                  <span className="text-xs text-slate-400">—</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleComputeFit}
+                disabled={scoring}
+                className="mt-1 text-2xs font-medium text-primary-600 hover:underline disabled:opacity-50"
+              >
+                {scoring
+                  ? t('forms.fields.fitWorking')
+                  : fit
+                    ? t('forms.fields.fitRecompute')
+                    : t('forms.fields.fitCompute')}
+              </button>
+              <p className="text-2xs text-slate-400 mt-1">
+                {fit ? t('forms.fields.fitComputed') : t('forms.fields.fitNeedsAnalysis')}
+              </p>
+            </div>
             <TextField
-              label="Fit (0–100)"
-              type="number"
-              min={0}
-              max={100}
-              placeholder="85"
-              hint="How well this role matches you"
-              error={errors.fitScore?.message}
-              {...register('fitScore', { setValueAs: v => v === '' ? undefined : Number(v) })}
-            />
-            <TextField
-              label="Urgency (0–100)"
+              label={t('forms.fields.urgency')}
               type="number"
               min={0}
               max={100}
               placeholder="70"
-              hint="How urgent is this opportunity"
+              hint={t('forms.fields.urgencyHint')}
               error={errors.urgencyScore?.message}
               {...register('urgencyScore', { setValueAs: v => v === '' ? undefined : Number(v) })}
             />
@@ -235,6 +281,15 @@ export function EditApplicationDrawer({
             />
           </FormSection>
         )}
+
+        <FormSection title={t('forms.sections.jobDescription')}>
+          <JobDescriptionEditor
+            value={watch('jobDescription') ?? ''}
+            onChange={v => setValue('jobDescription', v, { shouldDirty: true })}
+            url={watch('roleUrl') ?? ''}
+            rows={8}
+          />
+        </FormSection>
 
         <FormSection title={t('forms.sections.privateNotes')}>
           <TextareaField

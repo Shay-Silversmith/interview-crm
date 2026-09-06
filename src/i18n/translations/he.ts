@@ -510,6 +510,8 @@ const he: Translations = {
       interviewer:      'מראיין/ת',
     },
     fields: {
+      urgency:     'דחיפות (0–100)',
+      urgencyHint: 'כמה דחופה ההזדמנות הזו',
       fitCompute:        'חשב התאמה מתיאור המשרה',
       fitRecompute:      'חשב מחדש',
       fitWorking:        'מנתח…',
@@ -647,6 +649,17 @@ const he: Translations = {
       task:        'משימה',
       action:      'פעולה',
       result:      'תוצאה',
+    },
+    jd: {
+      fetchFromLink:   'קרא מהקישור',
+      fetchHint:       'או הדביקו את הטקסט למטה.',
+      pastePlaceholder:'הדביקו כאן את תיאור המשרה המלא…',
+      linkEmpty:       'הקישור נפתח, אבל לא חזר ממנו תיאור משרה. הדביקו את הטקסט במקום.',
+      alreadyHasText:  'כבר יש כאן תיאור. מחקו אותו קודם אם רוצים את הגרסה מהקישור.',
+      add:             'הוספת תיאור משרה',
+      edit:            'עריכת התיאור',
+      saved:           'תיאור המשרה נשמר',
+      saveFailed:      'לא הצלחתי לשמור את תיאור המשרה.',
     },
     autofill: {
       button:   'מלא מהמשרה',
