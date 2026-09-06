@@ -42,14 +42,20 @@ export function Modal({ open, onClose, title, description, size = 'md', children
       aria-labelledby={title ? 'modal-title' : undefined}
     >
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+      {/* Capped to the viewport with the body scrolling inside.
+          Without the cap a tall form — the CV version form, which has eight
+          fields, a file picker and a submit bar — simply ran off the bottom of
+          the screen: the page behind is scroll-locked while a modal is open, so
+          there was no way to reach the submit button except zooming out. */}
       <div
         className={cn(
           'relative w-full bg-surface rounded-2xl shadow-modal animate-fade-in',
+          'max-h-[calc(100dvh-2rem)] flex flex-col',
           sizeStyles[size]
         )}
       >
         {(title || description) && (
-          <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100">
+          <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100 shrink-0">
             <div>
               {title && (
                 <h2 id="modal-title" className="text-base font-semibold text-slate-900">
@@ -65,7 +71,7 @@ export function Modal({ open, onClose, title, description, size = 'md', children
             </Button>
           </div>
         )}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   )
