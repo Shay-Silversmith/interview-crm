@@ -12,9 +12,8 @@ import { useCompanyMutations } from '@/hooks/useCompanyMutations'
 import { aiService } from '@/services/aiService'
 import { companiesService } from '@/services/companiesService'
 import { JDSummarizeDialog } from '@/components/applications/JDSummarizeDialog'
-import { fitFromRoleSummary, computeFit, type FitBreakdown } from '@/lib/fitScore'
-import { useCandidate } from '@/hooks/useCandidate'
-import { applicationsService } from '@/services/applicationsService'
+import { fitFromRoleSummary, type FitBreakdown } from '@/lib/fitScore'
+import { useComputeFit } from '@/hooks/useComputeFit'
 
 interface ApplicationFormProps {
   initial?: Partial<JobApplication>
@@ -90,53 +89,23 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
   // summary of a table the user can read — not a number someone guessed.
   const savedFit = fitFromRoleSummary(initial?.aiRoleSummary)
   const [freshFit, setFreshFit] = useState<FitBreakdown | null>(null)
-  const [scoring,  setScoring]  = useState(false)
   const fit = freshFit ?? savedFit
 
-  const { candidate } = useCandidate(initial?.submittedCvId)
+  const { run: runFit, scoring } = useComputeFit(initial?.submittedCvId)
 
-  /**
-   * Run the role analysis from here rather than sending people to the AI page
-   * to do it and come back. The score is the reason they are looking at this
-   * field, and it was four steps away from it.
-   *
-   * On a saved application the analysis is written to the record too, so the
-   * breakdown survives; on a new one the score is filled in and the analysis is
-   * kept only for this session, since there is no row to attach it to yet.
-   */
+  /** The score is the reason this field is being looked at, so it is produced
+   *  from here rather than from a different page. */
   async function handleComputeFit() {
-    const jd  = (watch('jobDescription') ?? '').trim()
-    const url = (watch('roleUrl') ?? '').trim()
-    if (jd.length < 20 && !url) { toast.error(t('forms.fields.fitNeedsJd')); return }
-
-    setScoring(true)
-    const res = await aiService.parseJD({
-      jdText:      jd.length > 20 ? jd : undefined,
-      jdUrl:       !jd || jd.length <= 20 ? url || undefined : undefined,
-      roleTitle:   (watch('roleName') ?? '').trim() || undefined,
-      companyName: (watch('companyName') ?? '').trim() || undefined,
-      candidate,
-      locale:      locale as 'en' | 'he',
+    const computed = await runFit({
+      applicationId:  initial?.id,
+      jobDescription: watch('jobDescription'),
+      jobUrl:         watch('roleUrl'),
+      roleName:       watch('roleName'),
+      companyName:    watch('companyName'),
     })
-    setScoring(false)
-
-    if (!res.ok) { toast.error(res.message); return }
-
-    const computed = computeFit(res.data.fitAnalysis)
-    if (!computed) { toast.error(t('forms.fields.fitNoRequirements')); return }
-
+    if (!computed) return
     setFreshFit(computed)
     setValue('fitScore', computed.score, { shouldDirty: true })
-
-    if (initial?.id) {
-      try {
-        await applicationsService.update(initial.id, {
-          aiRoleSummary: res.data as unknown as Record<string, unknown>,
-          fitScore:      computed.score,
-        })
-      } catch { /* the score is already on screen; saving it is a bonus */ }
-    }
-    toast.success(t('forms.fields.fitDone'))
   }
   const [quickCompanyName, setQuickCompanyName] = useState('')
   const [jdSummarizeOpen, setJdSummarizeOpen] = useState(false)

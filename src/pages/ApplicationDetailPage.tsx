@@ -34,6 +34,7 @@ import { applicationsService } from '@/services/applicationsService'
 import { tasksService } from '@/services/tasksService'
 import { contactsService, type ApplicationContact } from '@/services/contactsService'
 import { isClosedStage } from '@/lib/enums'
+import { useComputeFit } from '@/hooks/useComputeFit'
 import { useToastActions } from '@/hooks/useToast'
 import { documentsService } from '@/services/documentsService'
 import { aiService } from '@/services/aiService'
@@ -73,7 +74,7 @@ export function ApplicationDetailPage() {
     if (t) setActiveTab(t)
   }, [searchParams])
 
-  const { data: app, loading } = useMockStore(
+  const { data: app, loading, refetch: refetchApp } = useMockStore(
     () => applicationsService.getById(id!),
     [id],
     { key: QK.applications.detail(id!) }
@@ -137,6 +138,23 @@ export function ApplicationDetailPage() {
 
   // Interview stage mutations
   const { create: createStage, update: updateStage, remove: removeStage } = useInterviewStageMutations(id!)
+
+  const { run: runFit, scoring: fitScoring } = useComputeFit(app?.submittedCvId)
+
+  // Wanted here as well as in the edit form: by the time the fit matters, the
+  // application usually already exists, and opening the form to get a number
+  // that belongs on this screen is a detour.
+  const handleComputeFit = async () => {
+    if (!app) return
+    await runFit({
+      applicationId:  app.id,
+      jobDescription: app.jobDescription,
+      jobUrl:         app.roleUrl,
+      roleName:       app.roleName,
+      companyName:    app.companyName,
+    })
+    refetchApp()
+  }
 
 
   // Marking a round done is the most common edit after an interview, and it
@@ -430,7 +448,23 @@ export function ApplicationDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            {app.fitScore !== undefined && <ScoreRing score={app.fitScore} label="Fit" size="lg" />}
+            <div className="flex flex-col items-center gap-1">
+              {app.fitScore !== undefined
+                ? <ScoreRing score={app.fitScore} label="Fit" size="lg" />
+                : <div className="w-[72px] h-[72px] rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-300">Fit</div>}
+              <button
+                type="button"
+                onClick={handleComputeFit}
+                disabled={fitScoring}
+                className="text-2xs font-medium text-primary-600 hover:underline disabled:opacity-50"
+              >
+                {fitScoring
+                  ? t('forms.fields.fitWorking')
+                  : app.fitScore !== undefined
+                    ? t('forms.fields.fitRecompute')
+                    : t('forms.fields.fitCompute')}
+              </button>
+            </div>
             {app.urgencyScore !== undefined && <ScoreRing score={app.urgencyScore} label="Urgency" size="lg" />}
           </div>
         </div>
