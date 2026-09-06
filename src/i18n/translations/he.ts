@@ -218,7 +218,14 @@ const he: Translations = {
       // Notes tab
       notesHeader:  'הערות',
       noNotes:      'אין הערות עדיין',
-      noNotesSub:   'ערוך מועמדות זו כדי להוסיף הערות.',
+      noNotesSub:   'כתבו מה שלמדתם בדרך — שיחות, שמות, מספרי שכר.',
+      notes: {
+        add:        'הוספת הערה',
+        edit:       'עריכה',
+        placeholder:'כל מה ששווה לזכור — עם מי דיברת, מה שאלו, למה לחזור…',
+        saved:      'ההערה נשמרה',
+        saveFailed: 'לא הצלחתי לשמור את ההערה.',
+      },
       // AI tab
       savedPrepPacks:     'חבילות הכנה שמורות',
       prepPack:           'חבילת הכנה',

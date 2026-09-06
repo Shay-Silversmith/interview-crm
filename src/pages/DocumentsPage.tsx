@@ -10,6 +10,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { CardSkeleton } from '@/components/ui/Skeleton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { CVVersionForm } from '@/components/forms/CVVersionForm'
+import { CVAvatar } from '@/components/documents/CVAvatar'
+import { companyForCv } from '@/lib/cvCompany'
 import { CVUploadDialog } from '@/components/documents/CVUploadDialog'
 import { CVViewerButton } from '@/components/documents/CVViewerButton'
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog'
@@ -24,6 +26,7 @@ import { formatFileSize } from '@/utils/format'
 import { cn } from '@/lib/cn'
 import { QK } from '@/lib/query-keys'
 import type { CVVersion, Document } from '@/types'
+import type { CvCompanyHint } from '@/lib/cvCompany'
 import type { CVVersionFormValues } from '@/lib/schemas/cvVersionSchema'
 
 export function DocumentsPage() {
@@ -123,6 +126,7 @@ export function DocumentsPage() {
                 <CVCard
                   key={cv.id}
                   cv={cv}
+                  company={companyForCv(cv, apps ?? [])}
                   appMap={appMap}
                   onEdit={() => setEditCV(cv)}
                   onDelete={() => setDeleteCV(cv)}
@@ -248,8 +252,8 @@ export function DocumentsPage() {
 }
 
 function CVCard({
-  cv, appMap, onEdit, onDelete, t,
-}: { cv: CVVersion; appMap: Record<string, string>; onEdit: () => void; onDelete: () => void; t: (key: string) => string }) {
+  cv, company, appMap, onEdit, onDelete, t,
+}: { cv: CVVersion; company: CvCompanyHint | null; appMap: Record<string, string>; onEdit: () => void; onDelete: () => void; t: (key: string) => string }) {
   const [expanded, setExpanded] = useState(false)
   // Defensive defaults — older persisted data may be missing these arrays
   const skills:   string[] = cv.skillsHighlighted   ?? []
@@ -263,12 +267,12 @@ function CVCard({
         onClick={() => setExpanded(e => !e)}
         className="w-full text-start flex items-center gap-3 p-4 hover:bg-slate-50/60 transition-colors"
       >
-        <div className={cn(
-          'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-base font-bold',
-          cv.isActive ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-400',
-        )}>
-          v{cv.version}
-        </div>
+        <CVAvatar
+          version={cv.version}
+          isActive={cv.isActive}
+          companyName={company?.name}
+          companyLogoUrl={company?.logoUrl}
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-slate-800">{cv.name}</h3>
@@ -280,7 +284,7 @@ function CVCard({
           </div>
           <p className="text-xs text-slate-500 mt-0.5 force-ltr truncate">{cv.fileName}</p>
           <p className="text-2xs text-slate-400">
-            {cv.fileSize ? formatFileSize(cv.fileSize) + ' · ' : ''}
+            v{cv.version} · {cv.fileSize ? formatFileSize(cv.fileSize) + ' · ' : ''}
             {formatRelative(cv.updatedAt)}
           </p>
         </div>

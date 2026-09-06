@@ -35,6 +35,7 @@ import { tasksService } from '@/services/tasksService'
 import { contactsService, type ApplicationContact } from '@/services/contactsService'
 import { isClosedStage } from '@/lib/enums'
 import { useComputeFit } from '@/hooks/useComputeFit'
+import { TextareaField } from '@/components/forms/Field'
 import { JobDescriptionEditor } from '@/components/applications/JobDescriptionEditor'
 import { useToastActions } from '@/hooks/useToast'
 import { documentsService } from '@/services/documentsService'
@@ -553,7 +554,7 @@ export function ApplicationDetailPage() {
             t={t}
           />
         )}
-        {activeTab === 'notes' && <NotesTab notes={app.notes} t={t} />}
+        {activeTab === 'notes' && <NotesTab app={app} t={t} onSaved={refetchApp} />}
         {activeTab === 'ai' && <AITab app={app} summaries={aiSummaries} t={t} />}
       </div>
 
@@ -1332,16 +1333,72 @@ function FilesTab({
   )
 }
 
-function NotesTab({ notes, t }: { notes?: string; t: (key: string) => string }) {
+function NotesTab({ app, t, onSaved }: { app: JobApplication; t: (key: string) => string; onSaved: () => void }) {
+  // Notes were readable here but only writable through the edit drawer, which
+  // is four clicks and a form for one paragraph. They are written far more
+  // often than the rest of the record, so they are edited where they are read.
+  const { update } = useApplicationMutations()
+  const toast = useToastActions()
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState(app.notes ?? '')
+
+  const startEditing = () => { setDraft(app.notes ?? ''); setEditing(true) }
+
+  const save = async () => {
+    try {
+      await update.mutateAsync({ id: app.id, data: { notes: draft.trim() || undefined } })
+      toast.success(t('pages.applicationDetail.notes.saved'))
+      setEditing(false)
+      onSaved()
+    } catch {
+      toast.error(t('pages.applicationDetail.notes.saveFailed'))
+    }
+  }
+
   return (
     <Card>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2 mb-4">
         <h3 className="text-sm font-semibold text-slate-700">{t('pages.applicationDetail.notesHeader')}</h3>
+        {!editing && (
+          <Button variant="outline" size="xs" className="ms-auto" onClick={startEditing}>
+            {app.notes ? t('pages.applicationDetail.notes.edit') : t('pages.applicationDetail.notes.add')}
+          </Button>
+        )}
       </div>
-      {notes ? (
-        <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{notes}</p>
+
+      {editing ? (
+        <div className="space-y-3">
+          <TextareaField
+            placeholder={t('pages.applicationDetail.notes.placeholder')}
+            rows={8}
+            className="min-h-[160px]"
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            autoFocus
+          />
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={save} loading={update.isPending}>{t('common.save')}</Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(false)} disabled={update.isPending}>
+              {t('common.cancel')}
+            </Button>
+          </div>
+        </div>
+      ) : app.notes ? (
+        <button
+          type="button"
+          onClick={startEditing}
+          className="w-full text-start text-sm text-slate-600 leading-relaxed whitespace-pre-wrap hover:bg-slate-50 rounded-lg -m-1 p-1 transition-colors"
+        >
+          {app.notes}
+        </button>
       ) : (
-        <EmptyState icon={MessageSquare} title={t('pages.applicationDetail.noNotes')} description={t('pages.applicationDetail.noNotesSub')} className="py-8" />
+        <EmptyState
+          icon={MessageSquare}
+          title={t('pages.applicationDetail.noNotes')}
+          description={t('pages.applicationDetail.noNotesSub')}
+          className="py-8"
+          action={{ label: t('pages.applicationDetail.notes.add'), onClick: startEditing }}
+        />
       )}
     </Card>
   )

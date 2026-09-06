@@ -217,7 +217,14 @@ const en = {
       // Notes tab
       notesHeader:  'Notes',
       noNotes:      'No notes yet',
-      noNotesSub:   'Edit this application to add notes.',
+      noNotesSub:   'Write down what you learn as you go — calls, names, salary numbers.',
+      notes: {
+        add:        'Add a note',
+        edit:       'Edit',
+        placeholder:'Anything worth remembering — who you spoke to, what they asked, what to follow up on…',
+        saved:      'Note saved',
+        saveFailed: 'Could not save the note.',
+      },
       // AI tab
       savedPrepPacks:     'Saved Prep Packs',
       prepPack:           'Prep Pack',
