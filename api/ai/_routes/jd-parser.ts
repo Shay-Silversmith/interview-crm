@@ -12,7 +12,8 @@
 
 import {
   callGemini,
-  callGeminiGrounded,
+  researchGrounded,
+  structureResearch,
   localeSystemSuffix,
   LIGHT_THINKING,
 } from '../_lib/gemini.js'
@@ -59,6 +60,18 @@ export default createAIRoute({
   schema: jdParserRequestSchema,
 
   async run({ body, apiKey }) {
+    // Stage two only reshapes notes stage one already gathered.
+    if (body.stage === 'structure') {
+      const data = await structureResearch({
+        apiKey,
+        system:    SYSTEM + localeSystemSuffix(body.locale),
+        research:  body.research ?? '',
+        schema:    jdParserResponseSchema,
+        maxTokens: 12_000,
+      })
+      return { data }
+    }
+
     const sections: string[] = []
 
     if (body.roleTitle)   sections.push(`Role title: ${body.roleTitle}`)
@@ -82,14 +95,18 @@ export default createAIRoute({
         'set sourceNote to say exactly that and analyse whatever text was pasted instead. Do not fabricate a posting.',
       )
 
-      const { data, sources } = await callGeminiGrounded({
+      const { research, sources } = await researchGrounded({
         apiKey,
         system,
-        user:           sections.join('\n\n'),
-        schema:         jdParserResponseSchema,
-        maxTokens:      12_000,
-        thinkingBudget: LIGHT_THINKING,
-        urls:           [body.jdUrl],
+        user:      sections.join('\n\n'),
+        maxTokens: 12_000,
+        urls:      [body.jdUrl],
+      })
+
+      if (body.stage === 'research') return { data: null, research, sources }
+
+      const data = await structureResearch({
+        apiKey, system, research, schema: jdParserResponseSchema, maxTokens: 12_000,
       })
       return { data, sources }
     }

@@ -14,7 +14,8 @@
 
 import {
   callGemini,
-  callGeminiGrounded,
+  researchGrounded,
+  structureResearch,
   localeSystemSuffix,
   LIGHT_THINKING,
 } from '../_lib/gemini.js'
@@ -91,6 +92,18 @@ export default createAIRoute({
   schema: starAnswersRequestSchema,
 
   async run({ body, apiKey }) {
+    // Stage two only reshapes notes stage one already gathered.
+    if (body.stage === 'structure') {
+      const data = await structureResearch({
+        apiKey,
+        system:    SYSTEM + localeSystemSuffix(body.locale),
+        research:  body.research ?? '',
+        schema:    starAnswersResponseSchema,
+        maxTokens: 14_000,
+      })
+      return { data }
+    }
+
     // Restructuring a draft the candidate wrote is a separate job from building
     // a story out of their CV, and mixing the two prompts produced answers that
     // quietly improved on what they actually did.
@@ -169,13 +182,18 @@ export default createAIRoute({
         `JOB POSTING URL (read this page for the role's real requirements): ${body.jdUrl}\n` +
         'If the page cannot be read, work from the role title and company alone.',
       )
-      const { data, sources } = await callGeminiGrounded({
+      const { research, sources } = await researchGrounded({
         apiKey,
         system,
         user:      sections.join('\n\n'),
-        schema:    starAnswersResponseSchema,
         maxTokens: 14_000,
         urls:      [body.jdUrl],
+      })
+
+      if (body.stage === 'research') return { data: null, research, sources }
+
+      const data = await structureResearch({
+        apiKey, system, research, schema: starAnswersResponseSchema, maxTokens: 14_000,
       })
       return { data, sources }
     }

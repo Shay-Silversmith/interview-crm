@@ -11,7 +11,7 @@
 // be fetched the summary says so instead of inventing one.
 // ---------------------------------------------------------------------------
 
-import { callGemini, callGeminiGrounded, localeSystemSuffix } from '../_lib/gemini.js'
+import { callGemini, researchGrounded, structureResearch, localeSystemSuffix } from '../_lib/gemini.js'
 import { createAIRoute } from '../_lib/handler.js'
 import { jdSummarizeRequestSchema, jdSummarizeResponseSchema } from '../_lib/schemas.js'
 
@@ -52,17 +52,31 @@ export default createAIRoute({
       return { data }
     }
 
-    const { data, sources } = await callGeminiGrounded({
+    // Reading a page and shaping the result are two Gemini calls, and run in
+    // one request they can exceed the host's 60-second function limit.
+    if (body.stage === 'structure') {
+      const data = await structureResearch({
+        apiKey, system, research: body.research ?? '',
+        schema: jdSummarizeResponseSchema, maxTokens: 12_000,
+      })
+      return { data }
+    }
+
+    const { research, sources } = await researchGrounded({
       apiKey,
       system,
       user:
         `Read this job posting and summarise it: ${body.jdUrl}\n\n` +
         'If the page cannot be read, is expired, requires a login, or turns out to be a list of jobs ' +
-        'rather than one posting, set the headline to say exactly that and return a single bullet ' +
-        'explaining what went wrong. Do not invent a job description.',
-      schema:    jdSummarizeResponseSchema,
+        'rather than one posting, say exactly that. Do not invent a job description.',
       maxTokens: 12_000,
       urls:      body.jdUrl ? [body.jdUrl] : undefined,
+    })
+
+    if (body.stage === 'research') return { data: null, research, sources }
+
+    const data = await structureResearch({
+      apiKey, system, research, schema: jdSummarizeResponseSchema, maxTokens: 12_000,
     })
     return { data, sources }
   },

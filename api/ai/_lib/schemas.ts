@@ -71,8 +71,10 @@ export const jdParserRequestSchema = z
     userBackground: z.string().max(4000).optional(),
     candidate:      candidateSchema.optional(),
     locale:         localeField,
+    stage:          stageField,
+    research:       researchField,
   })
-  .refine(d => (d.jdText && d.jdText.trim().length > 20) || d.jdUrl, {
+  .refine(d => (d.jdText && d.jdText.trim().length > 20) || d.jdUrl || d.stage === 'structure', {
     message: 'Paste the job description, or give a link to the posting.',
   })
 
@@ -385,6 +387,8 @@ export const starAnswersRequestSchema = z.object({
   count:       z.number().int().min(1).max(8).default(4).optional(),
   candidate:   candidateSchema.optional(),
   locale:      localeField,
+  stage:       stageField,
+  research:    researchField,
 })
 
 export const starAnswersResponseSchema = z.object({
@@ -443,8 +447,12 @@ export const jdSummarizeRequestSchema = z
     jdUrl:  z.string().url().optional(),
     jdText: z.string().max(30_000).optional(),
     locale: localeField,
+    stage:  stageField,
+    research: researchField,
   })
-  .refine(d => !!d.jdUrl || !!d.jdText, { message: 'Either jdUrl or jdText is required' })
+  .refine(d => !!d.jdUrl || !!d.jdText || d.stage === 'structure', {
+    message: 'Either jdUrl or jdText is required',
+  })
 
 export const jdSummarizeResponseSchema = z.object({
   headline: z.string(),

@@ -83,6 +83,8 @@ export interface JDParserRequest {
   userBackground?: string
   candidate?:      CandidatePayload
   locale?:         AILocale
+  stage?:          'research' | 'structure'
+  research?:       string
 }
 
 export interface JDParserResponse {
@@ -331,6 +333,8 @@ export interface StarAnswersRequest {
   count?:     number
   candidate?: CandidatePayload
   locale?:    AILocale
+  stage?:     'research' | 'structure'
+  research?:  string
 }
 
 export interface StarAnswer {
@@ -378,6 +382,8 @@ export interface JDSummarizeRequest {
   jdUrl?:  string
   jdText?: string
   locale?: AILocale
+  stage?:    'research' | 'structure'
+  research?: string
 }
 
 export interface JDSummarizeResponse {
@@ -574,16 +580,19 @@ export const aiClientService = {
 
   // Reads a URL when given one, so it can also be slow.
   parseJD:        (req: JDParserRequest) =>
-    post<JDParserRequest, JDParserResponse>(
-      '/api/ai/jd-parser', req, req.jdUrl ? TIMEOUT_RESEARCH_MS : TIMEOUT_QUICK_MS),
+    req.jdUrl && !req.jdText?.trim()
+      ? runInTwoStages<JDParserRequest, JDParserResponse>('/api/ai/jd-parser', req, 'research')
+      : post<JDParserRequest, JDParserResponse>('/api/ai/jd-parser', req, TIMEOUT_QUICK_MS),
 
   starAnswers:    (req: StarAnswersRequest) =>
-    post<StarAnswersRequest, StarAnswersResponse>(
-      '/api/ai/star-answers', req, req.jdUrl && !req.jdText ? TIMEOUT_RESEARCH_MS : TIMEOUT_QUICK_MS),
+    req.jdUrl && !req.jdText?.trim() && !req.draftAnswer?.trim()
+      ? runInTwoStages<StarAnswersRequest, StarAnswersResponse>('/api/ai/star-answers', req, 'research')
+      : post<StarAnswersRequest, StarAnswersResponse>('/api/ai/star-answers', req, TIMEOUT_QUICK_MS),
 
   summarizeJD:    (req: JDSummarizeRequest) =>
-    post<JDSummarizeRequest, JDSummarizeResponse>(
-      '/api/ai/jd-summarize', req, req.jdText ? TIMEOUT_QUICK_MS : TIMEOUT_RESEARCH_MS),
+    req.jdText?.trim()
+      ? post<JDSummarizeRequest, JDSummarizeResponse>('/api/ai/jd-summarize', req, TIMEOUT_QUICK_MS)
+      : runInTwoStages<JDSummarizeRequest, JDSummarizeResponse>('/api/ai/jd-summarize', req, 'research'),
 
   // Single-generation tools.
   followUp:       (req: FollowUpRequest) =>
