@@ -511,6 +511,12 @@ const en = {
       interviewer:      'Interviewer',
     },
     fields: {
+      fit:              'Fit (0–100)',
+      fitComputed:      'Computed from the Role Analysis — not typed by hand.',
+      fitNeedsAnalysis: 'Run Role Analysis on this job description to compute the fit.',
+      fitStrong:        'strong',
+      fitPartial:       'partial',
+      fitGap:           'gaps',
       company:             'Company',
       roleName:            'Role Name',
       jobPostingUrl:       'Job Posting URL',

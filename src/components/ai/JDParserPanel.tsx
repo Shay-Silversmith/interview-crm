@@ -22,6 +22,7 @@ import {
   PanelEmpty, PanelLoading, ToolIntro,
 } from './ResultBlocks'
 import { cn } from '@/lib/cn'
+import { computeFit } from '@/lib/fitScore'
 import type { FitItem, FitLevel, JDParserResponse, GroundingSource } from '@/services/aiClientService'
 
 type RunState =
@@ -111,8 +112,13 @@ export function JDParserPanel() {
     if (state.status !== 'done' || !selectedAppId) return
     setSaving(true)
     try {
+      // The fit score travels with the analysis it was computed from, so the
+      // application's number can never drift from the table behind it.
+      const fit = computeFit(state.data.fitAnalysis)
+
       await applicationsService.update(selectedAppId, {
         aiRoleSummary: state.data as unknown as Record<string, unknown>,
+        ...(fit ? { fitScore: fit.score } : {}),
       })
       toast.success(
         t('ai.toasts.savedAnalysis')

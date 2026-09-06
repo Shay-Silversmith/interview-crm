@@ -12,6 +12,7 @@ import { useCompanyMutations } from '@/hooks/useCompanyMutations'
 import { aiService } from '@/services/aiService'
 import { companiesService } from '@/services/companiesService'
 import { JDSummarizeDialog } from '@/components/applications/JDSummarizeDialog'
+import { fitFromRoleSummary } from '@/lib/fitScore'
 
 interface ApplicationFormProps {
   initial?: Partial<JobApplication>
@@ -81,6 +82,11 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
   const [justCreated, setJustCreated] = useState<Company | null>(null)
   const [filling, setFilling] = useState(false)
   const [notFound, setNotFound] = useState<string[]>([])
+
+  // Fit is read off the saved Role Analysis rather than typed. The analysis
+  // already rates the candidate requirement by requirement, so the score is a
+  // summary of a table the user can read — not a number someone guessed.
+  const fit = fitFromRoleSummary(initial?.aiRoleSummary)
   const [quickCompanyName, setQuickCompanyName] = useState('')
   const [jdSummarizeOpen, setJdSummarizeOpen] = useState(false)
 
@@ -335,16 +341,29 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
           <TextField label={t('forms.fields.deadline')}    type="date" error={errors.deadlineAt?.message} {...register('deadlineAt')} />
         </FormRow>
         <FormRow>
-          <TextField
-            label="Fit (0–100)"
-            type="number"
-            min={0}
-            max={100}
-            placeholder="85"
-            hint="How well this role matches you"
-            error={errors.fitScore?.message}
-            {...register('fitScore', { setValueAs: v => v === '' ? undefined : Number(v) })}
-          />
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              {t('forms.fields.fit')}
+            </label>
+            {fit ? (
+              <>
+                <div className="h-9 px-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50">
+                  <span className="text-sm font-semibold text-slate-800">{fit.score}</span>
+                  <span className="text-2xs text-slate-500">
+                    {fit.strong} {t('forms.fields.fitStrong')} · {fit.partial} {t('forms.fields.fitPartial')} · {fit.gap} {t('forms.fields.fitGap')}
+                  </span>
+                </div>
+                <p className="text-2xs text-slate-400 mt-1">{t('forms.fields.fitComputed')}</p>
+              </>
+            ) : (
+              <>
+                <div className="h-9 px-3 flex items-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60">
+                  <span className="text-xs text-slate-400">—</span>
+                </div>
+                <p className="text-2xs text-slate-400 mt-1">{t('forms.fields.fitNeedsAnalysis')}</p>
+              </>
+            )}
+          </div>
           <TextField
             label="Urgency (0–100)"
             type="number"

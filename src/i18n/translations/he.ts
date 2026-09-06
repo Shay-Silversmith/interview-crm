@@ -510,6 +510,12 @@ const he: Translations = {
       interviewer:      'מראיין/ת',
     },
     fields: {
+      fit:              'התאמה (0–100)',
+      fitComputed:      'מחושב מניתוח התפקיד — לא מוקלד ידנית.',
+      fitNeedsAnalysis: 'הריצו ניתוח תפקיד על תיאור המשרה כדי לחשב התאמה.',
+      fitStrong:        'חזק',
+      fitPartial:       'חלקי',
+      fitGap:           'פערים',
       company:             'חברה',
       roleName:            'שם התפקיד',
       jobPostingUrl:       'קישור למשרה',
