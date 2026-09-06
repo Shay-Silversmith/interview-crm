@@ -1,3 +1,17 @@
+/**
+ * Stages that mean the process is over. These define the archive: an
+ * application in one of them drops out of the active list and shows under
+ * /applications/archive.
+ *
+ * The list was duplicated in three components, which is how a stage added to
+ * one view quietly stayed active in another.
+ */
+export const CLOSED_STAGES = ['Rejected', 'Accepted', 'Withdrawn'] as const
+
+export function isClosedStage(stage: string): boolean {
+  return (CLOSED_STAGES as readonly string[]).includes(stage)
+}
+
 export type ApplicationStage =
   | 'Interested'
   | 'Applied'

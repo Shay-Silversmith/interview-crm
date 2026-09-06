@@ -4,7 +4,7 @@ import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, ExternalLink, Calendar, User, CheckSquare,
   FileText, Sparkles, MessageSquare, MapPin, Briefcase,
-  Plus, Edit2, Trash2, Check, ChevronDown,
+  Plus, Edit2, Trash2, Check, ChevronDown, Archive, ArchiveRestore,
 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -33,6 +33,7 @@ import { useI18n } from '@/hooks/useI18n'
 import { applicationsService } from '@/services/applicationsService'
 import { tasksService } from '@/services/tasksService'
 import { contactsService, type ApplicationContact } from '@/services/contactsService'
+import { isClosedStage } from '@/lib/enums'
 import { useToastActions } from '@/hooks/useToast'
 import { documentsService } from '@/services/documentsService'
 import { aiService } from '@/services/aiService'
@@ -137,6 +138,7 @@ export function ApplicationDetailPage() {
   // Interview stage mutations
   const { create: createStage, update: updateStage, remove: removeStage } = useInterviewStageMutations(id!)
 
+
   // Marking a round done is the most common edit after an interview, and it
   // lived several clicks deep inside the edit drawer. Completing a round also
   // records an outcome, because a finished round with none is what makes the
@@ -170,6 +172,24 @@ export function ApplicationDetailPage() {
 
   // Application mutations (inline chips + edit drawer)
   const { updateStage: updateAppStage, updatePriority, update: updateApp, remove: removeApp } = useApplicationMutations()
+  // Archiving keeps the record and everything attached to it — stages, notes,
+  // contacts — and only takes it out of the active list. That is the difference
+  // between it and delete, and the reason it sits next to it.
+  const handleArchive = async () => {
+    if (!app) return
+    const archived = isClosedStage(app.stage)
+    try {
+      await updateApp.mutateAsync({
+        id: app.id,
+        data: { stage: archived ? 'Interested' : 'Withdrawn' },
+      })
+      toast.success(archived
+        ? t('pages.applications.restored')
+        : t('pages.applications.archived'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not move that application')
+    }
+  }
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [deleteAppOpen, setDeleteAppOpen] = useState(false)
 
@@ -311,10 +331,20 @@ export function ApplicationDetailPage() {
           <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
           {t('pages.applicationDetail.backToApplications')}
         </Link>
-        <Button variant="ghost" size="sm" onClick={() => setDeleteAppOpen(true)} className="text-danger-600 hover:bg-danger-50">
-          <Trash2 className="w-3.5 h-3.5" />
-          {t('common.delete')}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={handleArchive}>
+            {isClosedStage(app.stage)
+              ? <ArchiveRestore className="w-3.5 h-3.5" />
+              : <Archive className="w-3.5 h-3.5" />}
+            {isClosedStage(app.stage)
+              ? t('pages.applications.restore')
+              : t('pages.applications.archiveAction')}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setDeleteAppOpen(true)} className="text-danger-600 hover:bg-danger-50">
+            <Trash2 className="w-3.5 h-3.5" />
+            {t('common.delete')}
+          </Button>
+        </div>
       </div>
 
       {/* Hero — dot grid adds subtle texture without changing the layout */}

@@ -29,8 +29,8 @@ import { formatDate, formatRelative } from '@/utils/date'
 import { cn } from '@/lib/cn'
 import type { JobApplication } from '@/types'
 import type { ApplicationStage } from '@/lib/enums'
+import { isClosedStage } from '@/lib/enums'
 
-const CLOSED_STAGES: ApplicationStage[] = ['Rejected', 'Accepted', 'Withdrawn']
 
 export function ApplicationBoardPage() {
   const { t } = useI18n()
@@ -61,8 +61,8 @@ export function ApplicationBoardPage() {
     const sortByClosedAt = (a: JobApplication, b: JobApplication) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
 
-    const active = all.filter(a => !CLOSED_STAGES.includes(a.stage as ApplicationStage)).sort(sortByProgress)
-    const closed = all.filter(a => CLOSED_STAGES.includes(a.stage as ApplicationStage)).sort(sortByClosedAt)
+    const active = all.filter(a => !isClosedStage(a.stage)).sort(sortByProgress)
+    const closed = all.filter(a => isClosedStage(a.stage)).sort(sortByClosedAt)
     return { active, closed }
   }, [apps])
 

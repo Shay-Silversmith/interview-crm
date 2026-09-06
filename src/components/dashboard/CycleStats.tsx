@@ -21,8 +21,8 @@ import { STAGE_ORDER } from '@/lib/constants'
 import { PipelineFunnel } from './PipelineFunnel'
 import type { JobApplication } from '@/types'
 import type { ApplicationStage } from '@/lib/enums'
+import { isClosedStage } from '@/lib/enums'
 
-const CLOSED_STAGES: ApplicationStage[] = ['Rejected', 'Accepted', 'Withdrawn']
 /** Everything at or past this index means a human has actually engaged. */
 const ENGAGED_FROM = STAGE_ORDER.indexOf('HR Screen')
 
@@ -32,7 +32,7 @@ interface Props {
 }
 
 export function CycleStats({ applications, upcomingCount }: Props) {
-  const isClosed = (a: JobApplication) => CLOSED_STAGES.includes(a.stage as ApplicationStage)
+  const isClosed = (a: JobApplication) => isClosedStage(a.stage)
   const active   = applications.filter(a => !isClosed(a))
   const archived = applications.filter(isClosed)
   const engaged  = active.filter(a => STAGE_ORDER.indexOf(a.stage) >= ENGAGED_FROM)

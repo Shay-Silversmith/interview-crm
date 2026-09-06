@@ -99,6 +99,10 @@ const he: Translations = {
     },
 
     applications: {
+      archiveAction: 'העבר לארכיון',
+      restore:       'שחזר',
+      archived:      'הועברה לארכיון — הרשומה נשמרת, לא נמחקת',
+      restored:      'הוחזרה למועמדויות הפעילות',
       title:            'מועמדויות',
       newApplication:   'מועמדות חדשה',
       searchPlaceholder:'חיפוש מועמדויות…',

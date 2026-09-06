@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, LayoutGrid, List, Search, ChevronUp, ChevronDown, Trash2, Archive, ArrowLeft } from 'lucide-react'
+import { Plus, LayoutGrid, List, Search, ChevronUp, ChevronDown, Trash2, Archive, ArchiveRestore, ArrowLeft } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -23,6 +23,8 @@ import { cn } from '@/lib/cn'
 import { QK } from '@/lib/query-keys'
 import type { JobApplication } from '@/types'
 import type { ApplicationStage, Priority } from '@/lib/enums'
+import { isClosedStage } from '@/lib/enums'
+import { useToastActions } from '@/hooks/useToast'
 import { Briefcase } from 'lucide-react'
 
 type SortKey = 'urgency' | 'fit' | 'applied' | 'company'
@@ -47,7 +49,6 @@ function SortHeader({ label, sortKey, currentSort, sortDir, onSort }: {
 }
 
 /** Stages that take an application out of the live pipeline. */
-const CLOSED_STAGES: ApplicationStage[] = ['Rejected', 'Accepted', 'Withdrawn']
 
 export type ApplicationsPageMode = 'active' | 'archive'
 
@@ -106,15 +107,38 @@ export function ApplicationsPage({ mode = 'active' }: { mode?: ApplicationsPageM
 
   const isArchive = mode === "archive"
 
+  const { update: updateApp } = useApplicationMutations()
+  const toast = useToastActions()
+
+  /**
+   * Archive means "I am not pursuing this", which is Withdrawn — the record is
+   * kept, not deleted, so it stays searchable and still counts in the funnel.
+   * Restoring returns it to Interested rather than guessing which live stage it
+   * was in before, because a wrong stage is worse than an obviously neutral one.
+   */
+  const moveToArchive = async (app: JobApplication, archive: boolean) => {
+    try {
+      await updateApp.mutateAsync({
+        id: app.id,
+        data: { stage: archive ? 'Withdrawn' : 'Interested' },
+      })
+      toast.success(archive
+        ? t('pages.applications.archived')
+        : t('pages.applications.restored'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not move that application')
+    }
+  }
+
   /** Applications belonging to this view before any user filtering. */
   const scoped = useMemo(() => {
     if (!apps) return []
-    const closed = (a: JobApplication) => CLOSED_STAGES.includes(a.stage as ApplicationStage)
+    const closed = (a: JobApplication) => isClosedStage(a.stage)
     return apps.filter(a => (isArchive ? closed(a) : !closed(a)))
   }, [apps, isArchive])
 
   const archivedCount = useMemo(
-    () => (apps ?? []).filter(a => CLOSED_STAGES.includes(a.stage as ApplicationStage)).length,
+    () => (apps ?? []).filter(a => isClosedStage(a.stage)).length,
     [apps],
   )
 
@@ -254,7 +278,7 @@ export function ApplicationsPage({ mode = 'active' }: { mode?: ApplicationsPageM
         <>
           {/* Table on md+, cards on mobile */}
           <div className="hidden md:block">
-            <ApplicationTable apps={filtered} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} onDelete={setDeleteApp} t={t} />
+            <ApplicationTable apps={filtered} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} onDelete={setDeleteApp} onArchive={moveToArchive} isArchive={isArchive} t={t} />
           </div>
           <div className="md:hidden">
             <ApplicationGrid apps={filtered} />
@@ -281,8 +305,15 @@ export function ApplicationsPage({ mode = 'active' }: { mode?: ApplicationsPageM
   )
 }
 
-function ApplicationTable({ apps, sortKey, sortDir, onSort, onDelete, t }: {
-  apps: JobApplication[]; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void; onDelete: (a: JobApplication) => void; t: (key: string) => string
+function ApplicationTable({ apps, sortKey, sortDir, onSort, onDelete, onArchive, isArchive, t }: {
+  apps: JobApplication[]
+  sortKey: SortKey
+  sortDir: 'asc' | 'desc'
+  onSort: (k: SortKey) => void
+  onDelete: (a: JobApplication) => void
+  onArchive: (a: JobApplication, archive: boolean) => void
+  isArchive: boolean
+  t: (key: string) => string
 }) {
   return (
     <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card overflow-hidden">
@@ -337,13 +368,25 @@ function ApplicationTable({ apps, sortKey, sortDir, onSort, onDelete, t }: {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={e => { e.preventDefault(); onDelete(app) }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger-50 text-slate-400 hover:text-danger-600 transition-all"
-                    aria-label="Delete application"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={e => { e.preventDefault(); onArchive(app, !isArchive) }}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"
+                      title={isArchive ? t('pages.applications.restore') : t('pages.applications.archiveAction')}
+                      aria-label={isArchive ? t('pages.applications.restore') : t('pages.applications.archiveAction')}
+                    >
+                      {isArchive
+                        ? <ArchiveRestore className="w-3.5 h-3.5" />
+                        : <Archive className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={e => { e.preventDefault(); onDelete(app) }}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-danger-50 text-slate-400 hover:text-danger-600 transition-all"
+                      aria-label="Delete application"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

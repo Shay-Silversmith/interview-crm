@@ -98,6 +98,10 @@ const en = {
     },
 
     applications: {
+      archiveAction: 'Archive',
+      restore:       'Restore',
+      archived:      'Moved to the archive — the record is kept, not deleted',
+      restored:      'Restored to your active applications',
       title:            'Applications',
       newApplication:   'New Application',
       searchPlaceholder:'Search applications…',
