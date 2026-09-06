@@ -70,6 +70,18 @@ const MODEL_FALLBACKS: Record<string, string> = {
   'gemini-3.5-pro':        'gemini-2.5-pro',
 }
 
+/**
+ * True for a rejected request parameter, as opposed to a rejected key.
+ *
+ * Google returns INVALID_ARGUMENT for both, and the key case has a recognisable
+ * message; everything else is a config the model would not accept.
+ */
+function isInvalidArgument(err: unknown): boolean {
+  const raw = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  if (/api[_ ]?key/.test(raw)) return false
+  return raw.includes('invalid_argument') || raw.includes('invalid argument')
+}
+
 /** True when the API refused because the model is gone, not because of the request. */
 function isModelUnavailable(err: unknown): boolean {
   const raw = (err instanceof Error ? err.message : String(err)).toLowerCase()
@@ -163,6 +175,19 @@ export function describeGeminiError(err: unknown): string {
       if (inner?.message) {
         if (inner.status === 'INVALID_ARGUMENT' && /api key/i.test(inner.message))
           return 'The Gemini API key was rejected. Check it in Settings.'
+
+        if (inner.status === 'INVALID_ARGUMENT') {
+          // "Request contains an invalid argument" on its own names nothing.
+          // Google puts the offending field in BadRequest.fieldViolations, so
+          // pull it out — otherwise this error is impossible to act on.
+          const rawArg = JSON.stringify(body)
+          const field  = rawArg.match(/"field"\s*:\s*"([^"]+)"/)?.[1]
+          const why    = rawArg.match(/"description"\s*:\s*"([^"]+)"/)?.[1]
+          const detail = field || why
+            ? ` Google objected to${field ? ` "${field}"` : ''}${why ? `: ${why}` : ''}`
+            : ''
+          return `Gemini rejected the request as malformed.${detail} (${inner.message})`
+        }
         if (inner.code === 429 || inner.status === 'RESOURCE_EXHAUSTED') {
           // Per-day and per-minute call for opposite responses — one means wait
           // a minute, the other means wait for the reset — and reporting the
@@ -266,16 +291,35 @@ export async function callGeminiRaw(opts: CallGeminiRawOptions): Promise<string>
     ? [{ role: 'user' as const, parts: opts.userParts }]
     : [{ role: 'user' as const, parts: [{ text: opts.user ?? '' }] }]
 
-  const response = await generateWithFallback(ai, {
-    model:    opts.model ?? DEFAULT_MODEL,
-    contents,
-    config: {
-      systemInstruction: opts.system,
-      maxOutputTokens:   opts.maxTokens ?? 8192,
-      thinkingConfig:    { thinkingBudget: opts.thinkingBudget ?? NO_THINKING },
-      ...(opts.json === false ? {} : { responseMimeType: 'application/json' }),
-    },
-  })
+  const model = opts.model ?? DEFAULT_MODEL
+
+  const baseConfig = {
+    systemInstruction: opts.system,
+    maxOutputTokens:   opts.maxTokens ?? 8192,
+    ...(opts.json === false ? {} : { responseMimeType: 'application/json' }),
+  }
+
+  let response
+  try {
+    response = await generateWithFallback(ai, {
+      model,
+      contents,
+      config: {
+        ...baseConfig,
+        thinkingConfig: { thinkingBudget: opts.thinkingBudget ?? NO_THINKING },
+      },
+    })
+  } catch (err) {
+    // Which models accept thinkingBudget — and which accept 0 to disable it —
+    // varies by model and changes as models are replaced. A rejected budget
+    // comes back as a bare "Request contains an invalid argument", which says
+    // nothing about which argument, and took down the structuring pass the
+    // moment it moved to a lighter model. The budget is an optimisation, not a
+    // requirement, so drop it and let the model choose rather than fail.
+    if (!isInvalidArgument(err)) throw err
+    console.warn(`[gemini] ${model} rejected thinkingConfig; retrying without it`)
+    response = await generateWithFallback(ai, { model, contents, config: baseConfig })
+  }
 
   const text   = response.text ?? ''
   const finish = response.candidates?.[0]?.finishReason
