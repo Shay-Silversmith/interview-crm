@@ -26,8 +26,14 @@ export interface ComputeFitInput {
   companyName?:   string
 }
 
+export interface ComputeFitResult {
+  fit: FitBreakdown
+  /** The Role Analysis behind the score, for callers that can store it. */
+  analysis: Record<string, unknown>
+}
+
 export interface UseComputeFitResult {
-  run:     (input: ComputeFitInput) => Promise<FitBreakdown | null>
+  run:     (input: ComputeFitInput) => Promise<ComputeFitResult | null>
   scoring: boolean
 }
 
@@ -37,7 +43,7 @@ export function useComputeFit(cvId?: string): UseComputeFitResult {
   const { candidate } = useCandidate(cvId)
   const [scoring, setScoring] = useState(false)
 
-  const run = async (input: ComputeFitInput): Promise<FitBreakdown | null> => {
+  const run = async (input: ComputeFitInput): Promise<ComputeFitResult | null> => {
     const jd  = (input.jobDescription ?? '').trim()
     const url = (input.jobUrl ?? '').trim()
 
@@ -78,7 +84,7 @@ export function useComputeFit(cvId?: string): UseComputeFitResult {
     }
 
     toast.success(t('forms.fields.fitDone'))
-    return computed
+    return { fit: computed, analysis: res.data as unknown as Record<string, unknown> }
   }
 
   return { run, scoring }

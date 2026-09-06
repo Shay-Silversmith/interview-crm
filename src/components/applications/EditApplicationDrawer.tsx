@@ -94,6 +94,7 @@ export function EditApplicationDrawer({
       submittedCvId: app.submittedCvId  ?? '',
       jobDescription: app.jobDescription ?? '',
       appliedAt:     app.appliedAt ? app.appliedAt.slice(0, 10) : '',
+      deadlineAt:    app.deadlineAt ? app.deadlineAt.slice(0, 10) : '',
       notes:         app.notes          ?? '',
     },
   })
@@ -102,7 +103,7 @@ export function EditApplicationDrawer({
   const [freshFit, setFreshFit] = useState<FitBreakdown | null>(null)
   const fit = freshFit ?? savedFit
 
-  const { run: runFit, scoring } = useComputeFit(app.submittedCvId)
+  const { run: runFit, scoring } = useComputeFit(watch('submittedCvId') || app.submittedCvId)
 
   async function handleComputeFit() {
     const computed = await runFit({
@@ -112,7 +113,7 @@ export function EditApplicationDrawer({
       roleName:       app.roleName,
       companyName:    app.companyName,
     })
-    if (computed) setFreshFit(computed)
+    if (computed) setFreshFit(computed.fit)
   }
 
   /**
@@ -165,7 +166,8 @@ export function EditApplicationDrawer({
         submittedCvId:   values.submittedCvId  || undefined,
         submittedCvName: cv?.name              || undefined,
         jobDescription:  values.jobDescription || undefined,
-        appliedAt:       values.appliedAt      || undefined,
+        appliedAt:       values.appliedAt      ? new Date(values.appliedAt).toISOString()  : undefined,
+        deadlineAt:      values.deadlineAt     ? new Date(values.deadlineAt).toISOString() : undefined,
         notes:           values.notes          || undefined,
       },
     })
@@ -197,13 +199,21 @@ export function EditApplicationDrawer({
             error={errors.roleUrl?.message}
             {...register('roleUrl')}
           />
-          <TextField
-            label={t('forms.fields.appliedDate')}
-            type="date"
-            hint={t('forms.fields.appliedDateHint')}
-            error={errors.appliedAt?.message}
-            {...register('appliedAt')}
-          />
+          <FormRow cols={2}>
+            <TextField
+              label={t('forms.fields.appliedDate')}
+              type="date"
+              hint={t('forms.fields.appliedDateHint')}
+              error={errors.appliedAt?.message}
+              {...register('appliedAt')}
+            />
+            <TextField
+              label={t('forms.fields.deadline')}
+              type="date"
+              error={errors.deadlineAt?.message}
+              {...register('deadlineAt')}
+            />
+          </FormRow>
         </FormSection>
 
         <FormSection title={t('forms.sections.details')}>
@@ -304,7 +314,8 @@ export function EditApplicationDrawer({
         {cvVersions.length > 0 && (
           <FormSection title={t('forms.fields.versionName')}>
             <SelectField
-              label="Submitted CV"
+              label={t('forms.fields.submittedCv')}
+              hint={t('forms.fields.submittedCvHint')}
               options={CV_OPTS}
               error={errors.submittedCvId?.message}
               {...register('submittedCvId')}

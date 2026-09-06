@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, AlertTriangle, Sparkles } from 'lucide-react'
-import type { JobApplication, Company } from '@/types'
+import type { JobApplication, Company, CVVersion } from '@/types'
 import { makeApplicationSchema, emptyToUndef, type ApplicationFormValues } from '@/lib/schemas/applicationSchema'
 import { TextField, SelectField, TextareaField } from './Field'
 import { FormRow, FormSection, SubmitBar } from './FormLayout'
@@ -18,13 +18,16 @@ import { useComputeFit } from '@/hooks/useComputeFit'
 interface ApplicationFormProps {
   initial?: Partial<JobApplication>
   companies?: Company[]
-  onSubmit: (values: ApplicationFormValues) => Promise<void> | void
+  /** CVs to choose from. Which one you sent decides what the fit is measured against. */
+  cvVersions?: CVVersion[]
+  /** `extra` carries what the form produced but has no field for. */
+  onSubmit: (values: ApplicationFormValues, extra?: { aiRoleSummary?: Record<string, unknown> }) => Promise<void> | void
   onCancel?: () => void
   loading?: boolean
   submitLabel?: string
 }
 
-export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, loading, submitLabel }: ApplicationFormProps) {
+export function ApplicationForm({ initial, companies = [], cvVersions = [], onSubmit, onCancel, loading, submitLabel }: ApplicationFormProps) {
   const { t, locale } = useI18n()
 
   const schema = useMemo(() => makeApplicationSchema(t), [t])
@@ -73,6 +76,11 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
     { value: 'GBP', label: '£ GBP' },
   ]
 
+  const CV_OPTS = [
+    { value: '', label: t('forms.fields.submittedCvNone') },
+    ...cvVersions.map(cv => ({ value: cv.id, label: cv.name + ' (v' + cv.version + ')' })),
+  ]
+
   const toast = useToastActions()
   const { create: createCompany, update: updateCompany } = useCompanyMutations()
   const [enriching, setEnriching] = useState(false)
@@ -89,24 +97,9 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
   // summary of a table the user can read — not a number someone guessed.
   const savedFit = fitFromRoleSummary(initial?.aiRoleSummary)
   const [freshFit, setFreshFit] = useState<FitBreakdown | null>(null)
+  const [roleAnalysis, setRoleAnalysis] = useState<Record<string, unknown> | null>(null)
   const fit = freshFit ?? savedFit
 
-  const { run: runFit, scoring } = useComputeFit(initial?.submittedCvId)
-
-  /** The score is the reason this field is being looked at, so it is produced
-   *  from here rather than from a different page. */
-  async function handleComputeFit() {
-    const computed = await runFit({
-      applicationId:  initial?.id,
-      jobDescription: watch('jobDescription'),
-      jobUrl:         watch('roleUrl'),
-      roleName:       watch('roleName'),
-      companyName:    watch('companyName'),
-    })
-    if (!computed) return
-    setFreshFit(computed)
-    setValue('fitScore', computed.score, { shouldDirty: true })
-  }
   const [quickCompanyName, setQuickCompanyName] = useState('')
   const [jdSummarizeOpen, setJdSummarizeOpen] = useState(false)
 
@@ -130,12 +123,35 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
       urgencyScore:    initial?.urgencyScore,
       appliedAt:       initial?.appliedAt    ? initial.appliedAt.slice(0, 10) : '',
       deadlineAt:      initial?.deadlineAt   ? initial.deadlineAt.slice(0, 10) : '',
+      submittedCvId:   initial?.submittedCvId ?? '',
       jobDescription:  initial?.jobDescription  ?? '',
       notes:           initial?.notes           ?? '',
       whyInteresting:  initial?.whyInteresting  ?? '',
       whatToEmphasize: initial?.whatToEmphasize ?? '',
     },
   })
+
+  const { run: runFit, scoring } = useComputeFit(watch('submittedCvId') || initial?.submittedCvId)
+
+  /** The score is the reason this field is being looked at, so it is produced
+   *  from here rather than from a different page. */
+  async function handleComputeFit() {
+    const computed = await runFit({
+      applicationId:  initial?.id,
+      jobDescription: watch('jobDescription'),
+      jobUrl:         watch('roleUrl'),
+      roleName:       watch('roleName'),
+      companyName:    watch('companyName'),
+    })
+    if (!computed) return
+    setFreshFit(computed.fit)
+    setValue('fitScore', computed.fit.score, { shouldDirty: true })
+    // On a new application there is no row to attach the analysis to yet, so
+    // it is held here and submitted with the form. Without this the breakdown
+    // behind the score would be gone the moment the application was created,
+    // and re-earning it costs another API call.
+    setRoleAnalysis(computed.analysis)
+  }
 
   const companyOpts = [
     { value: '', label: t('forms.options.selectCompany') },
@@ -270,7 +286,14 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit, handleValidationError)} className="space-y-6" noValidate>
+    <form
+      onSubmit={handleSubmit(
+        values => onSubmit(values, roleAnalysis ? { aiRoleSummary: roleAnalysis } : undefined),
+        handleValidationError,
+      )}
+      className="space-y-6"
+      noValidate
+    >
       <FormSection title={t('forms.sections.role')}>
         {companies.length === 0 && (
           <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-warning-50 border border-warning-200 text-xs text-warning-800">
@@ -360,6 +383,17 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
           <TextField label={t('forms.fields.appliedDate')} type="date" error={errors.appliedAt?.message}  {...register('appliedAt')} />
           <TextField label={t('forms.fields.deadline')}    type="date" error={errors.deadlineAt?.message} {...register('deadlineAt')} />
         </FormRow>
+        {cvVersions.length > 0 && (
+          <FormRow>
+            <SelectField
+              label={t('forms.fields.submittedCv')}
+              hint={t('forms.fields.submittedCvHint')}
+              options={CV_OPTS}
+              error={errors.submittedCvId?.message}
+              {...register('submittedCvId')}
+            />
+          </FormRow>
+        )}
         <FormRow>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">

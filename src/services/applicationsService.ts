@@ -109,6 +109,9 @@ const supabaseImpl = {
       notes: data.notes,
       applied_at: data.appliedAt,
       deadline_at: data.deadlineAt,
+      submitted_cv_id: data.submittedCvId || null,
+      submitted_cv_name: data.submittedCvName || null,
+      ai_role_summary: data.aiRoleSummary ?? null,
     }
     const { data: inserted, error } = await sb.from('job_applications').insert(row).select().single()
     if (error) throw new Error(error.message)

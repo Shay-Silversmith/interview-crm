@@ -9,6 +9,7 @@ import { ApplicationForm } from '@/components/forms/ApplicationForm'
 import { useMockStore } from '@/hooks/useMockStore'
 import { useApplicationMutations } from '@/hooks/useApplicationMutations'
 import { companiesService } from '@/services/companiesService'
+import { documentsService } from '@/services/documentsService'
 import type { ApplicationFormValues } from '@/lib/schemas/applicationSchema'
 import { QK } from '@/lib/query-keys'
 import { Link } from 'react-router-dom'
@@ -20,14 +21,28 @@ export function NewApplicationPage() {
     [],
     { key: QK.companies.all() }
   )
+  const { data: cvVersions } = useMockStore(
+    () => documentsService.listCVVersions(),
+    [],
+    { key: QK.cvVersions.all() }
+  )
   const { create } = useApplicationMutations()
 
-  const handleSubmit = async (values: ApplicationFormValues) => {
+  const handleSubmit = async (
+    values: ApplicationFormValues,
+    extra?: { aiRoleSummary?: Record<string, unknown> },
+  ) => {
     // Resolve company name from selected id
     const company = companies?.find(c => c.id === values.companyId)
+    const cv      = cvVersions?.find(c => c.id === values.submittedCvId)
     await create.mutateAsync({
       ...values,
-      companyName: company?.name ?? values.companyName,
+      companyName:     company?.name ?? values.companyName,
+      submittedCvId:   values.submittedCvId || undefined,
+      submittedCvName: cv?.name             || undefined,
+      // The fit computed while filling the form was scored from this analysis;
+      // saving both keeps the number explainable on the application itself.
+      aiRoleSummary:   extra?.aiRoleSummary,
       workModel:   values.workModel || undefined,
       roleUrl:     values.roleUrl   || undefined,
       appliedAt:   values.appliedAt  ? new Date(values.appliedAt).toISOString()  : undefined,
@@ -55,6 +70,7 @@ export function NewApplicationPage() {
         <div className="bg-surface rounded-2xl border border-slate-200/80 shadow-card p-6">
           <ApplicationForm
             companies={companies ?? []}
+            cvVersions={cvVersions ?? []}
             onSubmit={handleSubmit}
             onCancel={() => navigate('/applications')}
             loading={create.isPending}
