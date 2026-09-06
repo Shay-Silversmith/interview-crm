@@ -510,6 +510,12 @@ const he: Translations = {
       interviewer:      'מראיין/ת',
     },
     fields: {
+      fitCompute:        'חשב התאמה מתיאור המשרה',
+      fitRecompute:      'חשב מחדש',
+      fitWorking:        'מנתח…',
+      fitNeedsJd:        'הוסיפו קודם את תיאור המשרה או קישור אליה.',
+      fitNoRequirements: 'הניתוח לא מצא דרישות לדרג מולן.',
+      fitDone:           'ההתאמה חושבה מניתוח התפקיד',
       fit:              'התאמה (0–100)',
       fitComputed:      'מחושב מניתוח התפקיד — לא מוקלד ידנית.',
       fitNeedsAnalysis: 'הריצו ניתוח תפקיד על תיאור המשרה כדי לחשב התאמה.',

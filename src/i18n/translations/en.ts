@@ -511,6 +511,12 @@ const en = {
       interviewer:      'Interviewer',
     },
     fields: {
+      fitCompute:        'Compute fit from this job description',
+      fitRecompute:      'Recompute',
+      fitWorking:        'Analysing…',
+      fitNeedsJd:        'Add the job description or its link first.',
+      fitNoRequirements: 'The analysis found no requirements to score against.',
+      fitDone:           'Fit computed from the role analysis',
       fit:              'Fit (0–100)',
       fitComputed:      'Computed from the Role Analysis — not typed by hand.',
       fitNeedsAnalysis: 'Run Role Analysis on this job description to compute the fit.',

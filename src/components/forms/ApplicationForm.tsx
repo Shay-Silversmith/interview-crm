@@ -12,7 +12,9 @@ import { useCompanyMutations } from '@/hooks/useCompanyMutations'
 import { aiService } from '@/services/aiService'
 import { companiesService } from '@/services/companiesService'
 import { JDSummarizeDialog } from '@/components/applications/JDSummarizeDialog'
-import { fitFromRoleSummary } from '@/lib/fitScore'
+import { fitFromRoleSummary, computeFit, type FitBreakdown } from '@/lib/fitScore'
+import { useCandidate } from '@/hooks/useCandidate'
+import { applicationsService } from '@/services/applicationsService'
 
 interface ApplicationFormProps {
   initial?: Partial<JobApplication>
@@ -86,7 +88,56 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
   // Fit is read off the saved Role Analysis rather than typed. The analysis
   // already rates the candidate requirement by requirement, so the score is a
   // summary of a table the user can read — not a number someone guessed.
-  const fit = fitFromRoleSummary(initial?.aiRoleSummary)
+  const savedFit = fitFromRoleSummary(initial?.aiRoleSummary)
+  const [freshFit, setFreshFit] = useState<FitBreakdown | null>(null)
+  const [scoring,  setScoring]  = useState(false)
+  const fit = freshFit ?? savedFit
+
+  const { candidate } = useCandidate(initial?.submittedCvId)
+
+  /**
+   * Run the role analysis from here rather than sending people to the AI page
+   * to do it and come back. The score is the reason they are looking at this
+   * field, and it was four steps away from it.
+   *
+   * On a saved application the analysis is written to the record too, so the
+   * breakdown survives; on a new one the score is filled in and the analysis is
+   * kept only for this session, since there is no row to attach it to yet.
+   */
+  async function handleComputeFit() {
+    const jd  = (watch('jobDescription') ?? '').trim()
+    const url = (watch('roleUrl') ?? '').trim()
+    if (jd.length < 20 && !url) { toast.error(t('forms.fields.fitNeedsJd')); return }
+
+    setScoring(true)
+    const res = await aiService.parseJD({
+      jdText:      jd.length > 20 ? jd : undefined,
+      jdUrl:       !jd || jd.length <= 20 ? url || undefined : undefined,
+      roleTitle:   (watch('roleName') ?? '').trim() || undefined,
+      companyName: (watch('companyName') ?? '').trim() || undefined,
+      candidate,
+      locale:      locale as 'en' | 'he',
+    })
+    setScoring(false)
+
+    if (!res.ok) { toast.error(res.message); return }
+
+    const computed = computeFit(res.data.fitAnalysis)
+    if (!computed) { toast.error(t('forms.fields.fitNoRequirements')); return }
+
+    setFreshFit(computed)
+    setValue('fitScore', computed.score, { shouldDirty: true })
+
+    if (initial?.id) {
+      try {
+        await applicationsService.update(initial.id, {
+          aiRoleSummary: res.data as unknown as Record<string, unknown>,
+          fitScore:      computed.score,
+        })
+      } catch { /* the score is already on screen; saving it is a bonus */ }
+    }
+    toast.success(t('forms.fields.fitDone'))
+  }
   const [quickCompanyName, setQuickCompanyName] = useState('')
   const [jdSummarizeOpen, setJdSummarizeOpen] = useState(false)
 
@@ -353,13 +404,32 @@ export function ApplicationForm({ initial, companies = [], onSubmit, onCancel, l
                     {fit.strong} {t('forms.fields.fitStrong')} · {fit.partial} {t('forms.fields.fitPartial')} · {fit.gap} {t('forms.fields.fitGap')}
                   </span>
                 </div>
-                <p className="text-2xs text-slate-400 mt-1">{t('forms.fields.fitComputed')}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-2xs text-slate-400">{t('forms.fields.fitComputed')}</p>
+                  <button
+                    type="button"
+                    onClick={handleComputeFit}
+                    disabled={scoring}
+                    className="text-2xs font-medium text-primary-600 hover:underline disabled:opacity-50"
+                  >
+                    {scoring ? t('forms.fields.fitWorking') : t('forms.fields.fitRecompute')}
+                  </button>
+                </div>
               </>
             ) : (
               <>
                 <div className="h-9 px-3 flex items-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60">
                   <span className="text-xs text-slate-400">—</span>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleComputeFit}
+                  disabled={scoring}
+                  className="mt-1 inline-flex items-center gap-1.5 text-2xs font-medium text-primary-600 hover:underline disabled:opacity-50"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  {scoring ? t('forms.fields.fitWorking') : t('forms.fields.fitCompute')}
+                </button>
                 <p className="text-2xs text-slate-400 mt-1">{t('forms.fields.fitNeedsAnalysis')}</p>
               </>
             )}
