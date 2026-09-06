@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { useI18n } from '@/hooks/useI18n'
 import { useToastActions } from '@/hooks/useToast'
 import { aiService } from '@/services/aiService'
+import { postingFields, type PostingFields } from '@/lib/postingFill'
 
 interface JobDescriptionEditorProps {
   value:        string
@@ -23,8 +24,12 @@ interface JobDescriptionEditorProps {
   url:          string
   onUrlChange?: (url: string) => void
   rows?:        number
-  /** Extra fields the posting stated, for callers that can store them. */
-  onFilled?:    (data: { roleName?: string; location?: string }) => void
+  /**
+   * Everything else the posting stated — location, salary, work model.
+   * Reading a link after the application exists should fill as much as it does
+   * on the create form; the caller decides what it is allowed to overwrite.
+   */
+  onFilled?:    (fields: PostingFields) => void
 }
 
 export function JobDescriptionEditor({
@@ -61,8 +66,13 @@ export function JobDescriptionEditor({
       return
     }
 
-    onChange(d.jobDescription)
-    onFilled?.({ roleName: d.roleName ?? undefined, location: d.location ?? undefined })
+    const { jobDescription, ...rest } = postingFields(d)
+    onChange(jobDescription ?? d.jobDescription)
+    onFilled?.(rest)
+
+    // The posting is allowed to be silent; saying which parts it never stated
+    // is more useful than an empty field the user has to notice.
+    if (d.notFound?.length) toast.info(`${t('forms.autofill.notFound')} ${d.notFound.join(', ')}`)
     toast.success(t('forms.autofill.filled'))
   }
 

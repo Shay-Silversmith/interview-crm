@@ -37,6 +37,8 @@ import { isClosedStage } from '@/lib/enums'
 import { useComputeFit } from '@/hooks/useComputeFit'
 import { TextareaField } from '@/components/forms/Field'
 import { JobDescriptionEditor } from '@/components/applications/JobDescriptionEditor'
+import type { PostingFields } from '@/lib/postingFill'
+import { FitBreakdownCard } from '@/components/applications/FitBreakdownCard'
 import { useToastActions } from '@/hooks/useToast'
 import { documentsService } from '@/services/documentsService'
 import { aiService } from '@/services/aiService'
@@ -148,7 +150,7 @@ export function ApplicationDetailPage() {
   // that belongs on this screen is a detour.
   const handleComputeFit = async () => {
     if (!app) return
-    await runFit({
+    const computed = await runFit({
       applicationId:  app.id,
       jobDescription: app.jobDescription,
       jobUrl:         app.roleUrl,
@@ -156,6 +158,7 @@ export function ApplicationDetailPage() {
       companyName:    app.companyName,
     })
     refetchApp()
+    if (computed) setActiveTab('jd')
   }
 
 
@@ -451,9 +454,18 @@ export function ApplicationDetailPage() {
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <div className="flex flex-col items-center gap-1">
-              {app.fitScore !== undefined
-                ? <ScoreRing score={app.fitScore} label="Fit" size="lg" />
-                : <div className="w-[72px] h-[72px] rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-300">Fit</div>}
+              {app.fitScore !== undefined ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('jd')}
+                  title={t('pages.applicationDetail.fitBreakdown.title')}
+                  className="rounded-full hover:opacity-80 transition-opacity"
+                >
+                  <ScoreRing score={app.fitScore} label="Fit" size="lg" />
+                </button>
+              ) : (
+                <div className="w-[72px] h-[72px] rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-300">Fit</div>
+              )}
               <button
                 type="button"
                 onClick={handleComputeFit}
@@ -775,18 +787,33 @@ function JDTab({ app, t, onSaved }: { app: JobApplication; t: (key: string) => s
   const [editing, setEditing] = useState(false)
   const [draft,   setDraft]   = useState(app.jobDescription ?? '')
   const [url,     setUrl]     = useState(app.roleUrl ?? '')
+  // What the posting stated beyond the text, held until the user saves.
+  const [posting, setPosting] = useState<PostingFields>({})
 
   const startEditing = () => {
     setDraft(app.jobDescription ?? '')
     setUrl(app.roleUrl ?? '')
+    setPosting({})
     setEditing(true)
   }
 
   const saveJd = async () => {
     try {
+      // Reading the link here fills the record the way it does on the create
+      // form — but only where the field is still empty, so nothing you typed
+      // is overwritten by the posting.
+      const record = app as unknown as Record<string, unknown>
+      const fromPosting = Object.fromEntries(
+        Object.entries(posting).filter(([k, v]) => {
+          const current = record[k]
+          return v !== undefined && (current === undefined || current === null || current === '')
+        }),
+      )
+
       await update.mutateAsync({
         id: app.id,
         data: {
+          ...fromPosting,
           jobDescription: draft.trim() || undefined,
           // The link is half of how the description gets here, so a corrected
           // one is worth keeping too.
@@ -821,6 +848,7 @@ function JDTab({ app, t, onSaved }: { app: JobApplication; t: (key: string) => s
                 onChange={setDraft}
                 url={url}
                 onUrlChange={setUrl}
+                onFilled={setPosting}
                 rows={12}
               />
               <div className="flex items-center gap-2">
@@ -841,7 +869,10 @@ function JDTab({ app, t, onSaved }: { app: JobApplication; t: (key: string) => s
           )}
         </Card>
       </div>
-      <div>
+      <div className="space-y-4">
+        {/* The score is a claim; this is the evidence for it. */}
+        <FitBreakdownCard roleSummary={app.aiRoleSummary} />
+
         {aiSummary ? (
           <Card className="border-violet-200 bg-violet-50/30">
             <div className="flex items-center gap-2 mb-3">

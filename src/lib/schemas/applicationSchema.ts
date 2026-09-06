@@ -51,6 +51,7 @@ export const makeApplicationEditSchema = (t: TFn) => z.object({
   urgencyScore:  z.number().min(0).max(100).optional(),
   submittedCvId: z.string().optional(),
   jobDescription: z.string().optional(),
+  appliedAt:      z.string().optional(),
   notes:         z.string().max(3000).optional(),
 })
 

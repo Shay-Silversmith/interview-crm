@@ -22,6 +22,7 @@ import { useComputeFit } from '@/hooks/useComputeFit'
 import { fitFromRoleSummary, type FitBreakdown } from '@/lib/fitScore'
 import { useApplicationMutations } from '@/hooks/useApplicationMutations'
 import { JobDescriptionEditor } from '@/components/applications/JobDescriptionEditor'
+import type { PostingFields } from '@/lib/postingFill'
 
 interface EditApplicationDrawerProps {
   open: boolean
@@ -92,6 +93,7 @@ export function EditApplicationDrawer({
       urgencyScore:  app.urgencyScore,
       submittedCvId: app.submittedCvId  ?? '',
       jobDescription: app.jobDescription ?? '',
+      appliedAt:     app.appliedAt ? app.appliedAt.slice(0, 10) : '',
       notes:         app.notes          ?? '',
     },
   })
@@ -111,6 +113,26 @@ export function EditApplicationDrawer({
       companyName:    app.companyName,
     })
     if (computed) setFreshFit(computed)
+  }
+
+  /**
+   * Only empty fields are written. Re-reading the posting after you corrected
+   * something must not undo the correction — the posting is a starting point,
+   * what you typed is a decision.
+   */
+  function applyPosting(fields: PostingFields) {
+    // whyInteresting lives on the create form only, so it is not in this set.
+    const editable = new Set<keyof ApplicationEditFormValues>([
+      'roleName', 'location', 'workModel', 'jobScope',
+      'salaryMin', 'salaryMax', 'salaryType', 'currency',
+    ])
+    for (const [key, value] of Object.entries(fields)) {
+      const field = key as keyof ApplicationEditFormValues
+      if (!editable.has(field)) continue
+      const current = watch(field)
+      if (current !== undefined && current !== null && current !== '') continue
+      setValue(field, value as never, { shouldDirty: true, shouldValidate: true })
+    }
   }
 
   // Re-sync defaults if the app record changes while the drawer is open
@@ -143,6 +165,7 @@ export function EditApplicationDrawer({
         submittedCvId:   values.submittedCvId  || undefined,
         submittedCvName: cv?.name              || undefined,
         jobDescription:  values.jobDescription || undefined,
+        appliedAt:       values.appliedAt      || undefined,
         notes:           values.notes          || undefined,
       },
     })
@@ -173,6 +196,13 @@ export function EditApplicationDrawer({
             placeholder="https://amazon.jobs/…"
             error={errors.roleUrl?.message}
             {...register('roleUrl')}
+          />
+          <TextField
+            label={t('forms.fields.appliedDate')}
+            type="date"
+            hint={t('forms.fields.appliedDateHint')}
+            error={errors.appliedAt?.message}
+            {...register('appliedAt')}
           />
         </FormSection>
 
@@ -287,6 +317,7 @@ export function EditApplicationDrawer({
             value={watch('jobDescription') ?? ''}
             onChange={v => setValue('jobDescription', v, { shouldDirty: true })}
             url={watch('roleUrl') ?? ''}
+            onFilled={applyPosting}
             rows={8}
           />
         </FormSection>

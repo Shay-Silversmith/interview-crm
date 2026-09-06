@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { impliesSubmitted } from '@/lib/enums'
 import type { JobApplication } from '@/types'
 import { applicationsService } from '@/services/applicationsService'
 import { useToastActions } from './useToast'
@@ -42,8 +43,23 @@ export function useApplicationMutations() {
 
   // ── Stage inline chip ─ optimistic on list + detail ────────────────────────
   const updateStage = useMutation({
-    mutationFn: ({ id, stage }: { id: string; stage: JobApplication['stage'] }) =>
-      applicationsService.update(id, { stage }),
+    /**
+     * Moving to a stage you cannot reach without having applied fills in the
+     * applied date, once. The column existed but nothing ever wrote to it, so
+     * it read "—" on every row and meant nothing. An existing date is never
+     * touched — a corrected date is a decision.
+     */
+    mutationFn: ({ id, stage }: { id: string; stage: JobApplication['stage'] }) => {
+      const current =
+        qc.getQueryData<JobApplication>(QK.applications.detail(id)) ??
+        qc.getQueryData<JobApplication[]>(QK.applications.all())?.find(a => a.id === id)
+
+      const stampApplied = impliesSubmitted(stage) && !current?.appliedAt
+      return applicationsService.update(
+        id,
+        stampApplied ? { stage, appliedAt: new Date().toISOString() } : { stage },
+      )
+    },
     onMutate: async ({ id, stage }) => {
       await qc.cancelQueries({ queryKey: QK.applications.all() })
       await qc.cancelQueries({ queryKey: QK.applications.detail(id) })

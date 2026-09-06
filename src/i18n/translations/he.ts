@@ -166,6 +166,18 @@ const he: Translations = {
       keyContacts:     'אנשי קשר מרכזיים',
       // JD tab
       fullJobDescription: 'תיאור התפקיד המלא',
+      fitBreakdown: {
+        title:        'למה יצא הציון הזה',
+        formula:      'דורגו {{total}} דרישות: {{strong}} שאתה עומד בהן, {{partial}} חלקית, {{gap}} שלא. דרישה שאתה עומד בה שווה נקודה מלאה, חלקית חצי, פער אפס.',
+        raiseTitle:   'מה יעלה את האחוזים',
+        raiseGaps:    'סגירת כל {{count}} הפערים: {{points}}+ נקודות.',
+        raisePartial: 'הפיכת {{count}} החלקיות להתאמה מלאה: {{points}}+ נקודות.',
+        level: {
+          strong:  'עומד',
+          partial: 'חלקי',
+          gap:     'פער',
+        },
+      },
       noJdSaved:          'לא נשמר תיאור תפקיד',
       noJdSavedSub:       'הדבק את תיאור התפקיד כדי להפעיל ניתוח AI.',
       aiAnalysis:         'ניתוח AI',
@@ -542,6 +554,7 @@ const he: Translations = {
       maxSalary:           'שכר מקסימום',
       currency:            'מטבע',
       appliedDate:         'תאריך הגשה',
+      appliedDateHint:     'היום שבו שלחת את המועמדות. מתמלא לבד כשמעבירים את השלב מ״מעוניין״ הלאה.',
       deadline:            'דדליין',
       whyInteresting:      'למה זה מעניין אותי',
       whatToEmphasize:     'על מה להדגיש',

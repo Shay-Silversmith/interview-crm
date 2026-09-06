@@ -29,13 +29,14 @@ import { Briefcase } from 'lucide-react'
 
 type SortKey = 'urgency' | 'fit' | 'applied' | 'company'
 
-function SortHeader({ label, sortKey, currentSort, sortDir, onSort }: {
-  label: string; sortKey: SortKey; currentSort: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void
+function SortHeader({ label, title, sortKey, currentSort, sortDir, onSort }: {
+  label: string; title?: string; sortKey: SortKey; currentSort: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void
 }) {
   const active = currentSort === sortKey
   return (
     <button
       onClick={() => onSort(sortKey)}
+      title={title}
       className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 uppercase tracking-wider"
     >
       {label}
@@ -326,7 +327,7 @@ function ApplicationTable({ apps, sortKey, sortDir, onSort, onDelete, onArchive,
               <th className="text-start px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('pages.applications.colPriority')}</th>
               <th className="text-start px-4 py-3"><SortHeader label={t('pages.applications.colFit')} sortKey="fit" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
               <th className="text-start px-4 py-3"><SortHeader label={t('pages.applications.colUrgency')} sortKey="urgency" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
-              <th className="text-start px-4 py-3"><SortHeader label={t('pages.applications.colApplied')} sortKey="applied" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
+              <th className="text-start px-4 py-3"><SortHeader label={t('pages.applications.colApplied')} title={t('forms.fields.appliedDateHint')} sortKey="applied" currentSort={sortKey} sortDir={sortDir} onSort={onSort} /></th>
               <th className="text-start px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('pages.applications.colCv')}</th>
               <th className="px-4 py-3 w-8" />
             </tr>

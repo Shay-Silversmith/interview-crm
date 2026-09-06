@@ -12,6 +12,20 @@ export function isClosedStage(stage: string): boolean {
   return (CLOSED_STAGES as readonly string[]).includes(stage)
 }
 
+/**
+ * Stages you cannot be in without having sent the application. Used to stamp
+ * the applied date, so 'Interested' (not sent yet) and the closed stages
+ * (which can be reached without ever applying) are deliberately out.
+ */
+export const SUBMITTED_STAGES = [
+  'Applied', 'HR Screen', 'Home Assignment', 'Technical Interview',
+  'Manager Interview', 'Final Interview', 'Offer', 'Negotiating', 'Accepted',
+] as const
+
+export function impliesSubmitted(stage: string): boolean {
+  return (SUBMITTED_STAGES as readonly string[]).includes(stage)
+}
+
 export type ApplicationStage =
   | 'Interested'
   | 'Applied'

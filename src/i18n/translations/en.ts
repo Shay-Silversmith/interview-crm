@@ -165,6 +165,18 @@ const en = {
       keyContacts:     'Key Contacts',
       // JD tab
       fullJobDescription: 'Full Job Description',
+      fitBreakdown: {
+        title:        'Why this score',
+        formula:      '{{total}} requirements were rated: {{strong}} you meet, {{partial}} partly, {{gap}} you do not. A requirement you meet is worth a full point, a partial one half, a gap nothing.',
+        raiseTitle:   'What would raise it',
+        raiseGaps:    'Closing all {{count}} gaps: +{{points}} points.',
+        raisePartial: 'Turning the {{count}} partial ones into full matches: +{{points}} points.',
+        level: {
+          strong:  'met',
+          partial: 'partial',
+          gap:     'gap',
+        },
+      },
       noJdSaved:          'No JD saved',
       noJdSavedSub:       'Paste the job description to enable AI parsing.',
       aiAnalysis:         'AI Analysis',
@@ -543,6 +555,7 @@ const en = {
       maxSalary:           'Max Salary',
       currency:            'Currency',
       appliedDate:         'Applied Date',
+      appliedDateHint:     'The day you sent the application. Filled in on its own when you move the stage past Interested.',
       deadline:            'Deadline',
       whyInteresting:      'Why Interesting',
       whatToEmphasize:     'What to Emphasize',

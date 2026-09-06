@@ -128,6 +128,7 @@ const supabaseImpl = {
     if (data.location !== undefined) row.location = data.location
     if (data.salaryMin !== undefined) row.salary_min = data.salaryMin
     if (data.salaryMax !== undefined) row.salary_max = data.salaryMax
+    if (data.currency !== undefined) row.currency = data.currency
     if (data.notes !== undefined) row.notes = data.notes
     if (data.whyInteresting !== undefined) row.why_interesting = data.whyInteresting
     if (data.whatToEmphasize !== undefined) row.what_to_emphasize = data.whatToEmphasize
