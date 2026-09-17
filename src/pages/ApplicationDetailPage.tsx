@@ -173,7 +173,9 @@ export function ApplicationDetailPage() {
         id: stage.id,
         data: {
           completedAt: done ? undefined : new Date().toISOString(),
-          outcome:     done ? undefined : (stage.outcome ?? 'Passed'),
+          // A round still marked Pending is the one being finished, so finishing
+          // it records a pass; reopening puts it back to Pending.
+          outcome:     done ? 'Pending' : (stage.outcome && stage.outcome !== 'Pending' ? stage.outcome : 'Passed'),
         },
       })
       toast.success(done

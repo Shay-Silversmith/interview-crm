@@ -139,17 +139,25 @@ const supabaseImpl = {
   },
   async update(id: string, data: Partial<InterviewStage>): Promise<InterviewStage> {
     const sb = getSupabaseClient()
+    // A key that is present but undefined means "clear this field" — reopening
+    // a round sends completedAt: undefined. Skipping those keys sent an empty
+    // update, which changes nothing, returns no row, and made reopening fail.
     const row: Record<string, unknown> = {}
+    const set = (key: keyof InterviewStage, column: string) => {
+      if (key in data) row[column] = data[key] ?? null
+    }
     if (data.type !== undefined) row.type = data.type
-    if (data.outcome !== undefined) row.outcome = data.outcome
-    if (data.scheduledAt !== undefined) row.scheduled_at = data.scheduledAt
-    if (data.completedAt !== undefined) row.completed_at = data.completedAt
-    if (data.duration !== undefined) row.duration = data.duration
-    if (data.interviewer !== undefined) row.interviewer = data.interviewer
-    if (data.interviewerTitle !== undefined) row.interviewer_title = data.interviewerTitle
-    if (data.notes !== undefined) row.notes = data.notes
-    if (data.feedbackReceived !== undefined) row.feedback_received = data.feedbackReceived
-    if (data.nextSteps !== undefined) row.next_steps = data.nextSteps
+    set('outcome',          'outcome')
+    set('scheduledAt',      'scheduled_at')
+    set('completedAt',      'completed_at')
+    set('duration',         'duration')
+    set('interviewer',      'interviewer')
+    set('interviewerTitle', 'interviewer_title')
+    set('notes',            'notes')
+    set('feedbackReceived', 'feedback_received')
+    set('nextSteps',        'next_steps')
+    // outcome is read as always set; an emptied one goes back to the default.
+    if ('outcome' in row && row.outcome === null) row.outcome = 'Pending'
     // maybeSingle, not single: zero matched rows is the likely failure here, and
     // single() reports it as "Cannot coerce the result to a single JSON object",
     // which tells nobody what to do.

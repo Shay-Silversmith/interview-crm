@@ -239,11 +239,13 @@ async function runOne(action: AgentAction): Promise<string> {
     }
 
     case 'update_interview_stage': {
+      // Only what the agent named. A present-but-undefined key now clears the
+      // field, and an agent that did not mention the notes has not asked for that.
       const updated = await interviewStageService.update(action.stageId, {
-        outcome:     action.outcome,
-        completedAt: action.completedAt,
-        scheduledAt: action.scheduledAt,
-        notes:       action.notes,
+        ...(action.outcome     !== undefined && { outcome:     action.outcome }),
+        ...(action.completedAt !== undefined && { completedAt: action.completedAt }),
+        ...(action.scheduledAt !== undefined && { scheduledAt: action.scheduledAt }),
+        ...(action.notes       !== undefined && { notes:       action.notes }),
       })
       return `Updated round "${updated.type}"${action.outcome ? ` → ${action.outcome}` : ''}`
     }

@@ -100,9 +100,9 @@ export function InterviewDebriefPanel() {
       if (selectedStage) {
         await interviewStageService.update(selectedStage.id, {
           notes:       state.data.markdown,
-          nextSteps:   state.data.nextSteps.join('\n') || undefined,
+          ...(state.data.nextSteps.length > 0 && { nextSteps: state.data.nextSteps.join('\n') }),
           completedAt: selectedStage.completedAt ?? new Date(`${interviewedAt}T12:00:00`).toISOString(),
-          outcome:     selectedStage.outcome ?? 'Passed',
+          outcome:     selectedStage.outcome && selectedStage.outcome !== 'Pending' ? selectedStage.outcome : 'Passed',
         })
       }
 
