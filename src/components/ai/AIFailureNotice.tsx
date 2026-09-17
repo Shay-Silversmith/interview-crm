@@ -55,6 +55,12 @@ const EXPLANATIONS: Record<FailureReason, Explanation> = {
   },
 }
 
+const NO_CREDIT: Explanation = {
+  headline: 'The Google project behind your Gemini key has no prepaid credit left.',
+  fix:      'This does not reset on its own, and a new key in the same billing account has the same problem. Add credit in AI Studio (Billing), or use a key from a Google account with no billing set up.',
+  settings: true,
+}
+
 export function AIFailureNotice({
   reason,
   message,
@@ -67,7 +73,12 @@ export function AIFailureNotice({
   onRetry?: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const info = EXPLANATIONS[reason] ?? EXPLANATIONS.server
+  // Google reports empty prepaid credit as a 429 too, but waiting never clears
+  // it — telling someone the limit resets at midnight sends them to wait for
+  // nothing.
+  const info = /prepaid credit|prepayment credits/i.test(message ?? '')
+    ? NO_CREDIT
+    : EXPLANATIONS[reason] ?? EXPLANATIONS.server
 
   return (
     <div
