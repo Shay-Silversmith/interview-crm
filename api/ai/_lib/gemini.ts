@@ -188,6 +188,11 @@ export function describeGeminiError(err: unknown): string {
             : ''
           return `Gemini rejected the request as malformed.${detail} (${inner.message})`
         }
+        // A paid project out of prepaid credit also comes back as 429, but no
+        // amount of waiting fixes it — calling it a quota reads as "try later".
+        if (/prepayment credits are depleted/i.test(inner.message))
+          return 'The Google project behind this Gemini key has run out of prepaid credit, so every AI request is refused until it is topped up. Add credit at https://aistudio.google.com (Billing), or create a new key in a project without billing to go back to the free tier, then update it in Settings.'
+
         if (inner.code === 429 || inner.status === 'RESOURCE_EXHAUSTED') {
           // Per-day and per-minute call for opposite responses — one means wait
           // a minute, the other means wait for the reset — and reporting the

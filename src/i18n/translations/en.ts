@@ -557,6 +557,7 @@ const en = {
       submittedCv:         'CV you sent',
       submittedCvHint:     'The fit score is measured against this CV.',
       submittedCvNone:     'Not selected',
+      uploadNewCv:         'Upload a new CV',
       appliedDate:         'Applied Date',
       appliedDateHint:     'The day you sent the application. Filled in on its own when you move the stage past Interested.',
       deadline:            'Deadline',

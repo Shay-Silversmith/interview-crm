@@ -4,7 +4,7 @@ import { MOCK_DELAY_MS } from '@/lib/constants'
 import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
 import { mapApplication, mapInterviewStage } from '@/lib/mappers'
-import { requireUserId } from '@/lib/currentUser'
+import { requireUserId, noRowUpdatedError } from '@/lib/currentUser'
 
 const delay = () => new Promise<void>(r => setTimeout(r, MOCK_DELAY_MS + Math.random() * 100))
 
@@ -142,8 +142,9 @@ const supabaseImpl = {
     if (data.submittedCvId   !== undefined) row.submitted_cv_id = data.submittedCvId   || null
     if (data.submittedCvName !== undefined) row.submitted_cv_name        = data.submittedCvName || null
     if (data.aiRoleSummary !== undefined) row.ai_role_summary = data.aiRoleSummary
-    const { data: updated, error } = await sb.from('job_applications').update(row).eq('id', id).select().single()
+    const { data: updated, error } = await sb.from('job_applications').update(row).eq('id', id).select().maybeSingle()
     if (error) throw new Error(error.message)
+    if (!updated) throw await noRowUpdatedError()
     return mapApplication(updated)
   },
   async delete(id: string): Promise<void> {

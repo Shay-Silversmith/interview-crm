@@ -556,6 +556,7 @@ const he: Translations = {
       submittedCv:         'קורות החיים שהגשת',
       submittedCvHint:     'ציון ההתאמה נמדד מול קורות החיים האלה.',
       submittedCvNone:     'לא נבחר',
+      uploadNewCv:         'העלאת קורות חיים חדשים',
       appliedDate:         'תאריך הגשה',
       appliedDateHint:     'היום שבו שלחת את המועמדות. מתמלא לבד כשמעבירים את השלב מ״מעוניין״ הלאה.',
       deadline:            'דדליין',

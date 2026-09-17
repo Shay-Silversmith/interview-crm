@@ -30,7 +30,7 @@ export function NewApplicationPage() {
 
   const handleSubmit = async (
     values: ApplicationFormValues,
-    extra?: { aiRoleSummary?: Record<string, unknown> },
+    extra?: { aiRoleSummary?: Record<string, unknown>; submittedCvName?: string },
   ) => {
     // Resolve company name from selected id
     const company = companies?.find(c => c.id === values.companyId)
@@ -39,7 +39,7 @@ export function NewApplicationPage() {
       ...values,
       companyName:     company?.name ?? values.companyName,
       submittedCvId:   values.submittedCvId || undefined,
-      submittedCvName: cv?.name             || undefined,
+      submittedCvName: cv?.name ?? extra?.submittedCvName ?? undefined,
       // The fit computed while filling the form was scored from this analysis;
       // saving both keeps the number explainable on the application itself.
       aiRoleSummary:   extra?.aiRoleSummary,

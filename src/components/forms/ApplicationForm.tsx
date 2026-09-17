@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, AlertTriangle, Sparkles } from 'lucide-react'
+import { Plus, AlertTriangle, Sparkles, Upload } from 'lucide-react'
 import type { JobApplication, Company, CVVersion } from '@/types'
 import { makeApplicationSchema, emptyToUndef, type ApplicationFormValues } from '@/lib/schemas/applicationSchema'
 import { TextField, SelectField, TextareaField } from './Field'
@@ -12,6 +12,7 @@ import { useCompanyMutations } from '@/hooks/useCompanyMutations'
 import { aiService } from '@/services/aiService'
 import { companiesService } from '@/services/companiesService'
 import { JDSummarizeDialog } from '@/components/applications/JDSummarizeDialog'
+import { CVUploadDialog } from '@/components/documents/CVUploadDialog'
 import { fitFromRoleSummary, type FitBreakdown } from '@/lib/fitScore'
 import { useComputeFit } from '@/hooks/useComputeFit'
 
@@ -21,7 +22,7 @@ interface ApplicationFormProps {
   /** CVs to choose from. Which one you sent decides what the fit is measured against. */
   cvVersions?: CVVersion[]
   /** `extra` carries what the form produced but has no field for. */
-  onSubmit: (values: ApplicationFormValues, extra?: { aiRoleSummary?: Record<string, unknown> }) => Promise<void> | void
+  onSubmit: (values: ApplicationFormValues, extra?: { aiRoleSummary?: Record<string, unknown>; submittedCvName?: string }) => Promise<void> | void
   onCancel?: () => void
   loading?: boolean
   submitLabel?: string
@@ -76,9 +77,17 @@ export function ApplicationForm({ initial, companies = [], cvVersions = [], onSu
     { value: 'GBP', label: '£ GBP' },
   ]
 
+  // Same refetch race as companies below: a CV uploaded from this form is not
+  // in `cvVersions` yet, and without its <option> the select drops the choice.
+  const [justUploadedCv, setJustUploadedCv] = useState<CVVersion | null>(null)
+  const [cvUploadOpen, setCvUploadOpen] = useState(false)
+  const allCvs = justUploadedCv && !cvVersions.some(c => c.id === justUploadedCv.id)
+    ? [...cvVersions, justUploadedCv]
+    : cvVersions
+
   const CV_OPTS = [
     { value: '', label: t('forms.fields.submittedCvNone') },
-    ...cvVersions.map(cv => ({ value: cv.id, label: cv.name + ' (v' + cv.version + ')' })),
+    ...allCvs.map(cv => ({ value: cv.id, label: cv.name + ' (v' + cv.version + ')' })),
   ]
 
   const toast = useToastActions()
@@ -286,9 +295,13 @@ export function ApplicationForm({ initial, companies = [], cvVersions = [], onSu
   }
 
   return (
+    <>
     <form
       onSubmit={handleSubmit(
-        values => onSubmit(values, roleAnalysis ? { aiRoleSummary: roleAnalysis } : undefined),
+        values => onSubmit(values, {
+          aiRoleSummary:   roleAnalysis ?? undefined,
+          submittedCvName: allCvs.find(c => c.id === values.submittedCvId)?.name,
+        }),
         handleValidationError,
       )}
       className="space-y-6"
@@ -383,17 +396,32 @@ export function ApplicationForm({ initial, companies = [], cvVersions = [], onSu
           <TextField label={t('forms.fields.appliedDate')} type="date" error={errors.appliedAt?.message}  {...register('appliedAt')} />
           <TextField label={t('forms.fields.deadline')}    type="date" error={errors.deadlineAt?.message} {...register('deadlineAt')} />
         </FormRow>
-        {cvVersions.length > 0 && (
-          <FormRow>
-            <SelectField
-              label={t('forms.fields.submittedCv')}
-              hint={t('forms.fields.submittedCvHint')}
-              options={CV_OPTS}
-              error={errors.submittedCvId?.message}
-              {...register('submittedCvId')}
-            />
-          </FormRow>
-        )}
+        <FormRow>
+          <div>
+            {allCvs.length > 0 && (
+              <SelectField
+                label={t('forms.fields.submittedCv')}
+                hint={t('forms.fields.submittedCvHint')}
+                options={CV_OPTS}
+                error={errors.submittedCvId?.message}
+                {...register('submittedCvId')}
+              />
+            )}
+            {allCvs.length === 0 && (
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                {t('forms.fields.submittedCv')}
+              </label>
+            )}
+            <button
+              type="button"
+              onClick={() => setCvUploadOpen(true)}
+              className="mt-1.5 inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-lg border border-slate-200 bg-surface text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {t('forms.fields.uploadNewCv')}
+            </button>
+          </div>
+        </FormRow>
         <FormRow>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
@@ -493,5 +521,17 @@ export function ApplicationForm({ initial, companies = [], cvVersions = [], onSu
         loading={loading}
       />
     </form>
+
+    {/* Outside the <form>: the dialog has a form of its own, and a nested one
+        would submit the application when the CV is saved. */}
+    <CVUploadDialog
+      open={cvUploadOpen}
+      onClose={() => setCvUploadOpen(false)}
+      onCreated={cv => {
+        setJustUploadedCv(cv)
+        setValue('submittedCvId', cv.id, { shouldDirty: true, shouldValidate: true })
+      }}
+    />
+    </>
   )
 }

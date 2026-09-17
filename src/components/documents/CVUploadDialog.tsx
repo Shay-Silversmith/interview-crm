@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { FileDropzone } from '@/components/ui/FileDropzone'
 import { CVVersionForm } from '@/components/forms/CVVersionForm'
 import type { CVVersionFormValues } from '@/lib/schemas/cvVersionSchema'
+import type { CVVersion } from '@/types'
 import { uploadToBucket, buildCVPath, getCurrentUserId } from '@/lib/storage'
 import { useDocumentMutations } from '@/hooks/useDocumentMutations'
 import { useApplicationMutations } from '@/hooks/useApplicationMutations'
@@ -24,9 +25,14 @@ interface CVUploadDialogProps {
    * application — the CV still lands in the global CV arsenal as well.
    */
   applicationId?: string
+  /**
+   * Called with the saved CV. For forms whose application does not exist yet,
+   * so there is no id to link — the form selects the CV itself instead.
+   */
+  onCreated?: (cv: CVVersion) => void
 }
 
-export function CVUploadDialog({ open, onClose, applicationId }: CVUploadDialogProps) {
+export function CVUploadDialog({ open, onClose, applicationId, onCreated }: CVUploadDialogProps) {
   const [file, setFile]       = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const { createCV } = useDocumentMutations()
@@ -68,6 +74,8 @@ export function CVUploadDialog({ open, onClose, applicationId }: CVUploadDialogP
         })
         void qc.invalidateQueries({ queryKey: QK.applications.detail(applicationId) })
       }
+
+      if (created) onCreated?.(created)
 
       setFile(null)
       onClose()

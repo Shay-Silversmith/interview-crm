@@ -9,7 +9,7 @@ import { MOCK_DELAY_MS } from '@/lib/constants'
 import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
 import { mapInterviewStage } from '@/lib/mappers'
-import { requireUserId } from '@/lib/currentUser'
+import { requireUserId, noRowUpdatedError } from '@/lib/currentUser'
 
 const delay = () => new Promise<void>(r => setTimeout(r, MOCK_DELAY_MS + Math.random() * 100))
 
@@ -150,8 +150,12 @@ const supabaseImpl = {
     if (data.notes !== undefined) row.notes = data.notes
     if (data.feedbackReceived !== undefined) row.feedback_received = data.feedbackReceived
     if (data.nextSteps !== undefined) row.next_steps = data.nextSteps
-    const { data: updated, error } = await sb.from('interview_stages').update(row).eq('id', id).select().single()
+    // maybeSingle, not single: zero matched rows is the likely failure here, and
+    // single() reports it as "Cannot coerce the result to a single JSON object",
+    // which tells nobody what to do.
+    const { data: updated, error } = await sb.from('interview_stages').update(row).eq('id', id).select().maybeSingle()
     if (error) throw new Error(error.message)
+    if (!updated) throw await noRowUpdatedError()
     return mapInterviewStage(updated)
   },
   async delete(id: string): Promise<void> {

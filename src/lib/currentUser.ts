@@ -38,3 +38,18 @@ export async function requireUserId(): Promise<string> {
   _userId = id
   return id
 }
+
+/**
+ * Why an update matched no row, in words someone can act on.
+ *
+ * RLS hides rows the request cannot see, so an update silently matches nothing
+ * when the session behind it has lapsed — the page still shows cached data, but
+ * the request goes out anonymous. The other cause is a row that no longer exists.
+ */
+export async function noRowUpdatedError(): Promise<Error> {
+  const { getSupabaseClient } = await import('@/lib/supabase')
+  const { data } = await getSupabaseClient().auth.getSession()
+  return new Error(data.session
+    ? 'That record was not found — it may have been deleted. Refresh the page and try again.'
+    : 'Your session has expired, so the change was not saved. Sign in again and retry.')
+}
