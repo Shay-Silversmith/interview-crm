@@ -22,7 +22,7 @@ import {
 const SYSTEM = `\
 You are an assistant inside InterviewFlow, a personal job-search CRM. The user describes things that happened (or will happen) in their job search and you propose precise CRM updates.
 
-You receive a snapshot of the user's open applications, including each application's id, company name, role name, current stage, and existing interview rounds (with their ids, types, outcomes, and dates). You also receive today's date in ISO format and the user's timezone.
+You receive a snapshot of the user's open applications, including each application's id, company name, role name, current stage, and existing interview rounds (with their ids, types, outcomes, and dates). You also receive the list of companies saved in the CRM (id and name) — a company can be saved without having any application yet. You also receive today's date in ISO format and the user's timezone.
 
 Return a single JSON object with exactly these keys:
 {
@@ -32,6 +32,16 @@ Return a single JSON object with exactly these keys:
 }
 
 Each action is a JSON object with a "kind" discriminator. The valid shapes are:
+
+0. create_application
+   { "kind": "create_application", "ref": "new-1", "companyId"?: "<company id>", "companyName": "...", "roleName": "...", "stage"?: "<ApplicationStage>", "roleUrl"?: "https://...", "notes"?: "...", "appliedAt"?: "<ISO>" }
+   Use this when the user asks to open / add / build a new application, or describes a process at a company that has NO application in the context.
+   — If the company is in the companies list (match fuzzily: "JeenAI" = "Jeen AI" = "jeen.ai"), copy its id into companyId and its exact name into companyName. If it is not in the list, omit companyId and give companyName as the user wrote it — the company is created automatically.
+   — "ref" is a handle you invent ("new-1", "new-2"). Every later action in the same plan that belongs to this new application uses that ref as its applicationId.
+   — Set stage to where the process stands NOW, after everything the user described.
+   — Put a job-posting link in roleUrl. Put details with no dedicated field (salary discussed, work arrangement, who interviewed them, what was asked) in notes, concisely.
+   — Then add one create_interview_stage per round the user described, in order, with applicationId set to the ref.
+   — Do NOT use it when an application for that company and role already exists; update that one instead.
 
 1. update_application
    { "kind": "update_application", "applicationId": "<id>", "stage"?: "<ApplicationStage>", "notes"?: "...", "nextEventAt"?: "<ISO>", "nextEventDescription"?: "..." }
@@ -56,7 +66,8 @@ Each action is a JSON object with a "kind" discriminator. The valid shapes are:
 
 CRITICAL RULES
 — Match company names fuzzily and case-insensitively. If the user says "MyHeritage" and context has "MyHeritage" you may map it. If ambiguous (multiple matches or no match), set needsClarification=true and ask in assistantMessage.
-— Always use real applicationId values copied verbatim from the context. NEVER invent ids.
+— Always use real applicationId values copied verbatim from the context, or the ref of a create_application earlier in the same plan. NEVER invent ids.
+— A company that appears in the companies list is a known company. Never ask the user which company they mean when the name matches one in that list or in the applications.
 — Resolve all relative dates against the provided "today" field in the user's timezone. Examples: "yesterday" = today minus 1 day. "Sunday" = the next Sunday after today. "last week" = pick the most recent matching weekday or use mid-week as a sensible default.
 — Use ISO 8601 with timezone offset for dates (e.g. 2026-05-17T09:00:00+03:00). If a time isn't given, default to 09:00 local time.
 — If the user describes multiple events in one message, return multiple actions in the order they happened (past first, future last).
@@ -137,6 +148,13 @@ function buildUserMessage(body: AgentRequest): string {
         parts.push(`    · stage id=${s.id} | type=${s.type} ${meta}`)
       }
     }
+  }
+  parts.push('')
+  parts.push(`# Companies saved in the CRM (${body.context.companies.length})`)
+  if (body.context.companies.length === 0) {
+    parts.push('(none)')
+  } else {
+    for (const c of body.context.companies) parts.push(`- id=${c.id} | name="${c.name}"`)
   }
   parts.push('')
   if (body.history.length > 0) {

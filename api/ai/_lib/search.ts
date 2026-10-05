@@ -68,7 +68,7 @@ export class SearchFailedError extends Error {
 // Ordered by what a person distributing this app can actually rely on, which
 // is not the same as which is best at searching:
 //
-//   Exa    — 20,000 requests/month free, no payment method on file, so it
+//   Exa    — $10 of free credit on signup, no payment method on file, so it
 //            cannot surprise the account holder with a bill. First choice.
 //   Tavily — 1,000 credits/month free, also no card.
 //   Brave  — no free tier since February 2026: $5 of monthly credit and then

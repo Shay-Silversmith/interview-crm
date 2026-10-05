@@ -122,7 +122,7 @@ function isOverloaded(err: unknown): boolean {
 }
 
 /**
- * Who to ask when a model is overloaded, in order.
+ * Who to ask when a model is overloaded or out of quota, in order.
  *
  * The two flash models go down independently, and both together often enough
  * that one alternative is not sufficient — measured: 3.5-flash and 3.6-flash
@@ -137,6 +137,64 @@ const OVERLOAD_CHAIN = [
   'gemini-3.1-flash-lite',
 ]
 
+/**
+ * True when this model's allowance is spent, as opposed to the request being
+ * wrong.
+ *
+ * The free tier meters each model separately — the 429 names the model in its
+ * quota dimensions, and the limit on gemini-3.5-flash is 20 requests a day.
+ * Twenty. One research tool spends two or three, so an ordinary session runs
+ * through it by mid-morning, while the other three models in the chain sit
+ * untouched with allowances of their own. Treating that 429 as final was
+ * reporting "out of quota" with three quarters of the quota unused.
+ *
+ * Empty prepaid credit is the exception: it is the billing account that is
+ * empty, not a model, so every model will say the same thing.
+ */
+function isQuotaSpent(err: unknown): boolean {
+  const raw = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  if (raw.includes('prepayment credits are depleted')) return false
+  return raw.includes('"code":429') || raw.includes('resource_exhausted')
+}
+
+/** Reasons to ask a different model the same question. */
+function shouldTryNextModel(err: unknown): boolean {
+  return isOverloaded(err) || isQuotaSpent(err)
+}
+
+/**
+ * Models known to be out of quota, and until when.
+ *
+ * Without this, every call after the daily limit is reached would begin by
+ * asking the spent model again and waiting for its refusal. Google says how
+ * long the refusal lasts (RetryInfo.retryDelay — seconds for a per-minute
+ * limit, hours for a daily one), so it is remembered and the model skipped
+ * until then. In memory only: a cold start forgets it, and relearns it for the
+ * price of one fast 429.
+ */
+const spentUntil = new Map<string, number>()
+
+function spentKey(apiKey: string, model: string): string {
+  return `${apiKey.slice(-8)}:${model}`
+}
+
+function rememberSpent(apiKey: string, model: string, err: unknown): void {
+  if (!isQuotaSpent(err)) return
+  const raw   = err instanceof Error ? err.message : String(err)
+  const delay = Number(raw.match(/"retryDelay"\s*:\s*"(\d+)(?:\.\d+)?s"/)?.[1] ?? NaN)
+  // No delay stated: assume the short limit, so a guess never benches a model for hours.
+  const ms = (Number.isFinite(delay) ? Math.min(delay, 6 * 3600) : 60) * 1000
+  spentUntil.set(spentKey(apiKey, model), Date.now() + ms)
+}
+
+function isKnownSpent(apiKey: string, model: string): boolean {
+  const until = spentUntil.get(spentKey(apiKey, model))
+  if (!until) return false
+  if (until > Date.now()) return true
+  spentUntil.delete(spentKey(apiKey, model))
+  return false
+}
+
 /** The request as the given model will accept it. */
 function paramsFor<P extends { model: string; config: unknown }>(params: P, model: string): P {
   if (!rejectsThinkingConfig(model)) return { ...params, model }
@@ -145,48 +203,55 @@ function paramsFor<P extends { model: string; config: unknown }>(params: P, mode
 }
 
 /**
- * Sends a request, moving to another model if this one has been retired or is
- * overloaded. Every call in this file goes through here so the fallback applies
- * uniformly, including the research path.
+ * Sends a request, moving to another model if this one has been retired, is
+ * overloaded, or is out of quota. Every call in this file goes through here so
+ * the fallback applies uniformly, including the research path.
  */
 async function generateWithFallback(
   ai: GoogleGenAI,
+  apiKey: string,
   params: { model: string; contents: unknown; config: unknown },
 ): Promise<Awaited<ReturnType<GoogleGenAI['models']['generateContent']>>> {
   type GenParams = Parameters<GoogleGenAI['models']['generateContent']>[0]
   const send = (model: string) =>
     ai.models.generateContent(paramsFor(params, model) as unknown as GenParams)
 
-  let model = params.model
-  let firstError: unknown
-  try {
-    return await send(model)
-  } catch (err) {
-    firstError = err
-    const successor = MODEL_FALLBACKS[model]
-    if (successor && isModelUnavailable(err)) {
-      console.warn(`[gemini] ${model} unavailable, retrying on ${successor}`)
-      model = successor
-      try {
-        return await send(model)
-      } catch (retired) {
-        if (!isOverloaded(retired)) throw retired
-        firstError = retired
-      }
-    } else if (!isOverloaded(err)) {
-      throw err
-    }
-  }
+  // The requested model first, then the rest of the chain. Models already
+  // known to be spent go to the back rather than out: if everything is spent,
+  // one of them still has to be asked so there is a real error to report.
+  const order   = [params.model, ...OVERLOAD_CHAIN.filter(m => m !== params.model)]
+  const fresh   = order.filter(m => !isKnownSpent(apiKey, m))
+  const queue   = fresh.length > 0 ? fresh : [params.model]
 
-  // Overloaded. Walk the rest of the chain; anything other than another
-  // overload is a real answer about the request and is reported as such.
-  for (const next of OVERLOAD_CHAIN.filter(m => m !== model && m !== params.model)) {
-    console.warn(`[gemini] ${model} overloaded, trying ${next}`)
-    model = next
+  let firstError: unknown
+  for (let i = 0; i < queue.length; i++) {
+    let model = queue[i]
     try {
       return await send(model)
     } catch (err) {
-      if (!isOverloaded(err)) throw err
+      let failure = err
+
+      // Retired: its named successor, once, before moving along the chain.
+      const successor = MODEL_FALLBACKS[model]
+      if (isModelUnavailable(err) && successor && !queue.includes(successor)) {
+        console.warn(`[gemini] ${model} unavailable, retrying on ${successor}`)
+        model = successor
+        try {
+          return await send(model)
+        } catch (retired) {
+          failure = retired
+        }
+      }
+
+      firstError ??= failure
+      rememberSpent(apiKey, model, failure)
+
+      // Anything other than "not available right now" is a real answer about
+      // the request or the key, and is reported as such.
+      if (!shouldTryNextModel(failure) && !isModelUnavailable(failure)) throw failure
+      if (i < queue.length - 1) {
+        console.warn(`[gemini] ${model} ${isQuotaSpent(failure) ? 'out of quota' : 'not answering'}, trying ${queue[i + 1]}`)
+      }
     }
   }
   throw firstError
@@ -490,7 +555,7 @@ async function callGeminiOnly(opts: CallGeminiRawOptions): Promise<string> {
 
   let response
   try {
-    response = await generateWithFallback(ai, { model, contents, config })
+    response = await generateWithFallback(ai, opts.apiKey, { model, contents, config })
   } catch (err) {
     // Which models accept thinkingBudget — and which accept 0 to disable it —
     // varies by model and changes as models are replaced. A rejected budget
@@ -500,7 +565,7 @@ async function callGeminiOnly(opts: CallGeminiRawOptions): Promise<string> {
     // requirement, so drop it and let the model choose rather than fail.
     if (!isInvalidArgument(err)) throw err
     console.warn(`[gemini] ${model} rejected thinkingConfig; retrying without it`)
-    response = await generateWithFallback(ai, { model, contents, config: baseConfig })
+    response = await generateWithFallback(ai, opts.apiKey, { model, contents, config: baseConfig })
   }
 
   const text   = response.text ?? ''

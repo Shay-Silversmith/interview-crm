@@ -39,6 +39,20 @@ const isoDate = z.string().min(10).max(40)
 
 export const actionSchema = z.discriminatedUnion('kind', [
   z.object({
+    kind:        z.literal('create_application'),
+    /** Handle later actions in the same plan use as applicationId, e.g. "new-1". */
+    ref:         z.string().min(1).max(40),
+    /** Copied from the companies list when the company already exists. */
+    companyId:   z.string().optional(),
+    companyName: z.string().min(1).max(200),
+    roleName:    z.string().min(1).max(200),
+    stage:       applicationStage.default('Applied'),
+    roleUrl:     z.string().max(2000).optional(),
+    notes:       z.string().max(2000).optional(),
+    appliedAt:   isoDate.optional(),
+  }),
+
+  z.object({
     kind:          z.literal('update_application'),
     applicationId: z.string(),
     stage:         applicationStage.optional(),
@@ -107,6 +121,11 @@ const contextStageSchema = z.object({
   completedAt: z.string().optional(),
 })
 
+const contextCompanySchema = z.object({
+  id:   z.string(),
+  name: z.string(),
+})
+
 const contextApplicationSchema = z.object({
   id:           z.string(),
   companyName:  z.string(),
@@ -123,6 +142,10 @@ export const agentRequestSchema = z.object({
     timezone:     z.string().default('Asia/Jerusalem'),
     locale:       z.enum(['en', 'he']).default('en'),
     applications: z.array(contextApplicationSchema).max(100).default([]),
+    // A company can be in the CRM with no application yet. Without this list
+    // the agent could not see it, and asked "which company?" about one the
+    // user had just named.
+    companies:    z.array(contextCompanySchema).max(500).default([]),
   }),
 })
 

@@ -15,20 +15,34 @@ import type {
   ApplicationStage, InterviewType, InterviewOutcome,
   TaskCategory, Priority, CalendarEventType,
 } from '@/lib/enums'
-import type { JobApplication } from '@/types'
+import type { Company, JobApplication } from '@/types'
 import { applicationsService } from './applicationsService'
+import { companiesService } from './companiesService'
 import { interviewStageService } from './interviewStageService'
 import { tasksService } from './tasksService'
 import { calendarService } from './calendarService'
 import { isAIEnabled } from '@/lib/env'
 import { QK } from '@/lib/query-keys'
-import { getStoredApiKey, isDemoMode } from './aiClientService'
+import { isDemoMode } from './aiClientService'
+import { aiHeaders } from './aiKey'
 
 // ---------------------------------------------------------------------------
 // Action types — must match api/ai/_lib/agent-schemas.ts
 // ---------------------------------------------------------------------------
 
 export type AgentAction =
+  | {
+      kind: 'create_application'
+      /** Handle later actions in the same plan use as their applicationId. */
+      ref: string
+      companyId?: string
+      companyName: string
+      roleName: string
+      stage?: ApplicationStage
+      roleUrl?: string
+      notes?: string
+      appliedAt?: string
+    }
   | {
       kind: 'update_application'
       applicationId: string
@@ -92,6 +106,8 @@ export interface AgentRequestContext {
   timezone:     string                   // e.g. 'Asia/Jerusalem'
   locale:       'en' | 'he'
   applications: JobApplication[]
+  /** Every saved company, including ones with no application yet. */
+  companies:    Company[]
 }
 
 // ---------------------------------------------------------------------------
@@ -108,16 +124,16 @@ export async function planAgentActions(
   context:  AgentRequestContext,
 ): Promise<AgentPlan> {
   if (!isAIEnabled()) return mockPlan(message, context)
-  if (isDemoMode()) return { ...mockPlan(message, context), assistantMessage: `(Demo mode — connect a Claude API key in Settings for live AI.)\n\n${mockPlan(message, context).assistantMessage}` }
-
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  const userKey = getStoredApiKey()
-  if (userKey) headers['x-anthropic-key'] = userKey
+  if (isDemoMode()) return { ...mockPlan(message, context), assistantMessage: `(Demo mode — add a Gemini API key in Settings for live AI.)\n\n${mockPlan(message, context).assistantMessage}` }
 
   try {
     const res = await fetch('/api/ai/agent', {
       method:  'POST',
-      headers,
+      // The same header every other AI tool sends. This used to send the
+      // Claude-era key slot under a header the server no longer reads, so the
+      // agent was told "key required" by a user whose key was working
+      // everywhere else, and silently answered from the demo planner.
+      headers: aiHeaders(),
       body:    JSON.stringify({
         message,
         history,
@@ -125,6 +141,7 @@ export async function planAgentActions(
           today:    context.today,
           timezone: context.timezone,
           locale:   context.locale,
+          companies: context.companies.map(c => ({ id: c.id, name: c.name })),
           applications: context.applications.map(a => ({
             id:           a.id,
             companyName:  a.companyName,
@@ -151,13 +168,17 @@ export async function planAgentActions(
     if (!json.ok) throw new Error(json.error)
     return json.data
   } catch (err) {
-    // Network / function-not-deployed → graceful demo fallback so the UX still works
+    // Say what failed and stop. This used to fall back to the keyword-matching
+    // demo planner, whose "I couldn't tell which application you mean" read as
+    // the assistant not recognising a company — when the real fault was that
+    // the request never reached the model at all.
     const note = err instanceof Error ? err.message : 'unknown error'
-    const plan = mockPlan(message, context)
     return {
-      ...plan,
-      assistantMessage:
-        `(Live AI unavailable — ${note}. Showing demo plan.)\n\n` + plan.assistantMessage,
+      assistantMessage: context.locale === 'he'
+        ? `העוזר לא הצליח לענות: ${note}`
+        : `The assistant could not answer: ${note}`,
+      actions:            [],
+      needsClarification: false,
     }
   }
 }
@@ -184,9 +205,13 @@ export async function executeAgentActions(
 ): Promise<ExecutionResult[]> {
   const results: ExecutionResult[] = []
 
+  // ref → the id of the application it created, so the rounds, tasks and
+  // events planned for a new application land on it.
+  const created = new Map<string, string>()
+
   for (const action of actions) {
     try {
-      const summary = await runOne(action)
+      const summary = await runOne(resolveRefs(action, created), created)
       results.push({ action, ok: true, summary })
     } catch (err) {
       results.push({
@@ -200,6 +225,7 @@ export async function executeAgentActions(
 
   // Broad invalidation — cheap and keeps the UI consistent.
   queryClient.invalidateQueries({ queryKey: QK.applications.all() })
+  queryClient.invalidateQueries({ queryKey: QK.companies.all() })
   queryClient.invalidateQueries({ queryKey: QK.tasks.all() })
   queryClient.invalidateQueries({ queryKey: QK.calendar.all() })
   queryClient.invalidateQueries({ queryKey: QK.dashboard.all() })
@@ -207,8 +233,55 @@ export async function executeAgentActions(
   return results
 }
 
-async function runOne(action: AgentAction): Promise<string> {
+/** Planned handles for applications that do not exist yet look like this. */
+const REF_PATTERN = /^new-/i
+
+/**
+ * Swaps a planned handle for the real id once the application exists.
+ *
+ * If the user unticked the create step, or it failed, what depends on it has
+ * nowhere to go. Say that, rather than sending "new-1" to the database and
+ * reporting whatever it makes of it.
+ */
+function resolveRefs(action: AgentAction, created: Map<string, string>): AgentAction {
+  if (!('applicationId' in action) || !action.applicationId) return action
+  const real = created.get(action.applicationId)
+  if (real) return { ...action, applicationId: real }
+  if (REF_PATTERN.test(action.applicationId)) {
+    throw new Error('The new application this belongs to was not created')
+  }
+  return action
+}
+
+/** "JeenAI", "Jeen AI" and "jeen.ai" are one company. */
+const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0590-\u05ff]/g, '')
+
+async function runOne(action: AgentAction, created: Map<string, string>): Promise<string> {
   switch (action.kind) {
+    case 'create_application': {
+      // Trust the id only if it is a company that exists; then fall back to the
+      // name, ignoring spacing and punctuation; and only then create one — a
+      // second "Jeen AI" is worse than a lookup.
+      const companies = await companiesService.list()
+      const company =
+        companies.find(c => c.id === action.companyId) ??
+        companies.find(c => nameKey(c.name) === nameKey(action.companyName)) ??
+        await companiesService.create({ name: action.companyName })
+
+      const app = await applicationsService.create({
+        companyId:   company.id,
+        companyName: company.name,
+        roleName:    action.roleName,
+        stage:       action.stage ?? 'Applied',
+        priority:    'Medium',
+        roleUrl:     action.roleUrl,
+        notes:       action.notes,
+        appliedAt:   action.appliedAt,
+      })
+      created.set(action.ref, app.id)
+      return `Created application: ${app.roleName} at ${company.name}`
+    }
+
     case 'update_application': {
       const patch: Partial<JobApplication> = {}
       if (action.stage !== undefined)                patch.stage = action.stage
@@ -284,6 +357,9 @@ async function runOne(action: AgentAction): Promise<string> {
 
 export function describeAction(a: AgentAction): string {
   switch (a.kind) {
+    case 'create_application':
+      return `New application: ${a.roleName} at ${a.companyName}${a.stage ? ` — ${a.stage}` : ''}`
+
     case 'update_application': {
       const bits: string[] = []
       if (a.stage) bits.push(`stage → ${a.stage}`)

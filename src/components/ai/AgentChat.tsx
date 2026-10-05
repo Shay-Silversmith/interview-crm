@@ -12,6 +12,7 @@ import { useToastActions } from '@/hooks/useToast'
 import { useI18n } from '@/hooks/useI18n'
 import { useMockStore } from '@/hooks/useMockStore'
 import { applicationsService } from '@/services/applicationsService'
+import { companiesService } from '@/services/companiesService'
 import {
   planAgentActions,
   executeAgentActions,
@@ -52,6 +53,12 @@ export function AgentChat({ open, onClose }: AgentChatProps) {
     () => applicationsService.list(),
     [],
     { key: QK.applications.all() }
+  )
+
+  const { data: companies } = useMockStore(
+    () => companiesService.list(),
+    [],
+    { key: QK.companies.all() }
   )
 
   const [entries, setEntries] = useState<ChatEntry[]>([])
@@ -112,6 +119,7 @@ export function AgentChat({ open, onClose }: AgentChatProps) {
         timezone:     Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jerusalem',
         locale:       locale,
         applications: applications ?? [],
+        companies:    companies ?? [],
       })
 
       const assistantEntry: ChatEntry = {
@@ -482,6 +490,7 @@ function ActionCard({
 
 function actionKindLabel(kind: AgentAction['kind']): string {
   switch (kind) {
+    case 'create_application':     return 'New'
     case 'update_application':     return 'App'
     case 'create_interview_stage': return 'Round'
     case 'update_interview_stage': return 'Round'
