@@ -61,6 +61,18 @@ const NO_CREDIT: Explanation = {
   settings: true,
 }
 
+/**
+ * Not the user's problem to fix, unlike every other notice here.
+ *
+ * Search runs on a key the deployment holds, not on the visitor's Gemini
+ * key, so pointing at Settings would send them to change the one thing that
+ * is working. Say what is missing, and whose job it is.
+ */
+const NO_SEARCH: Explanation = {
+  headline: 'Web research is not set up on this deployment.',
+  fix:      'The tools that search the web need a search API key on the server; everything that does not search still works. If this deployment is yours, add EXA_API_KEY (free, no card) to the environment and redeploy.',
+}
+
 export function AIFailureNotice({
   reason,
   message,
@@ -76,9 +88,11 @@ export function AIFailureNotice({
   // Google reports empty prepaid credit as a 429 too, but waiting never clears
   // it — telling someone the limit resets at midnight sends them to wait for
   // nothing.
-  const info = /prepaid credit|prepayment credits/i.test(message ?? '')
-    ? NO_CREDIT
-    : EXPLANATIONS[reason] ?? EXPLANATIONS.server
+  const info = /Web search is not configured/i.test(message ?? '')
+    ? NO_SEARCH
+    : /prepaid credit|prepayment credits/i.test(message ?? '')
+      ? NO_CREDIT
+      : EXPLANATIONS[reason] ?? EXPLANATIONS.server
 
   return (
     <div

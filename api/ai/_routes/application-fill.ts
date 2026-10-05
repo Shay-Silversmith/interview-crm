@@ -94,6 +94,9 @@ export default createAIRoute({
         'rather than one posting, say exactly that instead of describing a job.',
       maxTokens: 12_000,
       urls:      body.jdUrl ? [body.jdUrl] : undefined,
+      // The posting itself is the source; the search is only a fallback for a
+      // link that turns out to be unreadable.
+      searchQueries: body.jdUrl ? [body.jdUrl] : [],
     })
 
     if (body.stage === 'research') return { data: null, research, sources }

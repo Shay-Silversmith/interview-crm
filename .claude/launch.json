@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "interviewflow",
-      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeExecutable": "C:\\nvm4w\\nodejs\\node.exe",
       "runtimeArgs": ["node_modules\\vite\\bin\\vite.js"],
       "port": 5173
     }

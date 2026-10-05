@@ -69,6 +69,11 @@ export default createAIRoute({
       system,
       user:      sections.join('\n\n'),
       maxTokens: 9_000,
+      searchQueries: [
+        `${body.companyName} interview process stages`,
+        `${body.companyName}${body.roleTitle ? ` ${body.roleTitle}` : ''} interview questions`,
+        `${body.companyName} glassdoor reviews`,
+      ],
     })
 
     if (body.stage === 'research') return { data: null, research, sources }

@@ -71,6 +71,9 @@ export default createAIRoute({
         'rather than one posting, say exactly that. Do not invent a job description.',
       maxTokens: 12_000,
       urls:      body.jdUrl ? [body.jdUrl] : undefined,
+      // The page itself is the source; the search only adds context when the
+      // posting turns out to be unreadable.
+      searchQueries: body.jdUrl ? [body.jdUrl] : [],
     })
 
     if (body.stage === 'research') return { data: null, research, sources }

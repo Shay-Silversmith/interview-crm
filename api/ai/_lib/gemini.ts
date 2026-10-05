@@ -20,22 +20,29 @@
 
 import { GoogleGenAI } from '@google/genai'
 import type { z } from 'zod'
+import { webSearch, renderSearchContext, fetchPageText } from './search.js'
+import type { SearchHit } from './search.js'
 
 /**
- * Back on 2.5-flash, on evidence rather than preference.
+ * Off the 2.5 line, because new keys cannot reach it at all.
  *
- * The default was moved to 3.5-flash when Google retired 2.5-flash-lite and
- * recommended the 3.5 line. But the quota error that came back afterwards named
- * `model: gemini-2.5-flash` — which only happens if 3.5 was refused and the
- * fallback fired. So every research call was costing two requests against the
- * limit: one rejected for a model this key cannot reach, one that did the work.
+ * A key issued today answers every gemini-2.5-flash request with
+ * 404 NOT_FOUND: "no longer available to new users … use models/
+ * gemini-3.6-flash". The model still appears in ListModels, which is why this
+ * looked like a quota problem for so long: the listing is generic, the
+ * entitlement is not.
  *
- * On a free tier measured in requests rather than tokens, that halves the
- * usable budget for nothing. The fallback stays, pointing the other way, so a
- * key that can reach 3.5 still gets there and a future retirement still
- * survives without a code change.
+ * The cost was not just the failure. isModelUnavailable() caught that 404 and
+ * retried on the fallback, so every single call spent two requests — and for a
+ * grounded call the fallback landed on a model with no free grounding, turning
+ * a clear "this model is gone" into the opaque 429 the UI was reporting.
+ *
+ * gemini-3.5-flash rather than a newer one because newer is not more
+ * available: on a free key 3.7 and 3.8 — what the 404 now recommends — returned
+ * 503 "high demand" on every try, while 3.5 and 3.6 answered most of the time.
+ * Most, not all; see OVERLOAD_CHAIN for what happens the rest of the time.
  */
-export const DEFAULT_MODEL = 'gemini-2.5-flash'
+export const DEFAULT_MODEL = 'gemini-3.5-flash'
 
 /**
  * Used for the structuring pass after a grounded search.
@@ -58,16 +65,17 @@ export const STRUCTURING_MODEL = 'gemini-3.5-flash-lite'
  * successor rather than surfacing a failure the user cannot act on.
  */
 const MODEL_FALLBACKS: Record<string, string> = {
-  // Forward: the 2.5 family is being withdrawn from new accounts.
+  // The 2.5 family is withdrawn from accounts created after its retirement, so
+  // it is only ever a source here, never a destination. Pointing anything back
+  // at it — as the old map did — sends a working key to a guaranteed 404.
   'gemini-2.5-flash-lite': 'gemini-3.5-flash-lite',
-  'gemini-2.5-flash':      'gemini-3.5-flash',
+  'gemini-2.5-flash':      'gemini-3.6-flash',
   'gemini-2.5-pro':        'gemini-3.5-pro',
-  // Backward: 3.5 is the default now, but it has not been verified against
-  // every key. If an account cannot reach it, drop to the model that worked
-  // rather than failing — one retry only, so the pairing cannot loop.
-  'gemini-3.5-flash-lite': 'gemini-2.5-flash-lite',
-  'gemini-3.5-flash':      'gemini-2.5-flash',
-  'gemini-3.5-pro':        'gemini-2.5-pro',
+  // Within the 3.x line, fall forward to the next model that is still served.
+  'gemini-3.5-flash-lite': 'gemini-3.1-flash-lite',
+  'gemini-3.5-flash':      'gemini-3.6-flash',
+  'gemini-3.6-flash':      'gemini-3.5-flash',
+  'gemini-3.5-pro':        'gemini-3.1-pro-preview',
 }
 
 /**
@@ -94,23 +102,93 @@ function isModelUnavailable(err: unknown): boolean {
 }
 
 /**
- * Sends a request, and retries once on the successor model if this one has been
- * retired. Every call in this file goes through here so the fallback applies
- * uniformly, including the grounded path.
+ * True when the model exists but is not answering right now.
+ *
+ * Google sheds load per model — "This model is currently experiencing high
+ * demand" on one while its neighbour answers in a second — and on the free tier
+ * it does so often enough that a single 503 used to take down a whole tool.
+ * A dropped connection is treated the same way: both mean "ask again".
+ */
+function isOverloaded(err: unknown): boolean {
+  const raw = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  return (
+    raw.includes('"code":503') ||
+    raw.includes('unavailable') ||
+    raw.includes('overloaded') ||
+    raw.includes('high demand') ||
+    raw.includes('fetch failed')
+  )
+}
+
+/**
+ * Who to ask when a model is overloaded, in order.
+ *
+ * The two flash models go down independently, and both together often enough
+ * that one alternative is not sufficient — measured: 3.5-flash and 3.6-flash
+ * refused the same request seconds apart while flash-lite answered in under a
+ * second throughout. So the chain ends on the lite models: a slightly plainer
+ * answer beats "try again later" from a tool the user just clicked.
+ */
+const OVERLOAD_CHAIN = [
+  'gemini-3.5-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+]
+
+/** The request as the given model will accept it. */
+function paramsFor<P extends { model: string; config: unknown }>(params: P, model: string): P {
+  if (!rejectsThinkingConfig(model)) return { ...params, model }
+  const { thinkingConfig: _dropped, ...config } = (params.config ?? {}) as Record<string, unknown>
+  return { ...params, model, config }
+}
+
+/**
+ * Sends a request, moving to another model if this one has been retired or is
+ * overloaded. Every call in this file goes through here so the fallback applies
+ * uniformly, including the research path.
  */
 async function generateWithFallback(
   ai: GoogleGenAI,
   params: { model: string; contents: unknown; config: unknown },
 ): Promise<Awaited<ReturnType<GoogleGenAI['models']['generateContent']>>> {
   type GenParams = Parameters<GoogleGenAI['models']['generateContent']>[0]
+  const send = (model: string) =>
+    ai.models.generateContent(paramsFor(params, model) as unknown as GenParams)
+
+  let model = params.model
+  let firstError: unknown
   try {
-    return await ai.models.generateContent(params as unknown as GenParams)
+    return await send(model)
   } catch (err) {
-    const successor = MODEL_FALLBACKS[params.model]
-    if (!successor || !isModelUnavailable(err)) throw err
-    console.warn(`[gemini] ${params.model} unavailable, retrying on ${successor}`)
-    return ai.models.generateContent({ ...params, model: successor } as unknown as GenParams)
+    firstError = err
+    const successor = MODEL_FALLBACKS[model]
+    if (successor && isModelUnavailable(err)) {
+      console.warn(`[gemini] ${model} unavailable, retrying on ${successor}`)
+      model = successor
+      try {
+        return await send(model)
+      } catch (retired) {
+        if (!isOverloaded(retired)) throw retired
+        firstError = retired
+      }
+    } else if (!isOverloaded(err)) {
+      throw err
+    }
   }
+
+  // Overloaded. Walk the rest of the chain; anything other than another
+  // overload is a real answer about the request and is reported as such.
+  for (const next of OVERLOAD_CHAIN.filter(m => m !== model && m !== params.model)) {
+    console.warn(`[gemini] ${model} overloaded, trying ${next}`)
+    model = next
+    try {
+      return await send(model)
+    } catch (err) {
+      if (!isOverloaded(err)) throw err
+    }
+  }
+  throw firstError
 }
 
 /**
@@ -123,6 +201,19 @@ async function generateWithFallback(
  * and no text at all. That empty-but-successful response is the same failure as
  * the original 1500-token ceiling, reached by a different road.
  */
+/**
+ * True for a model that refuses thinkingConfig outright.
+ *
+ * gemini-3.5-flash-lite answers 400 INVALID_ARGUMENT to `thinkingBudget: 0`,
+ * and the generic INVALID_ARGUMENT retry below recovers from it — at the price
+ * of a wasted request on every structuring call, which on a free tier measured
+ * in requests is half the budget of a research run. Skip the argument for the
+ * family that will not take it rather than paying to rediscover it each time.
+ */
+function rejectsThinkingConfig(model: string): boolean {
+  return model.includes('flash-lite')
+}
+
 export const NO_THINKING      = 0
 export const LIGHT_THINKING   = 2048
 export const DYNAMIC_THINKING = -1
@@ -162,7 +253,24 @@ export function getGeminiApiKey(
 // that reaches it says something.
 // ---------------------------------------------------------------------------
 
+/**
+ * Errors this codebase raises itself, which already say what they mean.
+ *
+ * Running them through Gemini's error grammar garbles them: SearchUnavailable
+ * names the env vars to set, one of which ends in _API_KEY, and the key-rejected
+ * rule below matched it — so a missing search provider was reported to the user
+ * as a bad Gemini key, sending them to fix the one thing that was fine.
+ */
+const OWN_ERRORS = new Set([
+  'SearchUnavailableError',
+  'SearchFailedError',
+  'GeminiTruncatedError',
+  'GeminiEmptyError',
+])
+
 export function describeGeminiError(err: unknown): string {
+  if (err instanceof Error && OWN_ERRORS.has(err.name)) return err.message
+
   const raw = err instanceof Error ? err.message : String(err)
 
   const match = raw.match(/\{[\s\S]*\}/)
@@ -214,7 +322,11 @@ export function describeGeminiError(err: unknown): string {
           const perMin = /PerMinute|RequestsPerMinute/i.test(haystack) ||
                          (Number.isFinite(delaySec) && delaySec <= 300)
 
-          const which = perDay ? 'daily' : perMin ? 'per-minute' : 'unspecified'
+          // No QuotaFailure block at all is a different animal from a spent
+          // allowance: it means the allowance for this model or feature on this
+          // tier is ZERO. Two things cause it, and "unspecified limit, check
+          // your quota in AI Studio" sent people looking for neither.
+          const which = perDay ? 'daily' : perMin ? 'per-minute' : 'no allowance at all'
           const wait  = Number.isFinite(delaySec)
             ? delaySec <= 300
               ? ` Google says to retry in about ${delaySec} seconds.`
@@ -228,7 +340,14 @@ export function describeGeminiError(err: unknown): string {
               ? 'The daily allowance for this key is spent; it resets at midnight Pacific time.'
               : perMin
                 ? 'This is the per-minute limit, not the daily one — the tools fire several requests per run, which trips it easily. Waiting a minute is usually enough.'
-                : 'Check the quota for this key in Google AI Studio.') +
+                : 'Google reported no limit details, which means this key has no allowance ' +
+                  'for this model or feature rather than a spent one. The two usual causes: ' +
+                  'the key lives in a Google Cloud project with a billing account attached, ' +
+                  'so it is billed rather than free and the balance is empty; or the feature ' +
+                  'is not offered on the free tier (Google Search grounding is free only on ' +
+                  'gemini-2.5-flash). Check which tier this key is on at ' +
+                  'https://aistudio.google.com/rate-limit — if it is not Free, make a new key ' +
+                  'in a NEW project with no billing account.') +
             ` Google said: ${inner.message}`
           )
         }
@@ -304,16 +423,13 @@ export async function callGeminiRaw(opts: CallGeminiRawOptions): Promise<string>
     ...(opts.json === false ? {} : { responseMimeType: 'application/json' }),
   }
 
+  const config = rejectsThinkingConfig(model)
+    ? baseConfig
+    : { ...baseConfig, thinkingConfig: { thinkingBudget: opts.thinkingBudget ?? NO_THINKING } }
+
   let response
   try {
-    response = await generateWithFallback(ai, {
-      model,
-      contents,
-      config: {
-        ...baseConfig,
-        thinkingConfig: { thinkingBudget: opts.thinkingBudget ?? NO_THINKING },
-      },
-    })
+    response = await generateWithFallback(ai, { model, contents, config })
   } catch (err) {
     // Which models accept thinkingBudget — and which accept 0 to disable it —
     // varies by model and changes as models are replaced. A rejected budget
@@ -438,21 +554,15 @@ export interface GroundedResult<T> {
 }
 
 export interface CallGeminiGroundedOptions<T> extends CallGeminiOptions<T> {
-  /** Let the model read these URLs directly, in addition to searching. */
+  /** Fetch these pages directly and hand their text to the model. */
   urls?: string[]
-}
-
-/** True when the API refused the tool combination rather than the request. */
-function isToolRejection(err: unknown): boolean {
-  const raw = (err instanceof Error ? err.message : String(err)).toLowerCase()
-  return (
-    raw.includes('url_context') ||
-    raw.includes('urlcontext') ||
-    (raw.includes('tool') &&
-      (raw.includes('not supported') ||
-       raw.includes('unsupported') ||
-       raw.includes('invalid_argument')))
-  )
+  /**
+   * What to search for. A route knows what it is researching — a company name,
+   * a role at a company — far better than this file can recover from the
+   * prompt it was handed, so it says so. Omitted, queries are derived from the
+   * user message, which works but searches worse.
+   */
+  searchQueries?: string[]
 }
 
 /**
@@ -535,75 +645,121 @@ export async function callGeminiGrounded<T>(
   return { data, sources }
 }
 
+/**
+ * Derives search queries from the prompt when a route did not supply any.
+ *
+ * Route prompts are written as labelled lines — "Company: Wix", "Role: PM" —
+ * so the values carry the search terms and the labels are noise. This is a
+ * fallback: a route that passes searchQueries gets better results.
+ */
+function deriveQueries(user: string): string[] {
+  const values = user
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && line.length < 200)
+    .map(line => {
+      const m = line.match(/^[A-Za-z][A-Za-z .\/-]{0,40}:\s*(.+)$/)
+      return (m ? m[1] : line).trim()
+    })
+    .filter(v => v.length > 2 && !v.startsWith('http'))
+
+  const joined = values.slice(0, 2).join(' ')
+  return joined ? [joined] : [user.slice(0, 120)]
+}
+
+/**
+ * Searches the web, reads any pages named outright, and asks the model to
+ * write up what it found.
+ *
+ * This used to hand Gemini its own `googleSearch` tool and let it do both
+ * halves. That path is gone — see the header of search.ts for the measurements
+ * — so the search happens first, in this process, and the model receives the
+ * results as ordinary prompt text. The model no longer chooses what to look
+ * up, which loses a little; it also can no longer come back empty-handed
+ * because a tool was refused, which gains rather more.
+ */
 async function runResearch(
   opts: Omit<CallGeminiGroundedOptions<unknown>, 'schema'>,
 ): Promise<{ research: string; sources: GroundingSource[] }> {
-  const ai = new GoogleGenAI({ apiKey: opts.apiKey })
+  // A URL the user pasted is the primary document, not one result among many,
+  // so it is fetched first and placed ahead of the search results.
+  const pages = await Promise.all(
+    (opts.urls ?? []).slice(0, 3).map(async url => ({ url, text: await fetchPageText(url) })),
+  )
+  const readable   = pages.filter(p => p.text.length > 200)
+  const unreadable = pages.filter(p => p.text.length <= 200).map(p => p.url)
 
-  // urlContext lets Gemini fetch the exact page the user pasted — a LinkedIn
-  // or careers-site job posting — instead of guessing from the URL slug.
-  const wantsUrlContext = !!opts.urls && opts.urls.length > 0
+  const queries = opts.searchQueries?.length
+    ? opts.searchQueries
+    : deriveQueries(opts.user ?? '')
 
-  // The endpoint's system prompt describes the JSON it ultimately wants. For
-  // the research pass that instruction is actively harmful, so it is overridden
-  // here: cover the same ground, but write it as notes.
+  // Search is the only source for a company name, but for a pasted job link it
+  // is a supplement to a page we already hold. So a search that is unconfigured
+  // or refused is fatal only when there is nothing else to read — otherwise the
+  // posting alone answers the question, which is what the user asked for.
+  let hits: SearchHit[] = []
+  let provider = ''
+  try {
+    const found = await webSearch(queries)
+    hits = found.hits
+    provider = found.provider
+  } catch (err) {
+    if (readable.length === 0) throw err
+    console.warn('[gemini] search unavailable; continuing on fetched page text alone:',
+      err instanceof Error ? err.message : err)
+  }
+
   const researchSystem =
     `${opts.system}\n\n` +
-    'IMPORTANT OVERRIDE FOR THIS STEP: do NOT return JSON. Research the request using ' +
-    'Google Search, then write your findings as plain prose notes under short headings — ' +
-    'one heading per field named above, in the same order, using the field name as the ' +
-    'heading. Include every fact you would have put in each field, and keep the length ' +
-    'caps described above. A separate step converts your notes into JSON, so formatting ' +
-    'does not matter here; completeness and accuracy do.'
+    'IMPORTANT OVERRIDE FOR THIS STEP: do NOT return JSON. Using only the SEARCH RESULTS ' +
+    'and PAGE CONTENT supplied in the user message, write your findings as plain prose ' +
+    'notes under short headings — one heading per field named above, in the same order, ' +
+    'using the field name as the heading. Include every fact you would have put in each ' +
+    'field, and keep the length caps described above. A separate step converts your notes ' +
+    'into JSON, so formatting does not matter here; completeness and accuracy do. ' +
+    'Do not state anything the supplied material does not support: if it does not cover a ' +
+    'field, say so under that heading rather than filling it from memory.'
 
-  const send = (tools: object[]) =>
-    generateWithFallback(ai, {
-      model:    opts.model ?? DEFAULT_MODEL,
-      contents: [{ role: 'user', parts: [{ text: opts.user ?? '' }] }],
-      config: {
-        systemInstruction: researchSystem,
-        tools,
-        // No maxOutputTokens and no thinkingConfig here on purpose. Both were
-        // implicated in the empty responses, and the prompt's own length caps
-        // bound the output better than a token ceiling does.
-      },
-    })
+  const parts: string[] = [opts.user ?? '']
 
-  const attempt = async () => {
-    if (!wantsUrlContext) return send([{ googleSearch: {} }])
-    try {
-      return await send([{ googleSearch: {} }, { urlContext: {} }])
-    } catch (err) {
-      // Which tools may be combined has changed more than once across model
-      // versions, and the API rejects an unsupported pairing outright. Search
-      // alone still answers the question, so degrade rather than fail: the
-      // model finds the posting instead of being handed it.
-      if (!isToolRejection(err)) throw err
-      console.warn('[gemini] urlContext rejected, retrying with search only')
-      return send([{ googleSearch: {} }])
-    }
+  if (readable.length > 0) {
+    parts.push(
+      'PAGE CONTENT (fetched directly from the links given above):\n\n' +
+      readable.map(p => `--- ${p.url} ---\n${p.text}`).join('\n\n'),
+    )
+  }
+  if (unreadable.length > 0) {
+    parts.push(
+      'THESE LINKS COULD NOT BE READ (expired, blocked, or login-walled). Say so rather ' +
+      `than describing them: ${unreadable.join(', ')}`,
+    )
   }
 
-  let response = await attempt()
-
-  if (!(response.text ?? '').trim()) {
-    const finish = response.candidates?.[0]?.finishReason
-    console.warn(`[gemini] grounded research returned no text (${finish ?? 'no candidate'}); retrying once`)
-    response = await attempt()
+  if (hits.length > 0) {
+    parts.push(`SEARCH RESULTS (from ${provider}):\n\n${renderSearchContext(hits)}`)
   }
 
-  const research  = response.text ?? ''
-  const candidate = response.candidates?.[0]
+  const research = await callGeminiRaw({
+    apiKey:    opts.apiKey,
+    system:    researchSystem,
+    user:      parts.join('\n\n'),
+    model:     opts.model,
+    // Prose, not JSON — the structuring pass turns it into the schema.
+    json:      false,
+    maxTokens: 16_000,
+    // The model is reasoning over a dozen sources; a fixed small budget is
+    // what used to leave these calls finishing with nothing written.
+    thinkingBudget: DYNAMIC_THINKING,
+  })
 
-  const chunks = candidate?.groundingMetadata?.groundingChunks ?? []
-  const seen   = new Set<string>()
-  const sources: GroundingSource[] = chunks
-    .map((c): GroundingSource => ({ title: c.web?.title, uri: c.web?.uri }))
-    .filter(s => {
-      if (!s.uri || seen.has(s.uri)) return false
-      seen.add(s.uri)
+  const seen = new Set<string>()
+  const sources: GroundingSource[] = hits
+    .filter(h => {
+      if (!h.url || seen.has(h.url)) return false
+      seen.add(h.url)
       return true
     })
+    .map(h => ({ title: h.title, uri: h.url }))
 
   return { research, sources }
 }

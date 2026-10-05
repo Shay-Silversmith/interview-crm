@@ -73,6 +73,11 @@ export default createAIRoute({
       user:      sections.join('\n\n'),
       maxTokens: 9_000,
       urls:      body.urls,
+      searchQueries: [
+        `${body.companyName}${body.hint ? ` ${body.hint}` : ''} company overview`,
+        `${body.companyName} products customers funding news`,
+        ...(body.roleTitle ? [`${body.companyName} ${body.roleTitle} team`] : []),
+      ],
     })
 
     // Stage one: hand the notes back so the shaping runs as its own request,

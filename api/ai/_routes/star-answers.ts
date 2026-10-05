@@ -188,6 +188,10 @@ export default createAIRoute({
         user:      sections.join('\n\n'),
         maxTokens: 14_000,
         urls:      [body.jdUrl],
+        searchQueries: [
+          `${body.role} ${body.company} job description`,
+          `${body.company} behavioural interview questions`,
+        ],
       })
 
       if (body.stage === 'research') return { data: null, research, sources }

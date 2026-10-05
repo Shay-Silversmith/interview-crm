@@ -11,7 +11,7 @@
 // ---------------------------------------------------------------------------
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { callGemini, localeSystemSuffix, getGeminiApiKey } from '../_lib/gemini.js'
+import { callGemini, localeSystemSuffix, getGeminiApiKey, describeGeminiError } from '../_lib/gemini.js'
 import { checkRateLimit, getIP } from '../_lib/rate-limit.js'
 import {
   agentRequestSchema,
@@ -106,7 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
     return res.status(200).json({ ok: true, data })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected error'
+    const message = describeGeminiError(err)
     // Log in production too: without this a 500 shows up in the Vercel logs
     // with no reason attached, which is how the grounded-JSON failure stayed
     // invisible. The key is never part of the error object.

@@ -90,6 +90,10 @@ export default createAIRoute({
         system,
         user:      sections.join('\n\n'),
         maxTokens: 8_000,
+        searchQueries: [
+          `${body.application.company} ${body.application.title} interview`,
+          `${body.application.company} ${body.interviewType} interview process`,
+        ],
       })
 
       if (body.stage === 'research') return { data: null, research: notes, sources }

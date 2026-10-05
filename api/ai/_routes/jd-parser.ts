@@ -101,6 +101,11 @@ export default createAIRoute({
         user:      sections.join('\n\n'),
         maxTokens: 12_000,
         urls:      [body.jdUrl],
+        searchQueries: [
+          body.roleTitle && body.companyName
+            ? `${body.roleTitle} ${body.companyName} job description`
+            : body.jdUrl,
+        ],
       })
 
       if (body.stage === 'research') return { data: null, research, sources }

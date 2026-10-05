@@ -69,6 +69,10 @@ export default createAIRoute({
 
     const { research, sources } = await researchGrounded({
       apiKey, system, user: userMsg, maxTokens: 12_000,
+      searchQueries: [
+        `${body.companyName}${body.hint ? ` ${body.hint}` : ''} company`,
+        `${body.companyName} headquarters number of employees industry`,
+      ],
     })
 
     if (body.stage === 'research') return { data: null, research, sources }

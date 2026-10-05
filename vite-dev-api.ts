@@ -16,6 +16,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { loadEnv } from 'vite'
 import type { Plugin } from 'vite'
 
 /** Bodies carry base64 CV uploads, so the cap is well above Vercel's 4.5 MB. */
@@ -104,6 +105,16 @@ export function devApiPlugin(): Plugin {
 
     configureServer(server) {
       const root = server.config.root
+
+      // Vercel hands the functions their environment; Vite only exposes
+      // VITE_* to the browser and puts nothing in process.env. Without this a
+      // server-side key in .env.local (EXA_API_KEY and friends) never reached
+      // the handlers, so search was "not configured" locally whatever the file
+      // said. Values already in the real environment win.
+      const fileEnv = loadEnv(server.config.mode, root, '')
+      for (const [name, value] of Object.entries(fileEnv)) {
+        if (!name.startsWith('VITE_') && process.env[name] === undefined) process.env[name] = value
+      }
 
       server.middlewares.use(async (req, res, next) => {
         const rawUrl = req.url ?? ''
