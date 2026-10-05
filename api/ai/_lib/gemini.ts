@@ -22,6 +22,7 @@ import { GoogleGenAI } from '@google/genai'
 import type { z } from 'zod'
 import { webSearch, renderSearchContext, fetchPageText } from './search.js'
 import type { SearchHit } from './search.js'
+import { callGroq, isGroqConfigured } from './groq.js'
 
 /**
  * Off the 2.5 line, because new keys cannot reach it at all.
@@ -384,6 +385,8 @@ export interface CallGeminiRawOptions {
   thinkingBudget?: number
   /** Set false to skip forced application/json output. */
   json?:      boolean
+  /** Set true to report Gemini's failure as-is. The key test needs the truth. */
+  noBackup?:  boolean
 }
 
 /** Thrown when the model hit its output ceiling instead of finishing. */
@@ -408,7 +411,65 @@ export class GeminiEmptyError extends Error {
   }
 }
 
+/**
+ * True when Gemini itself is the problem — overloaded, retired, out of quota,
+ * unreachable, or silent — rather than the request or the key.
+ *
+ * A rejected key or a malformed request is excluded on purpose. Those are for
+ * the user to fix, and answering them from the deployment's backup key would
+ * hide the fault and let anyone run the tools on that key with no key of
+ * their own.
+ */
+function isGeminiDown(err: unknown): boolean {
+  if (err instanceof GeminiEmptyError) return true
+  if (isInvalidArgument(err)) return false
+  const raw = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  if (/api[_ ]?key/.test(raw)) return false
+  return (
+    isOverloaded(err) ||
+    isModelUnavailable(err) ||
+    raw.includes('"code":429') ||
+    raw.includes('resource_exhausted') ||
+    raw.includes('quota')
+  )
+}
+
+/**
+ * Asks Gemini, and if Gemini is down, asks the backup.
+ *
+ * The backup is strictly second: it runs only after the whole Gemini fallback
+ * chain has failed, only when the deployment has a Groq key, and only for
+ * text — a CV sent as a PDF has nowhere to go on a text-only model. If the
+ * backup fails too, Gemini's error is the one reported, since that is the
+ * fault the user can see and act on.
+ */
 export async function callGeminiRaw(opts: CallGeminiRawOptions): Promise<string> {
+  try {
+    return await callGeminiOnly(opts)
+  } catch (err) {
+    const textOnly = !opts.userParts || opts.userParts.every(p => 'text' in p)
+    if (opts.noBackup || !textOnly || !isGroqConfigured() || !isGeminiDown(err)) throw err
+
+    console.warn('[gemini] failed, using the Groq backup:',
+      err instanceof Error ? err.message.slice(0, 200) : err)
+    try {
+      return await callGroq({
+        system:    opts.system,
+        user:      opts.userParts
+          ? opts.userParts.map(p => ('text' in p ? p.text : '')).join('\n\n')
+          : opts.user ?? '',
+        maxTokens: opts.maxTokens,
+        json:      opts.json,
+      })
+    } catch (backupErr) {
+      console.warn('[groq] backup failed too:',
+        backupErr instanceof Error ? backupErr.message : backupErr)
+      throw err
+    }
+  }
+}
+
+async function callGeminiOnly(opts: CallGeminiRawOptions): Promise<string> {
   const ai = new GoogleGenAI({ apiKey: opts.apiKey })
 
   const contents = opts.userParts

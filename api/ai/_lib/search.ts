@@ -172,6 +172,12 @@ const PROVIDERS = [EXA, TAVILY, BRAVE]
 // text, so the top results are fetched directly to give the model something to
 // read; and it is an HTML page, not an API, so it can change shape or refuse a
 // datacenter address without notice. A real key is still the better setup.
+//
+// "Refuse a datacenter address" turned out to be the normal case, not the edge:
+// the direct request works from a laptop and is answered 403 from Vercel. So
+// there are two routes to the same results page — directly, and through Jina's
+// public reader, which fetches it from an address DuckDuckGo does accept and
+// hands back markdown. The reader needs no key either, at 20 requests a minute.
 // ---------------------------------------------------------------------------
 
 const KEYLESS_NAME = 'DuckDuckGo'
@@ -216,6 +222,55 @@ async function duckDuckGo(query: string, perQuery: number): Promise<SearchHit[]>
   return hits
 }
 
+/** The same results page, fetched by Jina's reader and returned as markdown. */
+async function duckDuckGoViaReader(query: string, perQuery: number): Promise<SearchHit[]> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 20_000)
+
+  const res = await fetch(
+    `https://r.jina.ai/https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+    { signal: controller.signal, headers: { accept: 'text/plain' } },
+  ).finally(() => clearTimeout(timer))
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const markdown = await res.text()
+
+  const hits: SearchHit[] = []
+  // Each result is a "## [title](redirect)" heading followed by a favicon
+  // line and then the snippet, itself a link to the same redirect.
+  for (const block of markdown.split(/^## \[/m).slice(1)) {
+    const head = block.match(/^([\s\S]*?)\]\((\S+?)\)/)
+    const uddg = head?.[2].match(/[?&]uddg=([^&)]+)/)?.[1]
+    if (!head || !uddg) continue
+
+    let url: string
+    try { url = decodeURIComponent(uddg) } catch { continue }
+    if (!/^https?:\/\//.test(url) || url.includes('duckduckgo.com/y.js')) continue
+
+    const snippet = block
+      .split('\n')
+      .find(line => line.startsWith('[') && !line.startsWith('[!'))
+      ?.match(/^\[([\s\S]*?)\]\(https?:\/\/duckduckgo\.com\//)?.[1] ?? ''
+
+    hits.push({
+      title: head[1].replace(/\*\*/g, '').trim(),
+      url,
+      text:  snippet.replace(/\*\*/g, '').trim(),
+    })
+    if (hits.length >= perQuery) break
+  }
+  return hits
+}
+
+/** Routes to the keyless results, in the order worth trying them. */
+const KEYLESS_ROUTES: Array<{
+  label: string
+  run:   (query: string, perQuery: number) => Promise<SearchHit[]>
+}> = [
+  { label: 'direct',     run: duckDuckGo },
+  { label: 'via reader', run: duckDuckGoViaReader },
+]
+
 /**
  * Swaps snippets for page text on the first few hits.
  *
@@ -228,30 +283,39 @@ async function enrichWithPageText(hits: SearchHit[], count = 3): Promise<SearchH
     hits.slice(0, count).map(h => fetchPageText(h.url, 2_500, 6_000)),
   )
   return hits.map((h, i) =>
-    pages[i] && pages[i].length > 200 ? { ...h, text: `${h.text}
-${pages[i]}` } : h,
+    pages[i] && pages[i].length > 200 ? { ...h, text: `${h.text}\n${pages[i]}` } : h,
   )
 }
 
 async function keylessSearch(queries: string[], perQuery: number, maxHits: number): Promise<SearchHit[]> {
-  const hits: SearchHit[] = []
-  const seen = new Set<string>()
   const failures: string[] = []
 
-  for (const query of queries) {
-    try {
-      for (const hit of await duckDuckGo(query, perQuery)) {
-        if (seen.has(hit.url)) continue
-        seen.add(hit.url)
-        hits.push(hit)
+  // A route that is refused is refused for every query, so the first one that
+  // returns anything is used for all of them rather than retried per query.
+  for (const route of KEYLESS_ROUTES) {
+    const hits: SearchHit[] = []
+    const seen = new Set<string>()
+    let failure = 'no results'
+
+    for (const query of queries) {
+      try {
+        for (const hit of await route.run(query, perQuery)) {
+          if (seen.has(hit.url)) continue
+          seen.add(hit.url)
+          hits.push(hit)
+        }
+      } catch (err) {
+        failure = err instanceof Error ? err.message : String(err)
+        // Do not spend the remaining queries on a route that just refused.
+        if (hits.length === 0) break
       }
-    } catch (err) {
-      failures.push(err instanceof Error ? err.message : String(err))
     }
+
+    if (hits.length > 0) return enrichWithPageText(hits.slice(0, maxHits))
+    failures.push(`${route.label}: ${failure}`)
   }
 
-  if (hits.length === 0) throw new SearchFailedError(KEYLESS_NAME, failures[0] ?? 'no results')
-  return enrichWithPageText(hits.slice(0, maxHits))
+  throw new SearchFailedError(KEYLESS_NAME, failures.join('; '))
 }
 
 /** The provider this deployment is configured for, or null if none is. */

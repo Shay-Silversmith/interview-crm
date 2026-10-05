@@ -48,6 +48,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       user:      'Return JSON: {"status":"ok"}',
       maxTokens: 256,
       model:     MODEL,
+      // This button answers "does my Gemini key work" — not "does anything".
+      noBackup:  true,
     })
     return res.status(200).json({
       ok:     true,
