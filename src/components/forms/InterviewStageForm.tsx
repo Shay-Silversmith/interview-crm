@@ -9,6 +9,7 @@ import { makeInterviewStageSchema, type InterviewStageFormValues } from '@/lib/s
 import { TextField, SelectField, TextareaField } from './Field'
 import { FormRow, FormSection, SubmitBar } from './FormLayout'
 import { useI18n } from '@/hooks/useI18n'
+import { toLocalInput } from '@/utils/format'
 
 interface InterviewStageFormProps {
   initial?: Partial<InterviewStage>
@@ -47,8 +48,10 @@ export function InterviewStageForm({ initial, onSubmit, onCancel, loading }: Int
     defaultValues: {
       type:             initial?.type ?? 'Phone Screen',
       outcome:          initial?.outcome ?? 'Pending',
-      scheduledAt:      initial?.scheduledAt ? initial.scheduledAt.slice(0, 16) : '',
-      completedAt:      initial?.completedAt ? initial.completedAt.slice(0, 16) : '',
+      // One date on screen. A round logged after the fact — by the assistant,
+      // say — may carry only a completion time, so that is the fallback.
+      scheduledAt:      toLocalInput(initial?.scheduledAt ?? initial?.completedAt),
+      completedAt:      '',
       duration:         initial?.duration,
       interviewer:      initial?.interviewer ?? '',
       interviewerTitle: initial?.interviewerTitle ?? '',
@@ -58,8 +61,18 @@ export function InterviewStageForm({ initial, onSubmit, onCancel, loading }: Int
     },
   })
 
+  // "Scheduled for" and "completed at" were two fields asking the same
+  // question: a round happens when it is scheduled. The record still keeps
+  // both, because the timeline and the dashboard read completedAt to tell a
+  // finished round from an upcoming one — so it is derived from the outcome
+  // rather than typed a second time.
+  const submit = (values: InterviewStageFormValues) => {
+    const finished = values.outcome === 'Passed' || values.outcome === 'Failed'
+    return onSubmit({ ...values, completedAt: finished ? values.scheduledAt : '' })
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
       <FormRow>
         <SelectField label={t('forms.fields.roundType')} required options={TYPE_OPTS}    error={errors.type?.message}    {...register('type')} />
         <SelectField label={t('forms.fields.outcome')}   required options={OUTCOME_OPTS} error={errors.outcome?.message} {...register('outcome')} />
@@ -67,11 +80,10 @@ export function InterviewStageForm({ initial, onSubmit, onCancel, loading }: Int
 
       <FormSection title={t('forms.sections.schedule')}>
         <FormRow>
-          <TextField label={t('forms.fields.scheduledAt')} type="datetime-local" error={errors.scheduledAt?.message} {...register('scheduledAt')} />
-          <TextField label={t('forms.fields.completedAt')} type="datetime-local" error={errors.completedAt?.message} {...register('completedAt')} />
+          <TextField label={t('forms.fields.roundDate')} type="datetime-local" error={errors.scheduledAt?.message} {...register('scheduledAt')} />
+          <TextField label={t('forms.fields.durationMinutes')} type="number" placeholder="60" error={errors.duration?.message}
+            {...register('duration', { setValueAs: v => v === '' ? undefined : Number(v) })} />
         </FormRow>
-        <TextField label={t('forms.fields.durationMinutes')} type="number" placeholder="60" error={errors.duration?.message}
-          {...register('duration', { setValueAs: v => v === '' ? undefined : Number(v) })} />
       </FormSection>
 
       <FormSection title={t('forms.sections.interviewer')}>

@@ -9,6 +9,7 @@ import { makeCalendarEventSchema, type CalendarEventFormValues } from '@/lib/sch
 import { TextField, SelectField, TextareaField, CheckboxField } from './Field'
 import { FormRow, SubmitBar } from './FormLayout'
 import { useI18n } from '@/hooks/useI18n'
+import { toLocalInput } from '@/utils/format'
 
 interface CalendarEventFormProps {
   initial?: Partial<CalendarEvent>
@@ -37,8 +38,8 @@ export function CalendarEventForm({ initial, applications = [], onSubmit, onCanc
     defaultValues: {
       title:           initial?.title ?? '',
       type:            initial?.type ?? 'Interview',
-      startAt:         initial?.startAt ? initial.startAt.slice(0, 16) : '',
-      endAt:           initial?.endAt   ? initial.endAt.slice(0, 16)   : '',
+      startAt:         toLocalInput(initial?.startAt),
+      endAt:           toLocalInput(initial?.endAt),
       allDay:          initial?.allDay  ?? false,
       applicationId:   initial?.applicationId ?? '',
       description:     initial?.description ?? '',

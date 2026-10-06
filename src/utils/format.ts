@@ -26,3 +26,18 @@ export function initials(name: string | undefined | null): string {
     .map(w => w[0]?.toUpperCase() ?? '')
     .join('') || '?'
 }
+
+/**
+ * An ISO timestamp as a datetime-local input wants it: local time, no zone.
+ *
+ * Slicing the ISO string — what the forms used to do — shows the UTC time in a
+ * field the browser reads as local, so opening a round and saving it moved it
+ * three hours earlier, every time.
+ */
+export function toLocalInput(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}

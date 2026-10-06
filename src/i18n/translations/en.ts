@@ -577,6 +577,7 @@ const en = {
       followUpDate:        'Follow-up Date',
       roundType:           'Round Type',
       outcome:             'Outcome',
+      roundDate:           'Date & time',
       scheduledAt:         'Scheduled At',
       completedAt:         'Completed At',
       durationMinutes:     'Duration (minutes)',

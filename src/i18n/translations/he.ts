@@ -576,6 +576,7 @@ const he: Translations = {
       followUpDate:        'תאריך מעקב',
       roundType:           'סוג שלב',
       outcome:             'תוצאה',
+      roundDate:           'תאריך ושעה',
       scheduledAt:         'תוזמן ל',
       completedAt:         'הושלם ב',
       durationMinutes:     'משך (דקות)',
