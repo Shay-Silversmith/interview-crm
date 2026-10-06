@@ -32,9 +32,12 @@ export function buildDocPath(userId: string, fileName: string): string {
 // ---------------------------------------------------------------------------
 
 const supabaseStorage = {
-  async uploadToBucket(bucket: string, path: string, file: File): Promise<string> {
+  async uploadToBucket(bucket: string, path: string, file: File, contentType?: string): Promise<string> {
     const sb = getSupabaseClient()
-    const { error } = await sb.storage.from(bucket).upload(path, file, { upsert: false })
+    const { error } = await sb.storage.from(bucket).upload(path, file, {
+      upsert: false,
+      ...(contentType ? { contentType } : {}),
+    })
     if (error) throw new Error(error.message)
     return path
   },
@@ -68,7 +71,7 @@ const supabaseStorage = {
 const mockBlobMap = new Map<string, string>()
 
 const mockStorage = {
-  async uploadToBucket(_bucket: string, path: string, file: File): Promise<string> {
+  async uploadToBucket(_bucket: string, path: string, file: File, _contentType?: string): Promise<string> {
     const objectUrl = URL.createObjectURL(file)
     mockBlobMap.set(path, objectUrl)
     return path

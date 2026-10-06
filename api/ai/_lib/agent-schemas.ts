@@ -64,15 +64,17 @@ const applicationStage = lenientEnum(
 
 const interviewType = lenientEnum(
   [
-    'Phone Screen', 'HR Interview', 'Technical', 'System Design',
+    'Phone Screen', 'HR Interview', 'Technical', 'Technical Test', 'System Design',
     'Behavioral', 'Case Study', 'Home Assignment Review',
     'Manager Interview', 'Final Round', 'Offer Call',
   ],
   [
+    // Before the assignment rule: a timed test is not a take-home.
+    [/\b(test|exam|assessment)\b|assess|timed/i,           'Technical Test'],
     [/offer/i,                                        'Offer Call'],
     [/final|last round|second|follow.?up|repeat/i,    'Final Round'],
     [/manager|hiring|director|vp|ceo|cto/i,           'Manager Interview'],
-    [/assign|take.?home|assess|test|exam|presentation|task/i, 'Home Assignment Review'],
+    [/assign|take.?home|presentation|task/i,          'Home Assignment Review'],
     [/system/i,                                       'System Design'],
     [/case/i,                                         'Case Study'],
     [/behavio|personal|culture|fit|values/i,          'Behavioral'],

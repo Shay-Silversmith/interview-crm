@@ -17,6 +17,9 @@ const TYPE_TO_STAGE: Record<InterviewType, ApplicationStage> = {
   'HR Interview':           'HR Screen',
   'Home Assignment Review': 'Home Assignment',
   'Technical':              'Technical Interview',
+  // A test sat with the company is part of the technical round, unlike a
+  // take-home, which has a stage of its own.
+  'Technical Test':         'Technical Interview',
   'System Design':          'Technical Interview',
   'Behavioral':             'Manager Interview',
   'Case Study':             'Manager Interview',

@@ -3,7 +3,7 @@ import { z } from 'zod'
 // t is not needed for this schema (no string messages currently), but we keep
 // the factory signature consistent so forms can pass t uniformly.
 export const makeInterviewStageSchema = (_t?: (key: string) => string) => z.object({
-  type:             z.enum(['Phone Screen', 'HR Interview', 'Technical', 'System Design', 'Behavioral', 'Case Study', 'Home Assignment Review', 'Manager Interview', 'Final Round', 'Offer Call']),
+  type:             z.enum(['Phone Screen', 'HR Interview', 'Technical', 'Technical Test', 'System Design', 'Behavioral', 'Case Study', 'Home Assignment Review', 'Manager Interview', 'Final Round', 'Offer Call']),
   outcome:          z.enum(['Passed', 'Failed', 'Pending', 'Cancelled']),
   scheduledAt:      z.string().optional(),
   completedAt:      z.string().optional(),

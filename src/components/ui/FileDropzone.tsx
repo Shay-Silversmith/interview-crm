@@ -13,6 +13,13 @@ interface FileDropzoneProps {
   onChange: (file: File | null) => void
   /** Accepted MIME types — defaults to PDF + DOCX */
   accept?: string[]
+  /**
+   * Accepted extensions, with the dot. A file passes on its MIME type OR its
+   * extension, because the browser's idea of a type is not dependable: Windows
+   * reports a .zip as application/x-zip-compressed, other systems as
+   * application/zip, and some report nothing at all.
+   */
+  extensions?: string[]
   /** Max size in bytes — defaults to 10 MB */
   maxSize?: number
   disabled?: boolean
@@ -24,6 +31,7 @@ export function FileDropzone({
   value,
   onChange,
   accept = ACCEPTED_TYPES,
+  extensions = ACCEPTED_EXT,
   maxSize = MAX_BYTES,
   disabled = false,
   className,
@@ -33,8 +41,10 @@ export function FileDropzone({
   const [error,    setError]    = useState<string | null>(null)
 
   function validate(file: File): string | null {
-    if (!accept.includes(file.type)) {
-      return `Unsupported file type. Please upload ${ACCEPTED_EXT.join(' or ')}.`
+    const name = file.name.toLowerCase()
+    const byExtension = extensions.some(ext => name.endsWith(ext))
+    if (!accept.includes(file.type) && !byExtension) {
+      return `Unsupported file type. Please upload ${extensions.join(', ')}.`
     }
     if (file.size > maxSize) {
       return `File too large. Maximum size is ${formatFileSize(maxSize)}.`
@@ -126,7 +136,7 @@ export function FileDropzone({
             {dragging ? 'Drop to upload' : 'Drag & drop or click to browse'}
           </p>
           <p className="mt-0.5 text-xs text-slate-500">
-            PDF or DOCX · max {formatFileSize(maxSize)}
+            {extensions.map(e => e.slice(1).toUpperCase()).join(', ')} · max {formatFileSize(maxSize)}
           </p>
         </div>
       </div>
@@ -141,7 +151,7 @@ export function FileDropzone({
       <input
         ref={inputRef}
         type="file"
-        accept={accept.join(',')}
+        accept={[...accept, ...extensions].join(',')}
         onChange={handleChange}
         className="sr-only"
         tabIndex={-1}

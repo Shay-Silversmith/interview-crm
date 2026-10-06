@@ -26,6 +26,7 @@ export function InterviewStageForm({ initial, onSubmit, onCancel, loading }: Int
     { value: 'Phone Screen',           label: t('forms.options.intPhoneScreen') },
     { value: 'HR Interview',           label: t('forms.options.intHrInterview') },
     { value: 'Technical',              label: t('forms.options.intTechnical') },
+    { value: 'Technical Test',         label: t('forms.options.intTechnicalTest') },
     { value: 'System Design',          label: t('forms.options.intSystemDesign') },
     { value: 'Behavioral',             label: t('forms.options.intBehavioral') },
     { value: 'Case Study',             label: t('forms.options.intCaseStudy') },

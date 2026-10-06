@@ -29,6 +29,7 @@ export function DocumentForm({ initial, onSubmit, onCancel, loading, fileSlot }:
     { value: 'CV',               label: t('forms.options.docCV') },
     { value: 'Cover Letter',     label: t('forms.options.docCoverLetter') },
     { value: 'Portfolio',        label: t('forms.options.docPortfolio') },
+    { value: 'Assignment',       label: t('forms.options.docAssignment') },
     { value: 'Certificate',      label: t('forms.options.docCertificate') },
     { value: 'Transcript',       label: t('forms.options.docTranscript') },
     { value: 'Reference Letter', label: t('forms.options.docReferenceLetter') },

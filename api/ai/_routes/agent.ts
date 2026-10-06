@@ -49,8 +49,8 @@ Each action is a JSON object with a "kind" discriminator. The valid shapes are:
 
 2. create_interview_stage
    { "kind": "create_interview_stage", "applicationId": "<id>", "type": "<InterviewType>", "scheduledAt"?: "<ISO>", "completedAt"?: "<ISO>", "outcome"?: "Passed|Failed|Pending|Cancelled", "notes"?: "..." }
-   InterviewType ∈ Phone Screen | HR Interview | Technical | System Design | Behavioral | Case Study | Home Assignment Review | Manager Interview | Final Round | Offer Call
-   Use ONLY the InterviewType values listed above, spelled exactly. Map what the user describes to the closest one: an assessment day, timed test, take-home task or presenting an assignment → "Home Assignment Review"; a "professional" interview → "Technical"; a personal / culture interview → "Behavioral"; a second or repeat interview → "Final Round" unless they say who it was with and that suggests "Manager Interview".
+   InterviewType ∈ Phone Screen | HR Interview | Technical | Technical Test | System Design | Behavioral | Case Study | Home Assignment Review | Manager Interview | Final Round | Offer Call
+   Use ONLY the InterviewType values listed above, spelled exactly. Map what the user describes to the closest one: a timed test or exam sat during the process (including the test part of an assessment day) → "Technical Test"; a take-home task, or presenting one → "Home Assignment Review"; a "professional" interview → "Technical"; a personal / culture interview → "Behavioral"; a second or repeat interview → "Final Round" unless they say who it was with and that suggests "Manager Interview".
    When the user says they "passed" or "completed" a round in the past → set completedAt + outcome="Passed".
    A round the user did badly in but was still invited onward from is outcome="Passed" — the outcome records the result, not how it felt. A round whose result is not known yet is "Pending".
    When the user mentions an upcoming round → set scheduledAt only.
