@@ -200,6 +200,13 @@ const he: Translations = {
       feedbackReceived:    'משוב התקבל',
       nextSteps:           'צעדים הבאים',
       expand:              'הרחב',
+      stageFiles:          'קבצים',
+      attachFile:          'צרף קובץ',
+      stageFilesUploading: 'מעלה…',
+      noStageFiles:        'אין קבצים מצורפים לשלב הזה.',
+      openFile:            'פתח',
+      deleteFileTitle:     'למחוק את הקובץ?',
+      deleteFileDescription: 'הקובץ "{{name}}" יימחק לצמיתות, גם מרשימת הקבצים של המועמדות.',
       collapse:            'כווץ',
       // Tasks tab
       addTask:          'הוסף משימה',

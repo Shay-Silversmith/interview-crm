@@ -199,6 +199,13 @@ const en = {
       feedbackReceived:    'Feedback Received',
       nextSteps:           'Next Steps',
       expand:              'Expand',
+      stageFiles:          'Files',
+      attachFile:          'Attach file',
+      stageFilesUploading: 'Uploading…',
+      noStageFiles:        'No files attached to this round.',
+      openFile:            'Open',
+      deleteFileTitle:     'Delete this file?',
+      deleteFileDescription: '"{{name}}" will be permanently deleted, including from the application\'s files.',
       collapse:            'Collapse',
       // Tasks tab
       addTask:      'Add Task',

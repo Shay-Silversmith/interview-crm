@@ -101,6 +101,8 @@ const supabaseImpl = {
       name: data.name, type: data.type ?? 'CV', file_name: data.fileName,
       file_size: data.fileSize, storage_path: data.storagePath,
       notes: data.notes, application_ids: data.applicationIds ?? [],
+      // Sent only when set, so an ordinary document never names the column.
+      ...(data.stageId ? { stage_id: data.stageId } : {}),
     }).select().single()
     if (error) throw new Error(error.message)
     return mapDocument(inserted)

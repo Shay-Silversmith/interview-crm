@@ -205,6 +205,8 @@ export interface Document {
   fileSize?: number
   storagePath?: string
   applicationIds: string[]
+  /** The interview round this file is attached to, if any. */
+  stageId?: string
   notes?: string
   createdAt: string
   updatedAt: string

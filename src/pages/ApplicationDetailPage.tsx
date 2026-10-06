@@ -45,6 +45,7 @@ import { aiService } from '@/services/aiService'
 import { CVViewerButton } from '@/components/documents/CVViewerButton'
 import { DocumentViewerButton } from '@/components/documents/DocumentViewerButton'
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog'
+import { StageAttachments } from '@/components/documents/StageAttachments'
 import { CVUploadDialog } from '@/components/documents/CVUploadDialog'
 import { formatDate, formatDateTime, formatRelative, isOverdue } from '@/utils/date'
 import { formatFileSize } from '@/utils/format'
@@ -531,6 +532,8 @@ export function ApplicationDetailPage() {
         {activeTab === 'interviews' && (
           <InterviewsTab
             stages={app.interviewStages}
+            applicationId={app.id}
+            documents={appDocuments ?? []}
             onAdd={() => setStageFormOpen(true)}
             onEdit={setEditStage}
             onDelete={setDeleteStage}
@@ -934,9 +937,12 @@ const OUTCOME_STYLES: Record<string, { dot: string; label: string; cardBorder: s
 }
 
 function InterviewsTab({
-  stages, onAdd, onEdit, onDelete, onToggleDone, t,
+  stages, applicationId, documents, onAdd, onEdit, onDelete, onToggleDone, t,
 }: {
   stages: InterviewStage[]
+  applicationId: string
+  /** Every document of this application; each round shows the ones attached to it. */
+  documents: Document[]
   onAdd: () => void
   onEdit: (s: InterviewStage) => void
   onDelete: (s: InterviewStage) => void
@@ -967,6 +973,9 @@ function InterviewsTab({
           const style = OUTCOME_STYLES[outcome] ?? OUTCOME_STYLES.Pending
           const isLast = i === stages.length - 1
           const isExpanded = expandedId === stage.id
+          const stageDocs = documents.filter(d => d.stageId === stage.id)
+          // A round logged after the fact may carry only a completion time.
+          const when = stage.scheduledAt ?? stage.completedAt
 
           return (
             <div key={stage.id} className="flex gap-4">
@@ -991,8 +1000,9 @@ function InterviewsTab({
                         )}
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5 force-ltr">
-                        {stage.scheduledAt ? formatDateTime(stage.scheduledAt) : t('pages.applicationDetail.notScheduled')}
+                        {when ? formatDateTime(when) : t('pages.applicationDetail.notScheduled')}
                         {stage.interviewer && ` · ${stage.interviewer}`}
+                        {stageDocs.length > 0 && ` · 📎 ${stageDocs.length}`}
                       </p>
                     </div>
                     <span className="text-xs text-slate-400 shrink-0 mt-0.5">
@@ -1054,6 +1064,7 @@ function InterviewsTab({
                         <p className="text-sm text-slate-600">{stage.nextSteps}</p>
                       </div>
                     )}
+                    <StageAttachments stageId={stage.id} applicationId={applicationId} documents={stageDocs} />
                   </div>
                 )}
               </div>

@@ -422,6 +422,7 @@ export interface DocumentRow {
   id: string
   user_id: string
   application_ids: string[] | null
+  stage_id?: string | null
   name: string
   type: string
   file_name: string | null
@@ -442,6 +443,7 @@ export function mapDocument(row: DocumentRow): Document {
     fileSize: row.file_size ?? undefined,
     storagePath: row.storage_path ?? undefined,
     applicationIds: row.application_ids ?? [],
+    stageId: row.stage_id ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
