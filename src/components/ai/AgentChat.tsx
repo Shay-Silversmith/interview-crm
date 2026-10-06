@@ -110,9 +110,27 @@ export function AgentChat({ open, onClose }: AgentChatProps) {
     setThinking(true)
 
     try {
+      // The model only sees text, so a plan it proposed has to travel as text
+      // too — along with whether it ever ran. Without that, "actually the HR
+      // call was on the 28th" arrived with no trace of the plan it corrects:
+      // the model answered "updating the dates" and proposed nothing, because
+      // from where it sat there was nothing to update.
       const history: AgentMessage[] = entries
         .filter(e => e.role === 'user' || e.role === 'assistant')
-        .map(e => ({ role: e.role, content: e.content }))
+        .map(e => {
+          if (!e.plan || e.plan.actions.length === 0) return { role: e.role, content: e.content }
+          const status = !e.appliedAt
+            ? 'PROPOSED, NOT APPLIED — nothing below exists in the CRM yet'
+            : (e.results?.length ?? 0) === 0
+              ? 'DISCARDED by the user — nothing below was applied'
+              : 'APPLIED — these now exist in the CRM; see the context for their real ids'
+          return {
+            role:    e.role,
+            content: `${e.content}\n\n[Actions in this plan — ${status}]\n${JSON.stringify(e.plan.actions)}`.slice(0, 8000),
+          }
+        })
+        // The endpoint accepts 20 turns; a long chat used to be refused outright.
+        .slice(-16)
 
       const plan = await planAgentActions(message, history, {
         today:        new Date().toISOString(),
@@ -129,7 +147,17 @@ export function AgentChat({ open, onClose }: AgentChatProps) {
         plan,
         selected: plan.actions.map(() => true),
       }
-      setEntries(prev => [...prev, assistantEntry])
+      // A revised plan replaces the one it revises. Leaving both live would
+      // let the user approve the old one and the new one, and create the same
+      // application twice.
+      setEntries(prev => [
+        ...(plan.actions.length > 0
+          ? prev.map(e => e.plan && e.plan.actions.length > 0 && !e.appliedAt
+              ? { ...e, appliedAt: new Date().toISOString(), results: [] }
+              : e)
+          : prev),
+        assistantEntry,
+      ])
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       setEntries(prev => [...prev, {
