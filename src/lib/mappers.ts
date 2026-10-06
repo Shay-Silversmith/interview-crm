@@ -421,7 +421,7 @@ export function mapCVVersion(row: CVVersionRow): CVVersion {
 export interface DocumentRow {
   id: string
   user_id: string
-  application_id: string | null
+  application_ids: string[] | null
   name: string
   type: string
   file_name: string | null
@@ -441,7 +441,7 @@ export function mapDocument(row: DocumentRow): Document {
     fileName: row.file_name ?? '',
     fileSize: row.file_size ?? undefined,
     storagePath: row.storage_path ?? undefined,
-    applicationIds: row.application_id ? [row.application_id] : [],
+    applicationIds: row.application_ids ?? [],
     notes: row.notes ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

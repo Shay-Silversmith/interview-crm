@@ -51,7 +51,10 @@ const supabaseImpl = {
   },
   async getDocumentsByApplication(appId: string): Promise<Document[]> {
     const sb = getSupabaseClient()
-    const { data, error } = await sb.from('documents').select('*').eq('application_id', appId)
+    // application_ids is an array column: a document can belong to several
+    // applications. The code read and wrote a singular application_id that the
+    // table never had, so every document save failed and this always errored.
+    const { data, error } = await sb.from('documents').select('*').contains('application_ids', [appId])
     if (error) throw new Error(error.message)
     return (data ?? []).map(mapDocument)
   },
@@ -97,7 +100,7 @@ const supabaseImpl = {
         user_id: userId,
       name: data.name, type: data.type ?? 'CV', file_name: data.fileName,
       file_size: data.fileSize, storage_path: data.storagePath,
-      notes: data.notes, application_id: data.applicationIds?.[0],
+      notes: data.notes, application_ids: data.applicationIds ?? [],
     }).select().single()
     if (error) throw new Error(error.message)
     return mapDocument(inserted)
