@@ -5,6 +5,7 @@ import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
 import { mapApplication, mapInterviewStage } from '@/lib/mappers'
 import { requireUserId, noRowUpdatedError } from '@/lib/currentUser'
+import { domainFromWebsite, googleFavicon } from '@/lib/companyLogo'
 
 const delay = () => new Promise<void>(r => setTimeout(r, MOCK_DELAY_MS + Math.random() * 100))
 
@@ -60,12 +61,45 @@ const mockImpl = {
 // ---------------------------------------------------------------------------
 // Supabase implementation
 // ---------------------------------------------------------------------------
+/**
+ * Gives each application its company's current logo.
+ *
+ * The application row keeps its own copy of the logo, written once when the
+ * row is created. Any path that creates an application without passing it —
+ * the assistant did — leaves the copy empty, and editing the logo on the
+ * company afterwards never reaches it either; both showed up as a placeholder
+ * in the applications list beside a company page that had the logo. The
+ * company record is the one the user edits, so it wins, and the stored copy is
+ * only a fallback for an application whose company has none.
+ *
+ * A company with a website but no logo set gets the site's icon, the same way
+ * the company card does. The list only knows the company's name otherwise, and
+ * guessing a domain from a name is how "JeenAI" became jeenai.com, not jeen.ai.
+ */
+export async function withCompanyLogos(apps: JobApplication[]): Promise<JobApplication[]> {
+  const ids = [...new Set(apps.map(a => a.companyId).filter(Boolean))]
+  if (ids.length === 0) return apps
+
+  const sb = getSupabaseClient()
+  const { data, error } = await sb.from('companies').select('id, logo_url, website').in('id', ids)
+  // A logo is decoration; failing to load one must not take the list down.
+  if (error || !data) return apps
+
+  const logos = new Map(
+    (data as Array<{ id: string; logo_url: string | null; website: string | null }>).map(c => {
+      const domain = domainFromWebsite(c.website)
+      return [c.id, c.logo_url || (domain ? googleFavicon(domain) : null)]
+    }),
+  )
+  return apps.map(a => ({ ...a, companyLogoUrl: logos.get(a.companyId) || a.companyLogoUrl }))
+}
+
 const supabaseImpl = {
   async list(): Promise<JobApplication[]> {
     const sb = getSupabaseClient()
     const { data, error } = await sb.from('job_applications').select('*').order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
-    return (data ?? []).map(mapApplication)
+    return withCompanyLogos((data ?? []).map(mapApplication))
   },
   async getById(id: string): Promise<JobApplication | null> {
     const sb = getSupabaseClient()
@@ -73,7 +107,7 @@ const supabaseImpl = {
     if (error) throw new Error(error.message)
     if (!app) return null
     const { data: stages } = await sb.from('interview_stages').select('*').eq('application_id', id).order('stage_order')
-    const mapped = mapApplication(app)
+    const [mapped] = await withCompanyLogos([mapApplication(app)])
     mapped.interviewStages = (stages ?? []).map(mapInterviewStage)
     return mapped
   },
@@ -81,7 +115,7 @@ const supabaseImpl = {
     const sb = getSupabaseClient()
     const { data, error } = await sb.from('job_applications').select('*').eq('company_id', companyId).order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
-    return (data ?? []).map(mapApplication)
+    return withCompanyLogos((data ?? []).map(mapApplication))
   },
   async create(data: Partial<JobApplication>): Promise<JobApplication> {
     const sb = getSupabaseClient()

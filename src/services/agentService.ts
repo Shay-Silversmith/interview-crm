@@ -271,6 +271,7 @@ async function runOne(action: AgentAction, created: Map<string, string>): Promis
       const app = await applicationsService.create({
         companyId:   company.id,
         companyName: company.name,
+        companyLogoUrl: company.logoUrl,
         roleName:    action.roleName,
         stage:       action.stage ?? 'Applied',
         priority:    'Medium',

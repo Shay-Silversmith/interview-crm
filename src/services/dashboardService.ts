@@ -4,6 +4,7 @@ import { MOCK_DELAY_MS } from '@/lib/constants'
 import { isSupabaseMode } from '@/lib/env'
 import { getSupabaseClient } from '@/lib/supabase'
 import { mapApplication, mapTask, mapCalendarEvent, mapRecentActivity } from '@/lib/mappers'
+import { withCompanyLogos } from './applicationsService'
 
 const delay = () => new Promise<void>(r => setTimeout(r, MOCK_DELAY_MS + Math.random() * 100))
 
@@ -72,7 +73,7 @@ const supabaseImpl = {
     return {
       todayInterviews:    allEvents.filter(e => { const d = new Date(e.startAt); return e.type === 'Interview' && d >= todayStart && d < todayEnd }),
       overdueTasks:       (taskRes.data ?? []).map(mapTask),
-      topApplications:    (appRes.data ?? []).map(mapApplication),
+      topApplications:    await withCompanyLogos((appRes.data ?? []).map(mapApplication)),
       upcomingDeadlines:  allEvents,
       recentActivity:     (actRes.data ?? []).map(mapRecentActivity),
     }
